@@ -18,6 +18,8 @@
       'login.bad': 'اسم المستخدم أو كلمة المرور غير صحيحة',
       'login.disabled': 'هذا الحساب موقوف. راجع مسؤول النظام.',
       'login.welcome': 'أهلاً بك، ',
+      'login.nostorage': 'المتصفح يمنع حفظ البيانات. أغلق وضع التصفح المتخفي، أو اسمح بملفات الموقع (Cookies) لهذا الموقع، ثم أعد المحاولة.',
+      'login.storageWarn': 'تنبيه: هذا المتصفح لا يسمح بحفظ البيانات. يمكنك التصفح لكن لن يُحفظ أي شيء عند الإغلاق.',
 
       'nav.search': 'ابحث في الشاشات...',
       'top.search': 'بحث سريع (Ctrl+K)', 'top.inbox': 'صندوق الاعتمادات', 'top.theme': 'تبديل المظهر',
@@ -136,6 +138,8 @@
       'login.bad': 'Incorrect username or password',
       'login.disabled': 'This account is disabled. Contact the system administrator.',
       'login.welcome': 'Welcome, ',
+      'login.nostorage': 'This browser is blocking data storage. Turn off private/incognito mode, or allow cookies for this site, then try again.',
+      'login.storageWarn': 'Warning: this browser will not save data. You can browse, but nothing is kept when you close it.',
 
       'nav.search': 'Search screens...',
       'top.search': 'Quick search (Ctrl+K)', 'top.inbox': 'Approvals inbox', 'top.theme': 'Toggle theme',

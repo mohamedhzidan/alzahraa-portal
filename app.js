@@ -9,6 +9,15 @@
   /* ======================================================================
      BOOT
      ==================================================================== */
+  /* Can this browser actually save anything? (private mode / blocked cookies) */
+  function storageWorks() {
+    try {
+      localStorage.setItem('__az_test', '1');
+      localStorage.removeItem('__az_test');
+      return true;
+    } catch (e) { return false; }
+  }
+
   function boot() {
     I18N.init();
 
@@ -17,7 +26,28 @@
     try { theme = localStorage.getItem('az_theme'); } catch (e) {}
     if (theme === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
 
+    /* PHASE 2: if a real database is configured, connect first, then carry on.
+       When phase2/supabase-connect.js is absent or blank, this is skipped
+       entirely and the portal runs in demo mode exactly as before. */
+    if (global.SupabaseConnect && SupabaseConnect.isConfigured()) {
+      SupabaseConnect.start(function () { continueBoot(); });
+      return;
+    }
+    continueBoot();
+  }
+
+  function continueBoot() {
+    if (!storageWorks() && !(global.SupabaseConnect && SupabaseConnect.isConfigured())) {
+      var box = document.getElementById('loginError');
+      if (box) { box.textContent = t('login.storageWarn'); box.hidden = false; }
+    }
+
     Seed.run(false);
+
+    /* Safety net: if the demo data somehow didn't land, force it. */
+    if (!Store.all('users').length) {
+      try { Seed.run(true); } catch (e) { console.error('seed failed', e); }
+    }
 
     buildDemoChips();
     wireLogin();
@@ -76,7 +106,9 @@
       err.hidden = true;
       var res = Auth.login(document.getElementById('loginUser').value, document.getElementById('loginPass').value);
       if (!res.ok) {
-        err.textContent = res.error === 'disabled' ? t('login.disabled') : t('login.bad');
+        err.textContent = res.error === 'disabled' ? t('login.disabled')
+                        : res.error === 'nostorage' ? t('login.nostorage')
+                        : t('login.bad');
         err.hidden = false;
         return;
       }

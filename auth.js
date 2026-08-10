@@ -176,11 +176,24 @@
 
   function login(username, password) {
     var list = users();
+
+    /* SELF-HEAL: if the users table is empty the demo data never ran
+       (first visit, cleared storage, or a failed load). Rebuild it and retry. */
+    if (!list.length && global.Seed && typeof Seed.run === 'function') {
+      try { Seed.run(true); } catch (e) { console.error('reseed failed', e); }
+      list = users();
+    }
+    if (!list.length) return { ok: false, error: 'nostorage' };
+
+    /* phone keyboards love adding spaces and capitals — forgive both */
+    var user = String(username || '').trim().toLowerCase();
+    var pass = String(password || '').trim();
+
     for (var i = 0; i < list.length; i++) {
       var u = list[i];
-      if (u.username.toLowerCase() === String(username || '').toLowerCase().trim()) {
+      if (String(u.username || '').toLowerCase() === user) {
         if (u.status === 'inactive') return { ok: false, error: 'disabled' };
-        if (u.password !== password) {
+        if (String(u.password) !== pass) {
           Store.log('login_failed', 'users', u.id, u.username);
           return { ok: false, error: 'bad' };
         }
