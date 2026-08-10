@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="description" content="بوابة موظفي شركة الزهراء للمقاولات العامة — Alzahraa General Contracting Employee Portal">
+<meta name="theme-color" content="#0b3d2e">
+<title>بوابة الزهراء | Alzahraa Portal</title>
+
+<link rel="icon" href="assets/img/favicon.svg" type="image/svg+xml">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="assets/img/icon-192.png">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+<link rel="stylesheet" href="assets/css/styles.css">
+</head>
+<body>
+
+<!-- ============ LOGIN SCREEN ============ -->
+<div id="loginScreen" class="login-screen">
+  <div class="login-bg" aria-hidden="true"></div>
+  <div class="login-card">
+    <div class="login-brand">
+      <div class="brand-mark">
+        <svg viewBox="0 0 64 64" width="52" height="52" aria-hidden="true">
+          <defs><linearGradient id="lg1" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stop-color="#c9a227"/><stop offset="100%" stop-color="#8c6d12"/>
+          </linearGradient></defs>
+          <path d="M32 4 L58 18 v28 L32 60 L6 46 V18 Z" fill="none" stroke="url(#lg1)" stroke-width="3"/>
+          <path d="M20 42 L32 18 L44 42 M25 34 h14" fill="none" stroke="url(#lg1)" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+      <h1 class="login-title" data-i18n="app.name">شركة الزهراء للمقاولات العامة</h1>
+      <p class="login-sub" data-i18n="app.portal">بوابة الموظفين الداخلية</p>
+    </div>
+
+    <form id="loginForm" class="login-form" autocomplete="off">
+      <label class="field">
+        <span class="field-label" data-i18n="login.user">اسم المستخدم</span>
+        <input type="text" id="loginUser" class="input" placeholder="admin" required>
+      </label>
+      <label class="field">
+        <span class="field-label" data-i18n="login.pass">كلمة المرور</span>
+        <input type="password" id="loginPass" class="input" placeholder="1234" required>
+      </label>
+      <div id="loginError" class="login-error" hidden></div>
+      <button type="submit" class="btn btn-primary btn-block" data-i18n="login.submit">تسجيل الدخول</button>
+    </form>
+
+    <div class="login-demo">
+      <div class="login-demo-title" data-i18n="login.demoTitle">حسابات تجريبية (اضغط لتعبئة البيانات)</div>
+      <div id="demoAccounts" class="demo-chips"></div>
+      <div class="login-hint" data-i18n="login.demoHint">كلمة المرور لكل الحسابات التجريبية: 1234</div>
+    </div>
+
+    <button type="button" class="lang-toggle-login" id="loginLangBtn">English</button>
+  </div>
+</div>
+
+<!-- ============ APPLICATION SHELL ============ -->
+<div id="appShell" class="app-shell" hidden>
+
+  <!-- Sidebar -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-head">
+      <div class="brand-mark sm">
+        <svg viewBox="0 0 64 64" width="30" height="30" aria-hidden="true">
+          <path d="M32 4 L58 18 v28 L32 60 L6 46 V18 Z" fill="none" stroke="#c9a227" stroke-width="3"/>
+          <path d="M20 42 L32 18 L44 42 M25 34 h14" fill="none" stroke="#c9a227" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+      <div class="sidebar-brand-text">
+        <strong data-i18n="app.short">الزهراء للمقاولات</strong>
+        <small data-i18n="app.portal">بوابة الموظفين الداخلية</small>
+      </div>
+      <button class="icon-btn sidebar-close" id="sidebarClose" aria-label="close">&times;</button>
+    </div>
+
+    <div class="sidebar-search">
+      <input type="search" id="navSearch" class="input input-sm" data-i18n-ph="nav.search" placeholder="ابحث في الشاشات...">
+    </div>
+
+    <nav class="nav" id="mainNav" aria-label="Main"></nav>
+
+    <div class="sidebar-foot">
+      <div class="storage-meter" title="Local storage">
+        <div class="storage-bar"><span id="storageBar"></span></div>
+        <small id="storageText">—</small>
+      </div>
+    </div>
+  </aside>
+  <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
+
+  <!-- Main -->
+  <div class="main">
+    <header class="topbar">
+      <button class="icon-btn menu-btn" id="menuBtn" aria-label="menu">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
+      </button>
+
+      <div class="breadcrumbs" id="breadcrumbs"></div>
+
+      <div class="topbar-actions">
+        <button class="icon-btn" id="globalSearchBtn" data-tip-i18n="top.search" aria-label="search">
+          <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+        </button>
+        <button class="icon-btn badge-holder" id="inboxBtn" data-tip-i18n="top.inbox" aria-label="inbox">
+          <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16v10H15l-2 3h-2l-2-3H4z"/><path d="M4 14v6h16v-6"/></svg>
+          <span class="badge-dot" id="inboxBadge" hidden>0</span>
+        </button>
+        <button class="icon-btn" id="themeBtn" data-tip-i18n="top.theme" aria-label="theme">
+          <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
+        </button>
+        <button class="btn btn-ghost btn-sm" id="langBtn">English</button>
+
+        <div class="user-menu">
+          <button class="user-btn" id="userBtn">
+            <span class="avatar" id="userAvatar">؟</span>
+            <span class="user-meta">
+              <strong id="userName">—</strong>
+              <small id="userRole">—</small>
+            </span>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg>
+          </button>
+          <div class="dropdown" id="userDropdown" hidden>
+            <button class="dropdown-item" data-action="profile"><span data-i18n="menu.profile">الملف الشخصي</span></button>
+            <button class="dropdown-item" data-action="settings"><span data-i18n="menu.settings">الإعدادات</span></button>
+            <button class="dropdown-item" data-action="backup"><span data-i18n="menu.backup">نسخة احتياطية (تنزيل)</span></button>
+            <button class="dropdown-item" data-action="restore"><span data-i18n="menu.restore">استعادة نسخة</span></button>
+            <div class="dropdown-sep"></div>
+            <button class="dropdown-item danger" data-action="logout"><span data-i18n="menu.logout">تسجيل الخروج</span></button>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <main class="content" id="content" tabindex="-1"></main>
+
+    <footer class="app-footer">
+      <span data-i18n="footer.copy">© 2026 شركة الزهراء للمقاولات العامة — نظام داخلي</span>
+      <span class="footer-sep">•</span>
+      <span id="footerVersion">v1.0.0</span>
+      <span class="footer-sep">•</span>
+      <span class="demo-flag" data-i18n="footer.demo">وضع تجريبي: البيانات محفوظة على هذا الجهاز فقط</span>
+    </footer>
+  </div>
+</div>
+
+<!-- Modal host -->
+<div class="modal-host" id="modalHost" hidden>
+  <div class="modal-backdrop" id="modalBackdrop"></div>
+  <div class="modal" id="modal" role="dialog" aria-modal="true">
+    <header class="modal-head">
+      <h3 id="modalTitle">—</h3>
+      <button class="icon-btn" id="modalClose" aria-label="close">&times;</button>
+    </header>
+    <div class="modal-body" id="modalBody"></div>
+    <footer class="modal-foot" id="modalFoot"></footer>
+  </div>
+</div>
+
+<!-- Command palette -->
+<div class="palette-host" id="paletteHost" hidden>
+  <div class="modal-backdrop" id="paletteBackdrop"></div>
+  <div class="palette">
+    <input type="text" id="paletteInput" class="palette-input" data-i18n-ph="palette.ph" placeholder="ابحث عن شاشة أو أمر...">
+    <div class="palette-results" id="paletteResults"></div>
+  </div>
+</div>
+
+<div class="toast-host" id="toastHost"></div>
+<input type="file" id="restoreInput" accept="application/json" hidden>
+
+<!-- Chart library (optional; app works without internet) -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+
+<script src="assets/js/i18n.js"></script>
+<script src="assets/js/store.js"></script>
+<script src="assets/js/schema.js"></script>
+<script src="assets/js/auth.js"></script>
+<script src="assets/js/workflow.js"></script>
+<script src="assets/js/seed.js"></script>
+<script src="assets/js/ui.js"></script>
+<script src="assets/js/pages/dashboard.js"></script>
+<script src="assets/js/pages/entity.js"></script>
+<script src="assets/js/pages/approvals.js"></script>
+<script src="assets/js/pages/reports.js"></script>
+<script src="assets/js/pages/settings.js"></script>
+<script src="assets/js/app.js"></script>
+</body>
+</html>
