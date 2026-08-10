@@ -15,7 +15,10 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 
-<link rel="stylesheet" href="assets/css/styles.css">
+<!-- Stylesheet: try the tidy location, fall back to the repository root.
+     This means the site works whether or not the folder structure survived upload. -->
+<link rel="stylesheet" href="assets/css/styles.css"
+      onerror="this.onerror=null;this.href='styles.css';">
 </head>
 <body>
 
@@ -37,7 +40,9 @@
       <p class="login-sub" data-i18n="app.portal">بوابة الموظفين الداخلية</p>
     </div>
 
-    <form id="loginForm" class="login-form" autocomplete="off">
+    <!-- onsubmit="return false" is a safety net: if the program files fail to
+         load, the page must never silently reload and look like a wrong password. -->
+    <form id="loginForm" class="login-form" autocomplete="off" onsubmit="return false;">
       <label class="field">
         <span class="field-label" data-i18n="login.user">اسم المستخدم</span>
         <input type="text" id="loginUser" class="input" placeholder="admin" required>
@@ -177,18 +182,148 @@
 <!-- Chart library (optional; app works without internet) -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 
-<script src="assets/js/i18n.js"></script>
-<script src="assets/js/store.js"></script>
-<script src="assets/js/schema.js"></script>
-<script src="assets/js/auth.js"></script>
-<script src="assets/js/workflow.js"></script>
-<script src="assets/js/seed.js"></script>
-<script src="assets/js/ui.js"></script>
-<script src="assets/js/pages/dashboard.js"></script>
-<script src="assets/js/pages/entity.js"></script>
-<script src="assets/js/pages/approvals.js"></script>
-<script src="assets/js/pages/reports.js"></script>
-<script src="assets/js/pages/settings.js"></script>
-<script src="assets/js/app.js"></script>
+<!-- =========================================================================
+     SCRIPT LOADER
+     Loads the program files strictly in order. For each file it first tries
+     the tidy location (assets/js/...). If that isn't there — which happens
+     when an upload flattens the folders — it automatically retries the same
+     file at the top level. The portal therefore works with either layout.
+
+     PHASE 2: to switch on the real database, remove the two slashes at the
+     start of the 'phase2/supabase-connect.js' line below.
+     ========================================================================= -->
+<script>
+(function () {
+  var FILES = [
+    'assets/js/i18n.js',
+    'assets/js/store.js',
+    'assets/js/schema.js',
+    'assets/js/auth.js',
+    'assets/js/workflow.js',
+    'assets/js/seed.js',
+    'assets/js/ui.js',
+    'assets/js/pages/dashboard.js',
+    'assets/js/pages/entity.js',
+    'assets/js/pages/approvals.js',
+    'assets/js/pages/reports.js',
+    'assets/js/pages/settings.js',
+    // 'phase2/supabase-connect.js',   ← PHASE 2: remove the // to enable
+    'assets/js/app.js'
+  ];
+
+  window.AZ_LOAD_FAILED = [];
+
+  function basename(p) { return p.split('/').pop(); }
+
+  function loadOne(path, done) {
+    var s = document.createElement('script');
+    s.src = path;
+    s.async = false;
+    s.onload = function () { done(true); };
+    s.onerror = function () {
+      var alt = basename(path);
+      if (alt === path) { window.AZ_LOAD_FAILED.push(path); done(false); return; }
+      var s2 = document.createElement('script');
+      s2.src = alt;
+      s2.async = false;
+      s2.onload = function () { done(true); };
+      s2.onerror = function () { window.AZ_LOAD_FAILED.push(path); done(false); };
+      document.head.appendChild(s2);
+    };
+    document.head.appendChild(s);
+  }
+
+  var i = 0;
+  (function next() {
+    if (i >= FILES.length) { window.AZ_LOAD_DONE = true; return; }
+    loadOne(FILES[i++], next);
+  })();
+})();
+</script>
+
+<!-- =========================================================================
+     SELF-CHECK — runs even when the files above fail to load.
+     If a file is missing (bad upload), this replaces the login box with a
+     plain-language message naming the exact file, in Arabic and English.
+     Nothing here affects a healthy site.
+     ========================================================================= -->
+<script>
+(function () {
+  var NEEDED = [
+    ['I18N',          'assets/js/i18n.js'],
+    ['Store',         'assets/js/store.js'],
+    ['Schema',        'assets/js/schema.js'],
+    ['Auth',          'assets/js/auth.js'],
+    ['Workflow',      'assets/js/workflow.js'],
+    ['Seed',          'assets/js/seed.js'],
+    ['UI',            'assets/js/ui.js'],
+    ['Dashboard',     'assets/js/pages/dashboard.js'],
+    ['EntityPage',    'assets/js/pages/entity.js'],
+    ['ApprovalsPage', 'assets/js/pages/approvals.js'],
+    ['ReportsPage',   'assets/js/pages/reports.js'],
+    ['SettingsPage',  'assets/js/pages/settings.js'],
+    ['App',           'assets/js/app.js']
+  ];
+
+  function check() {
+    var missing = [];
+    for (var i = 0; i < NEEDED.length; i++) {
+      if (!window[NEEDED[i][0]]) missing.push(NEEDED[i][1]);
+    }
+
+    var cssOk = true;
+    try {
+      var probe = getComputedStyle(document.documentElement).getPropertyValue('--green-800');
+      cssOk = !!(probe && probe.trim());
+    } catch (e) { cssOk = false; }
+    if (!cssOk) missing.push('assets/css/styles.css');
+
+    if (!missing.length) return;
+
+    var card = document.querySelector('.login-card') || document.body;
+    card.setAttribute('style',
+      'background:#fff;color:#12211c;max-width:640px;margin:40px auto;padding:28px;' +
+      'border-radius:14px;font-family:Tahoma,Arial,sans-serif;line-height:1.9;' +
+      'box-shadow:0 10px 40px rgba(0,0,0,.3);position:relative;z-index:99');
+
+    var list = '';
+    for (var j = 0; j < missing.length; j++) {
+      list += '<li style="font-family:monospace;direction:ltr;text-align:left;' +
+              'background:#fdeceb;color:#b42318;padding:4px 8px;border-radius:5px;' +
+              'margin:5px 0;display:block">' + missing[j] + '</li>';
+    }
+
+    card.innerHTML =
+      '<h2 style="color:#b42318;margin:0 0 6px">⚠️ الموقع ناقص ملفات</h2>' +
+      '<p style="margin:0 0 14px">لم يتم رفع الملفات التالية بشكل صحيح إلى GitHub:</p>' +
+      '<ul style="padding:0;margin:0 0 16px;list-style:none">' + list + '</ul>' +
+      '<div style="background:#e6f2ed;padding:14px;border-radius:9px;margin-bottom:16px">' +
+        '<strong>كيف تصلحها:</strong>' +
+        '<ol style="padding-inline-start:20px;margin:8px 0 0">' +
+          '<li>افتح مستودعك على GitHub.</li>' +
+          '<li>تأكد أن ملف <b>index.html</b> ظاهر في الصفحة الأولى مباشرة، وليس داخل مجلد.</li>' +
+          '<li>تأكد أن مجلد <b>assets</b> موجود، وبداخله <b>css</b> و <b>js</b>، وداخل <b>js</b> مجلد <b>pages</b>.</li>' +
+          '<li>لو ينقصك أي ملف: اضغط <b>Add file ← Upload files</b> واسحب المجلد <b>assets</b> كاملاً مرة أخرى.</li>' +
+          '<li>اضغط <b>Commit changes</b> وانتظر دقيقة ثم حدّث الصفحة بـ Ctrl+Shift+R.</li>' +
+        '</ol>' +
+      '</div>' +
+      '<hr style="border:none;border-top:1px solid #e2e7e5;margin:16px 0">' +
+      '<h3 style="margin:0 0 6px;font-size:15px">⚠️ Missing files</h3>' +
+      '<p style="margin:0;font-size:13px;color:#4a5a54">The files listed above did not upload to GitHub correctly. ' +
+      'Open your repository, confirm <b>index.html</b> sits on the front page (not inside a folder), ' +
+      'and that the <b>assets</b> folder contains <b>css</b> and <b>js</b> (with a <b>pages</b> folder inside js). ' +
+      'Re-upload the whole <b>assets</b> folder, commit, then hard-refresh with Ctrl+Shift+R.</p>';
+  }
+
+  /* Files now load one after another, so wait until the loader says it has
+     finished (or give up after 15 seconds on a very slow connection). */
+  var waited = 0;
+  (function waitForLoader() {
+    if (window.AZ_LOAD_DONE || waited > 15000) { setTimeout(check, 80); return; }
+    waited += 150;
+    setTimeout(waitForLoader, 150);
+  })();
+})();
+</script>
 </body>
 </html>
