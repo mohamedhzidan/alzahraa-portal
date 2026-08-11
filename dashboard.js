@@ -178,14 +178,18 @@
     html += UI.kpi({ label: t('dash.pending'), value: '<span class="num">' + inbox + '</span>', icon: 'inbox', tone: inbox ? 'danger' : '' });
     html += '</div>';
 
-    /* alerts */
-    var alerts = buildAlerts(activeProjects);
-    if (alerts.length) {
-      html += '<div class="card mb-2"><div class="card-head"><h3 class="card-title">' + UI.icon('alert', 17) + ' ' + t('dash.alerts') + '</h3></div><div class="card-body">';
-      alerts.forEach(function (a) {
-        html += '<div class="alert alert-' + a.kind + '" style="margin-bottom:8px">' + UI.icon('alert', 16) + '<span>' + a.text + '</span></div>';
-      });
-      html += '</div></div>';
+    /* alerts — from the rule engine */
+    if (global.Alerts) {
+      var alCount = 0;
+      try { Alerts.invalidate(); alCount = Alerts.count(); } catch (e) {}
+      if (alCount) {
+        html += '<div class="card mb-2"><div class="card-head">' +
+          '<h3 class="card-title">' + UI.icon('alert', 17) + ' ' + t('dash.alerts') + '</h3>' +
+          '<span class="badge b-rejected plain num">' + alCount + '</span>' +
+          '<button class="btn btn-ghost btn-sm" data-go="alerts" style="margin-inline-start:auto">' +
+          L({ ar: 'عرض الكل', en: 'View all' }) + ' →</button></div>' +
+          '<div class="card-body flush">' + Alerts.dashboardHTML(6) + '</div></div>';
+      }
     }
 
     /* charts */
@@ -248,6 +252,13 @@
     });
     host.querySelectorAll('[data-newin]').forEach(function (b) {
       b.onclick = function () { EntityPage.openForm(b.getAttribute('data-newin'), null); };
+    });
+    host.querySelectorAll('[data-alert]').forEach(function (row) {
+      row.onclick = function () {
+        var m = row.getAttribute('data-alert'), rid = row.getAttribute('data-rid');
+        App.go(m);
+        if (rid) setTimeout(function () { try { EntityPage.openDetail(m, rid); } catch (e) {} }, 220);
+      };
     });
 
     drawCharts(activeProjects);

@@ -387,11 +387,22 @@
     if (mod.workflow) body += '<div class="mt-2">' + Workflow.trailHTML(rec) + '</div>';
     body += '</div>';
 
+    /* who is allowed to approve this value */
+    if (global.Rules && mod.workflow) {
+      var hint = Rules.approverHint(mod, rec);
+      if (hint && ['pending', 'reviewed'].indexOf(rec.status) !== -1) {
+        body += '<div class="alert alert-info">' + UI.icon('eye', 17) + '<span>' + UI.esc(hint) + '</span></div>';
+      }
+    }
+
     /* buttons */
     var buttons = [{ label: t('g.close'), cls: 'btn-ghost' }];
     buttons.push({
-      label: t('g.print'), cls: 'btn-outline', keepOpen: true,
-      onClick: function () { window.print(); return false; }
+      label: L({ ar: 'طباعة المستند الرسمي', en: 'Print official document' }), cls: 'btn-outline', keepOpen: true,
+      onClick: function () {
+        if (global.Print) Print.doc(moduleId, id); else window.print();
+        return false;
+      }
     });
     if (Auth.can(moduleId, 'edit') && !Workflow.isLocked(rec)) {
       buttons.push({ label: t('g.edit'), cls: 'btn-outline', onClick: function () { setTimeout(function () { openForm(moduleId, id); }, 60); } });
@@ -428,6 +439,23 @@
       var err = mod.lines.validate(rec);
       if (err) { UI.toast(L(err), 'error', 5000); return; }
     }
+
+    /* spending authority: is this person allowed to approve this amount? */
+    if (global.Rules) {
+      var record = Store.find(mod.table, id);
+      var gate = Rules.validateTransition(mod, record, action);
+      if (gate.errors.length) { showGuard(gate.errors, [], null); return; }
+      if (gate.confirms.length) {
+        showGuard([], gate.confirms, function () {
+          finishTransition(moduleId, id, action, reason);
+        });
+        return;
+      }
+    }
+    finishTransition(moduleId, id, action, reason);
+  }
+
+  function finishTransition(moduleId, id, action, reason) {
     var res = Workflow.transition(moduleId, id, action, reason);
     if (!res.ok) { UI.toast(res.error || t('wf.noPerm'), 'error', 4500); return; }
     var msgs = {
@@ -762,6 +790,21 @@
 
     recalc(mod, draft);
 
+    /* human-error guards: hard errors block, warnings ask for confirmation */
+    if (global.Rules) {
+      var check = Rules.validateSave(mod, draft, id);
+      if (check.errors.length) { showGuard(check.errors, [], null); return false; }
+      if (check.warnings.length) {
+        showGuard([], check.warnings, function () { commit(mod, id, draft); });
+        return false;
+      }
+    }
+
+    commit(mod, id, draft);
+    return true;
+  }
+
+  function commit(mod, id, draft) {
     if (id) {
       Store.save(mod.table, id, draft);
     } else {
@@ -769,11 +812,36 @@
       if (mod.docPrefix && !draft.docNo) draft.docNo = Store.nextDocNo(mod.docPrefix);
       Store.create(mod.table, draft);
     }
-
     UI.closeModal();
     UI.toast(t('g.saved'));
     App.refresh();
-    return true;
+  }
+
+  /* One dialog for both blocking errors and "are you sure" warnings. */
+  function showGuard(errors, warnings, onProceed) {
+    var body = '';
+    errors.forEach(function (e) {
+      body += '<div class="alert alert-danger">' + UI.icon('alert', 17) + '<span>' + UI.esc(e) + '</span></div>';
+    });
+    warnings.forEach(function (w) {
+      body += '<div class="alert alert-warn">' + UI.icon('alert', 17) + '<span>' + UI.esc(w) + '</span></div>';
+    });
+    if (errors.length) {
+      body += '<p class="small muted mt-2">' +
+        L({ ar: 'صحّح ما سبق ثم احفظ مرة أخرى.', en: 'Correct the above, then save again.' }) + '</p>';
+    }
+    var buttons = errors.length
+      ? [{ label: t('g.close'), cls: 'btn-primary' }]
+      : [{ label: t('g.cancel'), cls: 'btn-ghost' },
+         { label: L({ ar: 'راجعتُ وأتحمّل المسؤولية — احفظ', en: 'I have checked — save anyway' }),
+           cls: 'btn-gold', onClick: onProceed }];
+
+    UI.modal({
+      title: errors.length
+        ? L({ ar: 'لا يمكن الحفظ', en: 'Cannot save' })
+        : L({ ar: 'تنبيه قبل الحفظ', en: 'Please confirm' }),
+      body: body, buttons: buttons
+    });
   }
 
   global.EntityPage = {

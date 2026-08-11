@@ -153,3 +153,17 @@ html[data-brand="alzahraa"] .palette-item.sel{background:var(--brand-mist); colo
 @media print{
   html[data-brand="alzahraa"] .brand-mark svg{color:#000 !important}
 }
+
+/* ── صفوف التنبيهات / alert rows ──────────────────────────────────── */
+.alert-row{display:flex;align-items:flex-start;gap:10px;padding:11px 15px;
+  border-bottom:1px solid var(--border);cursor:pointer;transition:background var(--fast);font-size:13px}
+.alert-row:last-child{border-bottom:none}
+.alert-row:hover{background:var(--brand-mist)}
+.al-ic{flex:0 0 26px;height:26px;border-radius:7px;display:grid;place-items:center}
+.al-ic.danger{background:var(--danger-bg);color:var(--danger)}
+.al-ic.warn{background:var(--warn-bg);color:var(--warn)}
+.al-ic.info{background:var(--info-bg);color:var(--info)}
+.al-tx{flex:1;min-width:0;line-height:1.6}
+.al-mod{font-size:11px;color:var(--text-3);white-space:nowrap;align-self:center}
+.nav-count.danger{background:#B42318;color:#fff}
+@media(max-width:680px){.al-mod{display:none}}

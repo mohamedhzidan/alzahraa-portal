@@ -65,13 +65,15 @@
   function F(name, ar, en, type, extra) {
     return Object.assign({ name: name, label: { ar: ar, en: en }, type: type || 'text' }, extra || {});
   }
+  var SEC_HAND = { ar: 'التسليم والاستلام', en: 'Handover & receipt' };
   var SEC = {
     main:   { ar: 'البيانات الأساسية', en: 'Main information' },
     money:  { ar: 'القيم المالية',     en: 'Financial values' },
     link:   { ar: 'الربط والتحميل',    en: 'Links & cost allocation' },
     extra:  { ar: 'بيانات إضافية',     en: 'Additional information' },
     dates:  { ar: 'التواريخ',          en: 'Dates' },
-    contact:{ ar: 'بيانات الاتصال',    en: 'Contact details' }
+    contact:{ ar: 'بيانات الاتصال',    en: 'Contact details' },
+    hand:   { ar: 'التسليم والاستلام', en: 'Handover & receipt' }
   };
 
   /* =======================================================================
@@ -283,7 +285,13 @@
           ]
         }),
         F('taxRate', 'نسبة الضريبة', 'Tax rate', 'select', { options: TAX_RATES, default: '14', section: SEC.money }),
-        F('notes', 'ملاحظات الفحص', 'Inspection notes', 'textarea', { section: SEC.extra, full: true })
+        F('notes', 'ملاحظات الفحص', 'Inspection notes', 'textarea', { section: SEC.extra, full: true }),
+        F('supplierRep', 'مندوب المورد المسلِّم', 'Supplier delivery rep', 'text', { section: SEC.hand }),
+        F('supplierRepId', 'رقم بطاقة المندوب', 'Rep ID number', 'text', { section: SEC.hand }),
+        F('driverName', 'اسم السائق', 'Driver name', 'text', { section: SEC.hand }),
+        F('vehicleNo', 'رقم السيارة', 'Vehicle number', 'text', { section: SEC.hand }),
+        F('receivedByStore', 'المستلم بالمخزن', 'Received by (store)', 'ref', { ref: 'employees', refLabel: 'name', required: true, section: SEC.hand }),
+        F('receiptTime', 'وقت الاستلام', 'Receipt time', 'text', { section: SEC.hand, help: { ar: 'مثال 14:30', en: 'e.g. 14:30' } }),
       ],
       lines: {
         label: { ar: 'الأصناف المستلمة', en: 'Received items' },
@@ -323,7 +331,9 @@
         F('grandTotal', 'الإجمالي المستحق', 'Total payable', 'calc', { section: SEC.money, formula: 'subTotal+subTotal*taxRate/100-withholding' }),
         F('paidAmount', 'المسدد', 'Paid amount', 'money', { readonly: true, section: SEC.money }),
         F('dueDate', 'تاريخ الاستحقاق', 'Due date', 'date', { section: SEC.dates }),
-        F('notes', 'ملاحظات', 'Notes', 'textarea', { section: SEC.extra, full: true })
+        F('notes', 'ملاحظات', 'Notes', 'textarea', { section: SEC.extra, full: true }),
+        F('receivedFrom', 'من سلّم الفاتورة', 'Invoice delivered by', 'text', { section: SEC.hand }),
+        F('registeredBy', 'من سجّلها بالنظام', 'Registered by', 'ref', { ref: 'employees', refLabel: 'name', section: SEC.hand }),
       ]
     },
 
@@ -354,7 +364,11 @@
         F('chequeNo', 'رقم الشيك / التحويل', 'Cheque / transfer no.', 'text', { section: SEC.money }),
         F('amount', 'المبلغ', 'Amount', 'money', { required: true, section: SEC.money }),
         F('description', 'البيان', 'Description', 'text', { required: true, section: SEC.main, full: true }),
-        F('notes', 'ملاحظات', 'Notes', 'textarea', { section: SEC.extra, full: true })
+        F('notes', 'ملاحظات', 'Notes', 'textarea', { section: SEC.extra, full: true }),
+        F('paidBy', 'من قام بالصرف', 'Paid by', 'ref', { ref: 'employees', refLabel: 'name', section: SEC.hand }),
+        F('receivedByName', 'اسم من استلم النقدية', 'Cash received by (name)', 'text', { section: SEC.hand }),
+        F('receivedById', 'الرقم القومي للمستلم', 'Receiver national ID', 'text', { section: SEC.hand }),
+        F('receivedByTitle', 'صفة المستلم', 'Receiver capacity', 'text', { section: SEC.hand }),
       ]
     },
 
@@ -376,7 +390,10 @@
         F('chequeNo', 'رقم الشيك / التحويل', 'Cheque / transfer no.', 'text', { section: SEC.money }),
         F('amount', 'المبلغ', 'Amount', 'money', { required: true, section: SEC.money }),
         F('description', 'البيان', 'Description', 'text', { required: true, section: SEC.main, full: true }),
-        F('notes', 'ملاحظات', 'Notes', 'textarea', { section: SEC.extra, full: true })
+        F('notes', 'ملاحظات', 'Notes', 'textarea', { section: SEC.extra, full: true }),
+        F('collectedBy', 'من قام بالتحصيل', 'Collected by', 'ref', { ref: 'employees', refLabel: 'name', section: SEC.hand }),
+        F('payerTitle', 'صفة الدافع', 'Payer capacity', 'text', { section: SEC.hand }),
+        F('manualReceiptNo', 'رقم الإيصال اليدوي', 'Manual receipt no.', 'text', { section: SEC.hand }),
       ]
     },
 
@@ -475,7 +492,10 @@
         F('costItem', 'بند التكلفة', 'Cost item', 'ref', { ref: 'costItems', refLabel: 'name', required: true, section: SEC.link }),
         F('receivedBy', 'المستلم', 'Received by', 'ref', { ref: 'employees', refLabel: 'name', required: true, section: SEC.main }),
         F('purpose', 'الغرض من الصرف', 'Purpose', 'text', { required: true, section: SEC.main, full: true }),
-        F('notes', 'ملاحظات', 'Notes', 'textarea', { section: SEC.extra, full: true })
+        F('notes', 'ملاحظات', 'Notes', 'textarea', { section: SEC.extra, full: true }),
+        F('issuedBy', 'الصارف (أمين المخزن)', 'Issued by (storekeeper)', 'ref', { ref: 'employees', refLabel: 'name', required: true, section: SEC.hand }),
+        F('receiverTitle', 'صفة المستلم', 'Receiver job title', 'text', { section: SEC.hand }),
+        F('receiverSigned', 'وقّع المستلم على الإذن', 'Receiver signed the note', 'checkbox', { section: SEC.hand }),
       ],
       lines: {
         label: { ar: 'الأصناف المنصرفة', en: 'Issued items' },
@@ -504,7 +524,10 @@
         F('toWarehouse', 'إلى مخزن', 'To warehouse', 'ref', { ref: 'warehouses', refLabel: 'name', required: true, section: SEC.link }),
         F('driver', 'السائق / الناقل', 'Driver / carrier', 'text', { section: SEC.main }),
         F('vehicle', 'رقم السيارة', 'Vehicle no.', 'text', { section: SEC.main }),
-        F('notes', 'ملاحظات', 'Notes', 'textarea', { section: SEC.extra, full: true })
+        F('notes', 'ملاحظات', 'Notes', 'textarea', { section: SEC.extra, full: true }),
+        F('dispatchedBy', 'المسلِّم بالمخزن المصدر', 'Dispatched by (source store)', 'ref', { ref: 'employees', refLabel: 'name', section: SEC.hand }),
+        F('receivedByDest', 'المستلم بمخزن الوجهة', 'Received by (destination)', 'ref', { ref: 'employees', refLabel: 'name', section: SEC.hand }),
+        F('arrivalDate', 'تاريخ الوصول الفعلي', 'Actual arrival date', 'date', { section: SEC.hand }),
       ],
       lines: {
         label: { ar: 'الأصناف المحوَّلة', en: 'Transferred items' },
@@ -531,7 +554,11 @@
         F('date', 'تاريخ الجرد', 'Count date', 'date', { required: true, default: 'today', section: SEC.main }),
         F('warehouse', 'المخزن', 'Warehouse', 'ref', { ref: 'warehouses', refLabel: 'name', required: true, section: SEC.link }),
         F('committee', 'لجنة الجرد', 'Count committee', 'text', { section: SEC.main, full: true }),
-        F('reason', 'سبب الفروق', 'Reason for differences', 'textarea', { section: SEC.extra, full: true })
+        F('reason', 'سبب الفروق', 'Reason for differences', 'textarea', { section: SEC.extra, full: true }),
+        F('member1', 'عضو اللجنة الأول', 'Committee member 1', 'ref', { ref: 'employees', refLabel: 'name', section: SEC.hand }),
+        F('member2', 'عضو اللجنة الثاني', 'Committee member 2', 'ref', { ref: 'employees', refLabel: 'name', section: SEC.hand }),
+        F('member3', 'عضو اللجنة الثالث', 'Committee member 3', 'ref', { ref: 'employees', refLabel: 'name', section: SEC.hand }),
+        F('supervisedBy', 'المشرف على الجرد', 'Supervised by', 'ref', { ref: 'employees', refLabel: 'name', section: SEC.hand }),
       ],
       lines: {
         label: { ar: 'نتيجة الجرد', en: 'Count result' },
@@ -664,7 +691,11 @@
         F('netDue', 'صافي المستحق', 'Net due', 'calc', { section: SEC.money,
           formula: '(cumulativeWork-previousWork)-advanceRecovery-retention-deductions+((cumulativeWork-previousWork)*taxRate/100)' }),
         F('collectedAmount', 'المحصَّل', 'Collected', 'money', { readonly: true, section: SEC.money }),
-        F('notes', 'ملاحظات', 'Notes', 'textarea', { section: SEC.extra, full: true })
+        F('notes', 'ملاحظات', 'Notes', 'textarea', { section: SEC.extra, full: true }),
+        F('preparedBy', 'من أعدّ المستخلص', 'Prepared by', 'ref', { ref: 'employees', refLabel: 'name', section: SEC.hand }),
+        F('consultantEngineer', 'مهندس الاستشاري المراجع', 'Reviewing consultant engineer', 'text', { section: SEC.hand }),
+        F('clientRep', 'ممثل العميل الموقّع', 'Client representative (signed)', 'text', { section: SEC.hand }),
+        F('clientSignDate', 'تاريخ توقيع العميل', 'Client signature date', 'date', { section: SEC.hand }),
       ]
     },
 
@@ -752,7 +783,10 @@
         F('netDue', 'صافي المستحق', 'Net due', 'calc', { section: SEC.money,
           formula: '(cumulativeWork-previousWork)-advanceRecovery-retention-penalties-withholding' }),
         F('paidAmount', 'المسدد', 'Paid', 'money', { readonly: true, section: SEC.money }),
-        F('notes', 'ملاحظات', 'Notes', 'textarea', { section: SEC.extra, full: true })
+        F('notes', 'ملاحظات', 'Notes', 'textarea', { section: SEC.extra, full: true }),
+        F('preparedBy', 'من أعدّ المستخلص', 'Prepared by', 'ref', { ref: 'employees', refLabel: 'name', section: SEC.hand }),
+        F('siteEngineer', 'مهندس الموقع المعتمِد للكميات', 'Site engineer certifying quantities', 'ref', { ref: 'employees', refLabel: 'name', section: SEC.hand }),
+        F('contractorRep', 'ممثل المقاول الموقّع', 'Contractor representative (signed)', 'text', { section: SEC.hand }),
       ]
     },
 
@@ -1014,7 +1048,14 @@
         F('date', 'تاريخ الإعداد', 'Prepared on', 'date', { required: true, default: 'today', section: SEC.main }),
         F('project', 'المشروع (اختياري)', 'Project (optional)', 'ref', { ref: 'projects', refLabel: 'name', section: SEC.link }),
         F('employeeCount', 'عدد الموظفين', 'Employee count', 'number', { readonly: true, section: SEC.main }),
-        F('notes', 'ملاحظات', 'Notes', 'textarea', { section: SEC.extra, full: true })
+        F('notes', 'ملاحظات', 'Notes', 'textarea', { section: SEC.extra, full: true }),
+        F('preparedBy', 'من أعدّ المسير', 'Prepared by', 'ref', { ref: 'employees', refLabel: 'name', section: SEC.hand }),
+        F('checkedBy', 'من راجع المسير', 'Checked by', 'ref', { ref: 'employees', refLabel: 'name', section: SEC.hand }),
+        F('disbursedBy', 'من قام بالصرف', 'Disbursed by', 'ref', { ref: 'employees', refLabel: 'name', section: SEC.hand }),
+        F('payMethod', 'طريقة الصرف', 'Payment method', 'select', { section: SEC.hand, options: [
+          { value: 'bank', label: { ar: 'تحويل بنكي', en: 'Bank transfer' } },
+          { value: 'cash', label: { ar: 'نقداً', en: 'Cash' } },
+          { value: 'mixed', label: { ar: 'مختلط', en: 'Mixed' } } ] }),
       ],
       lines: {
         label: { ar: 'بنود المسير', en: 'Payroll lines' },

@@ -156,7 +156,8 @@
     var groups = [
       { id: 'main', items: [
         { id: 'dashboard', icon: 'grid', label: { ar: 'لوحة التحكم', en: 'Dashboard' } },
-        { id: 'inbox', icon: 'inbox', label: { ar: 'صندوق الاعتمادات', en: 'Approvals inbox' }, badge: true }
+        { id: 'inbox', icon: 'inbox', label: { ar: 'صندوق الاعتمادات', en: 'Approvals inbox' }, badge: true },
+        { id: 'alerts', icon: 'alert', label: { ar: 'التنبيهات', en: 'Alerts' }, alertBadge: true }
       ] },
       { id: 'finance',  items: modulesIn('finance') },
       { id: 'projects', items: modulesIn('projects') },
@@ -180,7 +181,8 @@
         b.setAttribute('data-route', it.id);
         b.innerHTML = '<span class="nav-icon">' + UI.icon(it.icon, 17) + '</span>' +
           '<span class="nav-label">' + UI.esc(L(it.label)) + '</span>' +
-          (it.badge ? '<span class="nav-count" data-inbox-count hidden>0</span>' : '');
+          (it.badge ? '<span class="nav-count" data-inbox-count hidden>0</span>' : '') +
+          (it.alertBadge ? '<span class="nav-count danger" data-alert-count hidden>0</span>' : '');
         b.onclick = function () { go(it.id); };
         gEl.appendChild(b);
       });
@@ -232,6 +234,7 @@
 
     if (route === 'dashboard') { Dashboard.render(host); }
     else if (route === 'inbox') { ApprovalsPage.render(host); }
+    else if (route === 'alerts') { Alerts.invalidate(); Alerts.render(host); }
     else if (route === 'reports') { ReportsPage.render(host); }
     else if (route === 'settings') { SettingsPage.render(host); }
     else { EntityPage.render(route, host); }
@@ -245,6 +248,7 @@
     var name, groupName = '';
     if (route === 'dashboard') name = t('dash.title');
     else if (route === 'inbox') name = t('inbox.title');
+    else if (route === 'alerts') name = t('alerts.title');
     else if (route === 'reports') name = t('rep.title');
     else if (route === 'settings') name = t('set.title');
     else {
@@ -280,6 +284,8 @@
     };
 
     document.getElementById('inboxBtn').onclick = function () { go('inbox'); };
+    var alBtn = document.getElementById('alertsBtn');
+    if (alBtn) alBtn.onclick = function () { go('alerts'); };
     document.getElementById('globalSearchBtn').onclick = openPalette;
 
     /* user dropdown */
@@ -411,6 +417,14 @@
     document.querySelectorAll('[data-inbox-count]').forEach(function (el) {
       el.textContent = n; el.hidden = !n;
     });
+
+    var an = 0;
+    try { Alerts.invalidate(); an = Alerts.count(); } catch (e) {}
+    document.querySelectorAll('[data-alert-count]').forEach(function (el) {
+      el.textContent = an; el.hidden = !an;
+    });
+    var ab = document.getElementById('alertBadge');
+    if (ab) { ab.textContent = an; ab.hidden = !an; }
   }
   function updateStorage() {
     var u = Store.usage();
@@ -436,6 +450,7 @@
     var out = [];
 
     [['dashboard', t('dash.title'), 'grid'], ['inbox', t('inbox.title'), 'inbox'],
+     ['alerts', t('alerts.title'), 'alert'],
      ['reports', t('rep.title'), 'chart'], ['settings', t('set.title'), 'settings']].forEach(function (x) {
       out.push({ route: x[0], label: x[1], icon: x[2], hint: t('grp.main') });
     });
