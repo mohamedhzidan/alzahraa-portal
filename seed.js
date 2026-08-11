@@ -81,19 +81,19 @@
 
     /* ---------------- USERS ---------------- */
     var users = [
-      put('users', 'admin',     { name: 'محمد زيدان',        username: 'admin',      password: '1234', role: 'admin',           status: 'active', projects: [] }),
-      put('users', 'gm',        { name: 'م. أحمد الزهراء',   username: 'gm',         password: '1234', role: 'gm',              status: 'active', projects: [] }),
-      put('users', 'fm',        { name: 'أ. سامي عبد الله',  username: 'finance',    password: '1234', role: 'finance_manager', status: 'active', projects: [] }),
-      put('users', 'acc',       { name: 'أ. مروة حسن',       username: 'accountant', password: '1234', role: 'accountant',      status: 'active', projects: [] }),
-      put('users', 'proc',      { name: 'أ. كريم فؤاد',      username: 'purchase',   password: '1234', role: 'procurement',     status: 'active', projects: [] }),
-      put('users', 'store',     { name: 'أ. رمضان السيد',    username: 'store',      password: '1234', role: 'storekeeper',     status: 'active', projects: [] }),
-      put('users', 'pm',        { name: 'م. طارق منصور',     username: 'pm',         password: '1234', role: 'project_manager', status: 'active', projects: [] }),
-      put('users', 'tech',      { name: 'م. نورهان صلاح',    username: 'technical',  password: '1234', role: 'technical',       status: 'active', projects: [] }),
-      put('users', 'hr',        { name: 'أ. هالة مصطفى',     username: 'hr',         password: '1234', role: 'hr',              status: 'active', projects: [] }),
-      put('users', 'legal',     { name: 'أ. عمرو الشناوي',   username: 'legal',      password: '1234', role: 'legal',           status: 'active', projects: [] }),
-      put('users', 'it',        { name: 'أ. يوسف عادل',      username: 'it',         password: '1234', role: 'it',              status: 'active', projects: [] }),
-      put('users', 'auditor',   { name: 'أ. إيهاب راشد',     username: 'auditor',    password: '1234', role: 'auditor',         status: 'active', projects: [] }),
-      put('users', 'employee',  { name: 'أ. سلمى إبراهيم',   username: 'employee',   password: '1234', role: 'employee',        status: 'active', projects: [] })
+      put('users', 'admin',     { name: 'محمد زيدان',        username: 'admin',      password: 'Zahraa#7412', role: 'admin',           status: 'active', projects: [], employeeId: id('employees', 'e1'), mustChangePassword: true }),
+      put('users', 'gm',        { name: 'م. أحمد الزهراء',   username: 'gm',         password: 'Summit@2938', role: 'gm',              status: 'active', projects: [], employeeId: id('employees', 'e1'), mustChangePassword: true }),
+      put('users', 'fm',        { name: 'أ. سامي عبد الله',  username: 'finance',    password: 'Nile#5107', role: 'finance_manager', status: 'active', projects: [], employeeId: id('employees', 'e2'), mustChangePassword: true }),
+      put('users', 'acc',       { name: 'أ. مروة حسن',       username: 'accountant', password: 'Delta@8321', role: 'accountant',      status: 'active', projects: [], employeeId: id('employees', 'e3'), mustChangePassword: true }),
+      put('users', 'proc',      { name: 'أ. كريم فؤاد',      username: 'purchase',   password: 'Cedar#4460', role: 'procurement',     status: 'active', projects: [], employeeId: id('employees', 'e4'), mustChangePassword: true }),
+      put('users', 'store',     { name: 'أ. رمضان السيد',    username: 'store',      password: 'Obour@6725', role: 'storekeeper',     status: 'active', projects: [], employeeId: id('employees', 'e5'), mustChangePassword: true }),
+      put('users', 'pm',        { name: 'م. طارق منصور',     username: 'pm',         password: 'Bridge#3184', role: 'project_manager', status: 'active', projects: [], employeeId: id('employees', 'e6'), mustChangePassword: true }),
+      put('users', 'tech',      { name: 'م. نورهان صلاح',    username: 'technical',  password: 'Tower@9053', role: 'technical',       status: 'active', projects: [], employeeId: id('employees', 'e7'), mustChangePassword: true }),
+      put('users', 'hr',        { name: 'أ. هالة مصطفى',     username: 'hr',         password: 'Falcon#2617', role: 'hr',              status: 'active', projects: [], employeeId: id('employees', 'e8'), mustChangePassword: true }),
+      put('users', 'legal',     { name: 'أ. عمرو الشناوي',   username: 'legal',      password: 'Anchor@7390', role: 'legal',           status: 'active', projects: [], employeeId: id('employees', 'e10'), mustChangePassword: true }),
+      put('users', 'it',        { name: 'أ. يوسف عادل',      username: 'it',         password: 'Beacon#5842', role: 'it',              status: 'active', projects: [], employeeId: id('employees', 'e11'), mustChangePassword: true }),
+      put('users', 'auditor',   { name: 'أ. إيهاب راشد',     username: 'auditor',    password: 'Marble@1476', role: 'auditor',         status: 'active', projects: [], employeeId: id('employees', 'e3'), mustChangePassword: true }),
+      put('users', 'employee',  { name: 'أ. سلمى إبراهيم',   username: 'employee',   password: 'Harbour#6209', role: 'employee',        status: 'active', projects: [], employeeId: id('employees', 'e14'), mustChangePassword: true })
     ];
     users.forEach(function (u) { USER_NAMES[u.id] = u.name; });
     Store.replaceAll('users', users);

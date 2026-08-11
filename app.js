@@ -89,7 +89,7 @@
       b.textContent = u.username + ' — ' + Auth.roleLabel(u.role);
       b.onclick = function () {
         document.getElementById('loginUser').value = u.username;
-        document.getElementById('loginPass').value = '1234';
+        document.getElementById('loginPass').value = u.password || '';
         document.getElementById('loginForm').requestSubmit
           ? document.getElementById('loginForm').requestSubmit()
           : document.getElementById('loginForm').dispatchEvent(new Event('submit', { cancelable: true }));
@@ -130,6 +130,11 @@
     updateInboxBadge();
     updateStorage();
     UI.toast(t('login.welcome') + user.name, 'success');
+
+    /* First sign-in: make them pick their own password before anything else */
+    if (user.mustChangePassword && global.Identity) {
+      setTimeout(function () { Identity.promptPasswordChange(true); }, 700);
+    }
   }
 
   function firstAllowedRoute() {
@@ -157,7 +162,8 @@
       { id: 'main', items: [
         { id: 'dashboard', icon: 'grid', label: { ar: 'لوحة التحكم', en: 'Dashboard' } },
         { id: 'inbox', icon: 'inbox', label: { ar: 'صندوق الاعتمادات', en: 'Approvals inbox' }, badge: true },
-        { id: 'alerts', icon: 'alert', label: { ar: 'التنبيهات', en: 'Alerts' }, alertBadge: true }
+        { id: 'alerts', icon: 'alert', label: { ar: 'التنبيهات', en: 'Alerts' }, alertBadge: true },
+        { id: 'assistant', icon: 'life-buoy', label: { ar: 'مساعدي', en: 'My assistant' } }
       ] },
       { id: 'finance',  items: modulesIn('finance') },
       { id: 'projects', items: modulesIn('projects') },
@@ -232,9 +238,10 @@
     host.innerHTML = '';
     setCrumbs();
 
-    if (route === 'dashboard') { Dashboard.render(host); }
+    if (route === 'dashboard') { (global.DashboardView ? DashboardView : Dashboard).render(host); }
     else if (route === 'inbox') { ApprovalsPage.render(host); }
     else if (route === 'alerts') { Alerts.invalidate(); Alerts.render(host); }
+    else if (route === 'assistant') { Assistant.render(host); }
     else if (route === 'reports') { ReportsPage.render(host); }
     else if (route === 'settings') { SettingsPage.render(host); }
     else { EntityPage.render(route, host); }
@@ -249,6 +256,7 @@
     if (route === 'dashboard') name = t('dash.title');
     else if (route === 'inbox') name = t('inbox.title');
     else if (route === 'alerts') name = t('alerts.title');
+    else if (route === 'assistant') name = t('ai.title');
     else if (route === 'reports') name = t('rep.title');
     else if (route === 'settings') name = t('set.title');
     else {
@@ -301,6 +309,7 @@
         if (a === 'logout') doLogout();
         if (a === 'settings') go('settings');
         if (a === 'profile') showProfile();
+        if (a === 'password') Identity.promptPasswordChange(false);
         if (a === 'backup') backup();
         if (a === 'restore') restorePrompt();
       };
@@ -450,7 +459,7 @@
     var out = [];
 
     [['dashboard', t('dash.title'), 'grid'], ['inbox', t('inbox.title'), 'inbox'],
-     ['alerts', t('alerts.title'), 'alert'],
+     ['alerts', t('alerts.title'), 'alert'], ['assistant', t('ai.title'), 'life-buoy'],
      ['reports', t('rep.title'), 'chart'], ['settings', t('set.title'), 'settings']].forEach(function (x) {
       out.push({ route: x[0], label: x[1], icon: x[2], hint: t('grp.main') });
     });

@@ -84,41 +84,115 @@
   /* ---------- users ---------- */
   function usersTab(body) {
     var list = Auth.users();
-    var h = '<div class="card"><div class="table-toolbar">' +
-      '<strong>' + t('set.users') + '</strong>' +
-      '<button class="btn btn-primary btn-sm" id="newUser" style="margin-inline-start:auto">' + UI.icon('plus', 14) + ' ' + t('g.new') + '</button>' +
-      '</div><div class="table-wrap"><table class="data-table"><thead><tr>' +
+    var domain = (Store.meta().companyDomain) || (global.Identity && Identity.SETTINGS.companyDomain) || '';
+
+    var h = '';
+
+    /* ── migration banner ── */
+    if (!domain) {
+      h += '<div class="alert alert-info">' + UI.icon('eye', 17) + '<span>' +
+        L({ ar: 'الموظفون يدخلون الآن باسم مستخدم. عندما تشتري بريد الشركة، اكتب النطاق بالأسفل ' +
+                'واضغط زر التحويل — سيحصل الجميع على بريد تلقائياً <b>دون فقدان أي مستند أو توقيع</b>، ' +
+                'لأن كل شيء مرتبط برقم الموظف الداخلي لا باسم المستخدم.',
+            en: 'Staff currently sign in with a username. When you buy company email, enter the domain ' +
+                'below and press convert — everyone gets an email automatically <b>without losing a single ' +
+                'document or signature</b>, because everything is tied to the internal id, not the username.' }) +
+        '</span></div>';
+    } else {
+      h += '<div class="alert alert-success">' + UI.icon('check', 17) + '<span>' +
+        L({ ar: 'نطاق الشركة المفعّل: ', en: 'Active company domain: ' }) + '<b>@' + UI.esc(domain) + '</b> — ' +
+        L({ ar: 'يمكن للموظفين الدخول باسم المستخدم أو بالبريد، كلاهما يعمل.',
+            en: 'Staff can sign in with either their username or their email — both work.' }) +
+        '</span></div>';
+    }
+
+    h += '<div class="card mb-2"><div class="card-head">' +
+      '<h3 class="card-title">' + UI.icon('users', 17) + ' ' + t('set.users') + '</h3>' +
+      '<span class="badge b-info plain num">' + list.length + '</span>' +
+      '<div style="margin-inline-start:auto;display:flex;gap:6px;flex-wrap:wrap">' +
+        '<button class="btn btn-outline btn-sm" id="slipAll">' + UI.icon('printer', 14) + ' ' +
+          L({ ar: 'طباعة بيانات الدخول للجميع', en: 'Print all credentials' }) + '</button>' +
+        '<button class="btn btn-outline btn-sm" id="migBtn">' + UI.icon('send', 14) + ' ' +
+          L({ ar: 'التحويل إلى بريد الشركة', en: 'Convert to company email' }) + '</button>' +
+        '<button class="btn btn-primary btn-sm" id="newUser">' + UI.icon('plus', 14) + ' ' + t('g.new') + '</button>' +
+      '</div></div>' +
+      '<div class="table-wrap"><table class="data-table"><thead><tr>' +
       '<th class="no-sort">' + L({ ar: 'الاسم', en: 'Name' }) + '</th>' +
-      '<th class="no-sort">' + t('login.user') + '</th>' +
+      '<th class="no-sort">' + L({ ar: 'اسم المستخدم', en: 'Username' }) + '</th>' +
+      '<th class="no-sort">' + L({ ar: 'البريد', en: 'Email' }) + '</th>' +
       '<th class="no-sort">' + L({ ar: 'الدور', en: 'Role' }) + '</th>' +
-      '<th class="no-sort">' + L({ ar: 'المشروعات المسموحة', en: 'Allowed projects' }) + '</th>' +
+      '<th class="no-sort">' + L({ ar: 'كلمة المرور', en: 'Password' }) + '</th>' +
       '<th class="no-sort">' + t('g.status') + '</th>' +
       '<th class="no-sort col-actions">' + t('g.actions') + '</th></tr></thead><tbody>';
 
     list.forEach(function (u) {
       var projs = (u.projects && u.projects.length)
-        ? u.projects.map(function (pid) { var p = Store.find('projects', pid); return p ? p.name : pid; }).join('، ')
-        : L({ ar: 'كل المشروعات', en: 'All projects' });
-      h += '<tr><td><strong>' + UI.esc(u.name) + '</strong></td>' +
+        ? u.projects.length + ' ' + L({ ar: 'مشروع', en: 'projects' })
+        : L({ ar: 'الكل', en: 'All' });
+      h += '<tr><td><strong>' + UI.esc(u.name) + '</strong><br><small class="muted">' + UI.esc(projs) + '</small></td>' +
         '<td class="num">' + UI.esc(u.username) + '</td>' +
-        '<td>' + UI.esc(Auth.roleLabel(u.role)) + '</td>' +
-        '<td class="small muted">' + UI.esc(projs) + '</td>' +
+        '<td class="num small">' + (u.email ? UI.esc(u.email) : '<span class="muted">—</span>') + '</td>' +
+        '<td class="small">' + UI.esc(Auth.roleLabel(u.role)) + '</td>' +
+        '<td><span class="pw-cell" data-pw="' + UI.attr(u.password || '') + '">••••••••</span>' +
+          (u.mustChangePassword ? '<br><small class="badge b-pending" style="margin-top:3px">' +
+            L({ ar: 'لم يغيّرها بعد', en: 'not changed yet' }) + '</small>' : '') + '</td>' +
         '<td><span class="badge ' + (u.status === 'inactive' ? 'b-inactive' : 'b-active') + '">' +
           (u.status === 'inactive' ? L({ ar: 'موقوف', en: 'Disabled' }) : L({ ar: 'نشط', en: 'Active' })) + '</span></td>' +
         '<td class="col-actions"><div class="row-actions">' +
-        '<button class="row-btn" data-eu="' + UI.attr(u.id) + '">' + UI.icon('edit', 16) + '</button>' +
-        (u.username !== 'admin' ? '<button class="row-btn danger" data-du="' + UI.attr(u.id) + '">' + UI.icon('trash', 16) + '</button>' : '') +
+        '<button class="row-btn" data-slip="' + UI.attr(u.id) + '" title="' + L({ ar: 'طباعة بياناته', en: 'Print slip' }) + '">' + UI.icon('printer', 15) + '</button>' +
+        '<button class="row-btn" data-reset="' + UI.attr(u.id) + '" title="' + L({ ar: 'كلمة مرور جديدة', en: 'New password' }) + '">' + UI.icon('shuffle', 15) + '</button>' +
+        '<button class="row-btn" data-eu="' + UI.attr(u.id) + '" title="' + t('g.edit') + '">' + UI.icon('edit', 15) + '</button>' +
+        (u.username !== 'admin' ? '<button class="row-btn danger" data-du="' + UI.attr(u.id) + '">' + UI.icon('trash', 15) + '</button>' : '') +
         '</div></td></tr>';
     });
     h += '</tbody></table></div></div>';
-    h += '<div class="alert alert-warn mt-2">' + UI.icon('alert', 17) + '<span><strong>' +
+
+    h += '<div class="alert alert-warn">' + UI.icon('alert', 17) + '<span><strong>' +
       L({ ar: 'تنبيه أمني: ', en: 'Security note: ' }) + '</strong>' +
-      L({ ar: 'في الوضع التجريبي تُحفظ كلمات المرور كنص عادي داخل متصفح كل مستخدم. لا تضع بيانات حقيقية قبل الانتقال لقاعدة بيانات حقيقية (اقرأ الدليل).',
-          en: 'In demo mode passwords are stored as plain text inside each visitor\'s own browser. Do not enter real company data before moving to a real database (see the guide).' }) +
+      L({ ar: 'في الوضع التجريبي كلمات المرور مخزّنة كنص عادي داخل متصفح كل مستخدم. ' +
+              'اطبع البطاقات وسلّمها يداً بيد — ولا ترسلها في واتساب. لا تضع بيانات مالية حقيقية قبل قاعدة البيانات.',
+          en: 'In demo mode passwords are stored as plain text in each browser. Print the slips and hand them ' +
+              'over in person — never send them on WhatsApp. No real financial data before the database.' }) +
       '</span></div>';
+
     body.innerHTML = h;
 
     document.getElementById('newUser').onclick = function () { userForm(null, body); };
+    document.getElementById('slipAll').onclick = function () {
+      Identity.slips(Auth.users().map(function (u) { return u.id; }));
+    };
+    document.getElementById('migBtn').onclick = function () { migrateDialog(body); };
+
+    body.querySelectorAll('.pw-cell').forEach(function (c) {
+      c.style.cursor = 'pointer';
+      c.title = L({ ar: 'اضغط للإظهار', en: 'Click to reveal' });
+      c.onclick = function () {
+        var shown = c.getAttribute('data-shown') === '1';
+        c.textContent = shown ? '••••••••' : (c.getAttribute('data-pw') || '—');
+        c.setAttribute('data-shown', shown ? '0' : '1');
+      };
+    });
+    body.querySelectorAll('[data-slip]').forEach(function (b) {
+      b.onclick = function () { Identity.slips([b.getAttribute('data-slip')]); };
+    });
+    body.querySelectorAll('[data-reset]').forEach(function (b) {
+      b.onclick = function () {
+        var id = b.getAttribute('data-reset');
+        var u = Store.find('users', id);
+        UI.confirm({
+          title: L({ ar: 'كلمة مرور جديدة', en: 'New password' }),
+          message: L({ ar: 'سيتم توليد كلمة مرور جديدة لـ«' + u.name + '» وسيُطلب منه تغييرها عند أول دخول.',
+                       en: 'A new password will be generated for "' + u.name + '", to be changed on first sign-in.' }),
+          okLabel: L({ ar: 'توليد وطباعة', en: 'Generate & print' }),
+          onOk: function () {
+            var pw = Identity.resetPassword(id);
+            var map = {}; map[id] = pw;
+            Identity.slips([id], map);
+            usersTab(body);
+          }
+        });
+      };
+    });
     body.querySelectorAll('[data-eu]').forEach(function (b) { b.onclick = function () { userForm(b.getAttribute('data-eu'), body); }; });
     body.querySelectorAll('[data-du]').forEach(function (b) {
       b.onclick = function () {
@@ -130,8 +204,59 @@
     });
   }
 
+  /* ── the migration dialog ── */
+  function migrateDialog(body) {
+    var cur = (Store.meta().companyDomain) || '';
+    var b = '<p class="small">' +
+      L({ ar: 'اكتب نطاق بريد الشركة. سيحصل كل موظف على بريد مبني على اسم المستخدم الحالي، ' +
+              'ويستطيع الدخول بأي منهما. <b>لن يضيع أي مستند أو توقيع أو سطر في سجل المراجعة.</b>',
+          en: 'Enter your company email domain. Every user gets an email built from their current username, ' +
+              'and can sign in with either. <b>No document, signature or audit line is lost.</b>' }) + '</p>' +
+      '<label class="field mt-2"><span class="field-label">' +
+      L({ ar: 'نطاق الشركة', en: 'Company domain' }) + '</span>' +
+      '<input class="input" id="migDom" placeholder="alzahraa-contracting.com" value="' + UI.attr(cur) + '"></label>' +
+      '<div class="mt-2" id="migPrev"></div>';
+
+    UI.modal({
+      title: L({ ar: 'التحويل إلى بريد الشركة', en: 'Convert to company email' }),
+      body: b,
+      buttons: [
+        { label: t('g.cancel'), cls: 'btn-ghost' },
+        { label: L({ ar: 'تحويل الجميع', en: 'Convert everyone' }), cls: 'btn-primary', keepOpen: true,
+          onClick: function () {
+            var d = document.getElementById('migDom').value;
+            var res = Identity.applyMigration(d, false);
+            if (!res.ok) { UI.toast(res.error, 'error', 5000); return false; }
+            UI.closeModal();
+            UI.toast(L({ ar: 'تم تحويل ' + res.count + ' حساب إلى @' + res.domain,
+                         en: res.count + ' accounts converted to @' + res.domain }));
+            usersTab(body);
+            return true;
+          } }
+      ],
+      onOpen: function () {
+        var inp = document.getElementById('migDom');
+        function preview() {
+          var rows = Identity.previewMigration(inp.value);
+          var h = '<div class="table-wrap" style="max-height:230px;overflow:auto"><table class="data-table"><thead><tr>' +
+            '<th class="no-sort">' + L({ ar: 'الموظف', en: 'Employee' }) + '</th>' +
+            '<th class="no-sort">' + L({ ar: 'قبل', en: 'Before' }) + '</th>' +
+            '<th class="no-sort">' + L({ ar: 'بعد', en: 'After' }) + '</th></tr></thead><tbody>';
+          rows.slice(0, 40).forEach(function (r) {
+            h += '<tr><td>' + UI.esc(r.name) + '</td><td class="num small">' + UI.esc(r.username) + '</td>' +
+                 '<td class="num small"><strong>' + UI.esc(r.newEmail || '—') + '</strong></td></tr>';
+          });
+          document.getElementById('migPrev').innerHTML = h + '</tbody></table></div>';
+        }
+        inp.oninput = preview; preview();
+      }
+    });
+  }
+
   function userForm(id, body) {
-    var u = id ? Store.find('users', id) : { name: '', username: '', password: '1234', role: 'employee', status: 'active', projects: [] };
+    var u = id ? Store.find('users', id)
+               : { name: '', username: '', password: (global.Identity ? Identity.makePassword() : 'Zahraa#1234'),
+                   email: '', role: 'employee', status: 'active', projects: [], mustChangePassword: true };
     var projects = Store.all('projects');
 
     var h = '<div class="form-grid">' +
@@ -139,8 +264,10 @@
       '<input class="input" id="uName" value="' + UI.attr(u.name) + '"></label>' +
       '<label class="field"><span class="field-label">' + t('login.user') + ' <span class="req">*</span></span>' +
       '<input class="input" id="uUser" value="' + UI.attr(u.username) + '"></label>' +
-      '<label class="field"><span class="field-label">' + t('login.pass') + '</span>' +
-      '<input class="input" id="uPass" value="' + UI.attr(u.password) + '"></label>' +
+      '<label class="field"><span class="field-label">' + t('login.pass') +
+      ' <button type="button" class="btn btn-ghost btn-sm" id="genPw" style="padding:1px 8px;font-size:11px">' +
+      L({ ar: 'توليد', en: 'generate' }) + '</button></span>' +
+      '<input class="input num" id="uPass" value="' + UI.attr(u.password) + '"></label>' +
       '<label class="field"><span class="field-label">' + L({ ar: 'الدور', en: 'Role' }) + '</span><select class="select" id="uRole">';
     Object.keys(Auth.ROLES).forEach(function (k) {
       h += '<option value="' + k + '"' + (u.role === k ? ' selected' : '') + '>' + UI.esc(Auth.roleLabel(k)) + '</option>';
@@ -185,7 +312,8 @@
               role: document.getElementById('uRole').value,
               status: document.getElementById('uStatus').value,
               email: document.getElementById('uEmail').value,
-              projects: projs
+              projects: projs,
+              mustChangePassword: id ? (u.mustChangePassword || false) : true
             };
             if (id) Store.save('users', id, data); else Store.create('users', data);
             UI.closeModal();
@@ -200,6 +328,21 @@
         var desc = document.getElementById('roleDesc');
         function upd() { var r = Auth.ROLES[sel.value]; desc.textContent = r ? L(r.desc) : ''; }
         sel.onchange = upd; upd();
+
+        /* type the Arabic name → username suggests itself */
+        var nameI = document.getElementById('uName');
+        var userI = document.getElementById('uUser');
+        if (nameI && userI && !id) {
+          nameI.oninput = function () {
+            if (userI.dataset.touched === '1') return;
+            userI.value = global.Identity ? Identity.suggestUsername(nameI.value) : '';
+          };
+          userI.oninput = function () { userI.dataset.touched = '1'; };
+        }
+        var g = document.getElementById('genPw');
+        if (g) g.onclick = function () {
+          document.getElementById('uPass').value = Identity.makePassword();
+        };
       }
     });
   }

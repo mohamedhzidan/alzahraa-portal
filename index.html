@@ -71,11 +71,11 @@
     <form id="loginForm" class="login-form" autocomplete="off" onsubmit="return false;">
       <label class="field">
         <span class="field-label" data-i18n="login.user">اسم المستخدم</span>
-        <input type="text" id="loginUser" class="input" placeholder="admin" required>
+        <input type="text" id="loginUser" class="input" placeholder="اسم المستخدم أو البريد" required>
       </label>
       <label class="field">
         <span class="field-label" data-i18n="login.pass">كلمة المرور</span>
-        <input type="password" id="loginPass" class="input" placeholder="1234" required>
+        <input type="password" id="loginPass" class="input" placeholder="كلمة المرور" required>
       </label>
       <div id="loginError" class="login-error" hidden></div>
       <button type="submit" class="btn btn-primary btn-block" data-i18n="login.submit">تسجيل الدخول</button>
@@ -165,6 +165,7 @@
           </button>
           <div class="dropdown" id="userDropdown" hidden>
             <button class="dropdown-item" data-action="profile"><span data-i18n="menu.profile">الملف الشخصي</span></button>
+            <button class="dropdown-item" data-action="password"><span data-i18n="menu.password">تغيير كلمة المرور</span></button>
             <button class="dropdown-item" data-action="settings"><span data-i18n="menu.settings">الإعدادات</span></button>
             <button class="dropdown-item" data-action="backup"><span data-i18n="menu.backup">نسخة احتياطية (تنزيل)</span></button>
             <button class="dropdown-item" data-action="restore"><span data-i18n="menu.restore">استعادة نسخة</span></button>
@@ -232,13 +233,17 @@
     'assets/js/store.js',
     'assets/js/schema.js',
     'assets/js/auth.js',
+    'assets/js/identity.js',
     'assets/js/workflow.js',
     'assets/js/seed.js',
     'assets/js/ui.js',
     'assets/js/rules.js',
     'assets/js/print.js',
     'assets/js/alerts.js',
+    'assets/js/roleview.js',
+    'assets/js/assistant.js',
     'assets/js/pages/dashboard.js',
+    'assets/js/pages/dashboard-render.js',
     'assets/js/pages/entity.js',
     'assets/js/pages/approvals.js',
     'assets/js/pages/reports.js',

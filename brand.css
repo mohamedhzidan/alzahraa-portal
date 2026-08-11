@@ -167,3 +167,10 @@ html[data-brand="alzahraa"] .palette-item.sel{background:var(--brand-mist); colo
 .al-mod{font-size:11px;color:var(--text-3);white-space:nowrap;align-self:center}
 .nav-count.danger{background:#B42318;color:#fff}
 @media(max-width:680px){.al-mod{display:none}}
+
+/* ── المساعد / assistant ──────────────────────────────────────────── */
+.al-ic.good{background:var(--success-bg);color:var(--success)}
+.al-ic.tip{background:var(--brand-mist);color:var(--brand)}
+.ai-q{font-weight:800;color:var(--brand);margin-bottom:8px;display:flex;align-items:center;gap:6px;font-size:13.5px}
+.ai-a{font-size:13.5px;line-height:2;color:var(--text)}
+.ai-a div{padding:1px 0}

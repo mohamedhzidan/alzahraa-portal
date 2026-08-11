@@ -395,7 +395,7 @@
   }
 
   global.Dashboard = {
-    render: render, destroyCharts: destroyCharts,
+    render: render, destroyCharts: destroyCharts, drawCharts: drawCharts,
     analytics: {
       actualCost: actualCost, committed: committed, budgetOf: budgetOf,
       costByType: costByType, receivable: receivable, payable: payable,

@@ -191,7 +191,14 @@
 
     for (var i = 0; i < list.length; i++) {
       var u = list[i];
-      if (String(u.username || '').toLowerCase() === user) {
+      /* You can sign in with EITHER your username OR your company email.
+         Both point at the same account, so switching to email later
+         changes nothing about your documents or history. */
+      var identities = [
+        String(u.username || '').toLowerCase(),
+        String(u.email || '').toLowerCase()
+      ].filter(Boolean);
+      if (identities.indexOf(user) !== -1) {
         if (u.status === 'inactive') return { ok: false, error: 'disabled' };
         if (String(u.password) !== pass) {
           Store.log('login_failed', 'users', u.id, u.username);
