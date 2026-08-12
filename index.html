@@ -1,30 +1,27 @@
 <!DOCTYPE html>
-<html lang="ar" dir="rtl" data-brand="alzahraa">
+<html lang="ar" dir="rtl" data-brand="alzahraa" class="frame-pending">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="description" content="بوابة موظفي شركة الزهراء للمقاولات العامة — Alzahraa General Contracting Employee Portal">
 <meta name="theme-color" content="#0000A3">
+<meta name="referrer" content="no-referrer">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; img-src 'self' data: blob:; connect-src 'self' https://*.supabase.co wss://*.supabase.co; worker-src 'self' blob:; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'">
 <title>بوابة الزهراء | Alzahraa Portal</title>
+
+<script src="assets/js/frame-guard.js"></script>
 
 <link rel="icon" href="assets/img/favicon.svg" type="image/svg+xml">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="assets/img/icon-192.png">
 
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@200;300;400;600;700;800&family=Inter:wght@400;500;600;700&family=Poppins:wght@200;300;400&display=swap" rel="stylesheet">
-
-<!-- Stylesheet: try the tidy location, fall back to the repository root.
-     This means the site works whether or not the folder structure survived upload. -->
-<link rel="stylesheet" href="assets/css/styles.css"
-      onerror="this.onerror=null;this.href='styles.css';">
+<link rel="stylesheet" href="assets/css/styles.css">
 <!-- ألوان وهوية شركة الزهراء — عدّل هذا الملف وحده لتغيير الألوان
      Alzahraa brand colours — edit this one file to change the palette -->
-<link rel="stylesheet" href="assets/css/brand.css"
-      onerror="this.onerror=null;this.href='brand.css';">
+<link rel="stylesheet" href="assets/css/brand.css">
 </head>
 <body>
+<noscript><div lang="ar" dir="rtl" style="padding:24px;font-family:Tahoma,sans-serif">يجب تفعيل JavaScript لاستخدام بوابة الشركة. · JavaScript is required to use the company portal.</div></noscript>
 
 <!-- ============ LOGIN SCREEN ============ -->
 <div id="loginScreen" class="login-screen">
@@ -66,25 +63,22 @@
       <p class="login-sub" data-i18n="app.portal">بوابة الموظفين الداخلية</p>
     </div>
 
-    <!-- onsubmit="return false" is a safety net: if the program files fail to
-         load, the page must never silently reload and look like a wrong password. -->
-    <form id="loginForm" class="login-form" autocomplete="off" onsubmit="return false;">
+    <form id="loginForm" class="login-form" autocomplete="on">
       <label class="field">
         <span class="field-label" data-i18n="login.user">اسم المستخدم</span>
-        <input type="text" id="loginUser" class="input" placeholder="اسم المستخدم أو البريد" required>
+        <input type="text" id="loginUser" class="input" placeholder="اسم المستخدم أو البريد" autocomplete="username" autocapitalize="none" required>
       </label>
       <label class="field">
         <span class="field-label" data-i18n="login.pass">كلمة المرور</span>
-        <input type="password" id="loginPass" class="input" placeholder="كلمة المرور" required>
+        <input type="password" id="loginPass" class="input" placeholder="كلمة المرور" autocomplete="current-password" required>
       </label>
       <div id="loginError" class="login-error" hidden></div>
       <button type="submit" class="btn btn-primary btn-block" data-i18n="login.submit">تسجيل الدخول</button>
     </form>
 
-    <div class="login-demo">
-      <div class="login-demo-title" data-i18n="login.demoTitle">حسابات تجريبية (اضغط لتعبئة البيانات)</div>
-      <div id="demoAccounts" class="demo-chips"></div>
-      <div class="login-hint" data-i18n="login.demoHint">كلمة المرور لكل الحسابات التجريبية: 1234</div>
+    <div class="login-setup alert alert-warn" id="setupNotice" hidden>
+      <span>إعداد التشغيل الآمن لم يكتمل بعد. اربط قاعدة بيانات الشركة من ملف <b>assets/js/env.js</b> ثم أعد فتح الصفحة.<br>
+      <small>The secure company database has not been connected yet. Complete the production setup, then reload.</small></span>
     </div>
 
     <button type="button" class="lang-toggle-login" id="loginLangBtn">English</button>
@@ -120,7 +114,7 @@
     <nav class="nav" id="mainNav" aria-label="Main"></nav>
 
     <div class="sidebar-foot">
-      <div class="storage-meter" title="Local storage">
+      <div class="storage-meter" title="Encrypted offline cache">
         <div class="storage-bar"><span id="storageBar"></span></div>
         <small id="storageText">—</small>
       </div>
@@ -167,8 +161,8 @@
             <button class="dropdown-item" data-action="profile"><span data-i18n="menu.profile">الملف الشخصي</span></button>
             <button class="dropdown-item" data-action="password"><span data-i18n="menu.password">تغيير كلمة المرور</span></button>
             <button class="dropdown-item" data-action="settings"><span data-i18n="menu.settings">الإعدادات</span></button>
-            <button class="dropdown-item" data-action="backup"><span data-i18n="menu.backup">نسخة احتياطية (تنزيل)</span></button>
-            <button class="dropdown-item" data-action="restore"><span data-i18n="menu.restore">استعادة نسخة</span></button>
+            <button class="dropdown-item" data-action="backup"><span data-i18n="menu.backup">تصدير بياناتي المتاحة</span></button>
+            <button class="dropdown-item" data-action="restore"><span data-i18n="menu.restore">معلومات الاستعادة</span></button>
             <div class="dropdown-sep"></div>
             <button class="dropdown-item danger" data-action="logout"><span data-i18n="menu.logout">تسجيل الخروج</span></button>
           </div>
@@ -181,9 +175,10 @@
     <footer class="app-footer">
       <span data-i18n="footer.copy">© 2026 شركة الزهراء للمقاولات العامة — نظام داخلي</span>
       <span class="footer-sep">•</span>
-      <span id="footerVersion">v1.0.0</span>
+      <span id="footerVersion">v2.0.1</span>
       <span class="footer-sep">•</span>
-      <span class="demo-flag" data-i18n="footer.demo">وضع تجريبي: البيانات محفوظة على هذا الجهاز فقط</span>
+      <span class="production-flag">تشغيل فعلي · قاعدة بيانات مركزية · مسودات مشفّرة دون اتصال</span>
+      <span id="azSyncBadge" class="sync-badge offline" hidden>غير متصل</span>
     </footer>
   </div>
 </div>
@@ -211,160 +206,12 @@
 </div>
 
 <div class="toast-host" id="toastHost"></div>
-<input type="file" id="restoreInput" accept="application/json" hidden>
+<!-- Vendored dependencies: no runtime CDN is required. -->
+<script src="assets/vendor/chart-4.4.1.umd.js"></script>
+<!-- Supabase browser client. Only the public anon key is used in the browser. -->
+<script src="assets/vendor/supabase-2.112.3.js"></script>
 
-<!-- Chart library (optional; app works without internet) -->
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-
-<!-- =========================================================================
-     SCRIPT LOADER
-     Loads the program files strictly in order. For each file it first tries
-     the tidy location (assets/js/...). If that isn't there — which happens
-     when an upload flattens the folders — it automatically retries the same
-     file at the top level. The portal therefore works with either layout.
-
-     PHASE 2: to switch on the real database, remove the two slashes at the
-     start of the 'phase2/supabase-connect.js' line below.
-     ========================================================================= -->
-<script>
-(function () {
-  var FILES = [
-    'assets/js/i18n.js',
-    'assets/js/store.js',
-    'assets/js/schema.js',
-    'assets/js/auth.js',
-    'assets/js/identity.js',
-    'assets/js/workflow.js',
-    'assets/js/seed.js',
-    'assets/js/ui.js',
-    'assets/js/rules.js',
-    'assets/js/print.js',
-    'assets/js/alerts.js',
-    'assets/js/roleview.js',
-    'assets/js/assistant.js',
-    'assets/js/pages/dashboard.js',
-    'assets/js/pages/dashboard-render.js',
-    'assets/js/pages/entity.js',
-    'assets/js/pages/approvals.js',
-    'assets/js/pages/reports.js',
-    'assets/js/pages/settings.js',
-    // 'phase2/supabase-connect.js',   ← PHASE 2: remove the // to enable
-    'assets/js/app.js'
-  ];
-
-  window.AZ_LOAD_FAILED = [];
-
-  function basename(p) { return p.split('/').pop(); }
-
-  function loadOne(path, done) {
-    var s = document.createElement('script');
-    s.src = path;
-    s.async = false;
-    s.onload = function () { done(true); };
-    s.onerror = function () {
-      var alt = basename(path);
-      if (alt === path) { window.AZ_LOAD_FAILED.push(path); done(false); return; }
-      var s2 = document.createElement('script');
-      s2.src = alt;
-      s2.async = false;
-      s2.onload = function () { done(true); };
-      s2.onerror = function () { window.AZ_LOAD_FAILED.push(path); done(false); };
-      document.head.appendChild(s2);
-    };
-    document.head.appendChild(s);
-  }
-
-  var i = 0;
-  (function next() {
-    if (i >= FILES.length) { window.AZ_LOAD_DONE = true; return; }
-    loadOne(FILES[i++], next);
-  })();
-})();
-</script>
-
-<!-- =========================================================================
-     SELF-CHECK — runs even when the files above fail to load.
-     If a file is missing (bad upload), this replaces the login box with a
-     plain-language message naming the exact file, in Arabic and English.
-     Nothing here affects a healthy site.
-     ========================================================================= -->
-<script>
-(function () {
-  var NEEDED = [
-    ['I18N',          'assets/js/i18n.js'],
-    ['Store',         'assets/js/store.js'],
-    ['Schema',        'assets/js/schema.js'],
-    ['Auth',          'assets/js/auth.js'],
-    ['Workflow',      'assets/js/workflow.js'],
-    ['Seed',          'assets/js/seed.js'],
-    ['UI',            'assets/js/ui.js'],
-    ['Dashboard',     'assets/js/pages/dashboard.js'],
-    ['EntityPage',    'assets/js/pages/entity.js'],
-    ['ApprovalsPage', 'assets/js/pages/approvals.js'],
-    ['ReportsPage',   'assets/js/pages/reports.js'],
-    ['SettingsPage',  'assets/js/pages/settings.js'],
-    ['App',           'assets/js/app.js']
-  ];
-
-  function check() {
-    var missing = [];
-    for (var i = 0; i < NEEDED.length; i++) {
-      if (!window[NEEDED[i][0]]) missing.push(NEEDED[i][1]);
-    }
-
-    var cssOk = true;
-    try {
-      var probe = getComputedStyle(document.documentElement).getPropertyValue('--green-800');
-      cssOk = !!(probe && probe.trim());
-    } catch (e) { cssOk = false; }
-    if (!cssOk) missing.push('assets/css/styles.css');
-
-    if (!missing.length) return;
-
-    var card = document.querySelector('.login-card') || document.body;
-    card.setAttribute('style',
-      'background:#fff;color:#12211c;max-width:640px;margin:40px auto;padding:28px;' +
-      'border-radius:14px;font-family:Tahoma,Arial,sans-serif;line-height:1.9;' +
-      'box-shadow:0 10px 40px rgba(0,0,0,.3);position:relative;z-index:99');
-
-    var list = '';
-    for (var j = 0; j < missing.length; j++) {
-      list += '<li style="font-family:monospace;direction:ltr;text-align:left;' +
-              'background:#fdeceb;color:#b42318;padding:4px 8px;border-radius:5px;' +
-              'margin:5px 0;display:block">' + missing[j] + '</li>';
-    }
-
-    card.innerHTML =
-      '<h2 style="color:#b42318;margin:0 0 6px">⚠️ الموقع ناقص ملفات</h2>' +
-      '<p style="margin:0 0 14px">لم يتم رفع الملفات التالية بشكل صحيح إلى GitHub:</p>' +
-      '<ul style="padding:0;margin:0 0 16px;list-style:none">' + list + '</ul>' +
-      '<div style="background:#e6f2ed;padding:14px;border-radius:9px;margin-bottom:16px">' +
-        '<strong>كيف تصلحها:</strong>' +
-        '<ol style="padding-inline-start:20px;margin:8px 0 0">' +
-          '<li>افتح مستودعك على GitHub.</li>' +
-          '<li>تأكد أن ملف <b>index.html</b> ظاهر في الصفحة الأولى مباشرة، وليس داخل مجلد.</li>' +
-          '<li>تأكد أن مجلد <b>assets</b> موجود، وبداخله <b>css</b> و <b>js</b>، وداخل <b>js</b> مجلد <b>pages</b>.</li>' +
-          '<li>لو ينقصك أي ملف: اضغط <b>Add file ← Upload files</b> واسحب المجلد <b>assets</b> كاملاً مرة أخرى.</li>' +
-          '<li>اضغط <b>Commit changes</b> وانتظر دقيقة ثم حدّث الصفحة بـ Ctrl+Shift+R.</li>' +
-        '</ol>' +
-      '</div>' +
-      '<hr style="border:none;border-top:1px solid #e2e7e5;margin:16px 0">' +
-      '<h3 style="margin:0 0 6px;font-size:15px">⚠️ Missing files</h3>' +
-      '<p style="margin:0;font-size:13px;color:#4a5a54">The files listed above did not upload to GitHub correctly. ' +
-      'Open your repository, confirm <b>index.html</b> sits on the front page (not inside a folder), ' +
-      'and that the <b>assets</b> folder contains <b>css</b> and <b>js</b> (with a <b>pages</b> folder inside js). ' +
-      'Re-upload the whole <b>assets</b> folder, commit, then hard-refresh with Ctrl+Shift+R.</p>';
-  }
-
-  /* Files now load one after another, so wait until the loader says it has
-     finished (or give up after 15 seconds on a very slow connection). */
-  var waited = 0;
-  (function waitForLoader() {
-    if (window.AZ_LOAD_DONE || waited > 15000) { setTimeout(check, 80); return; }
-    waited += 150;
-    setTimeout(waitForLoader, 150);
-  })();
-})();
-</script>
+<!-- Fixed-order production loader and deployment self-check. -->
+<script src="assets/js/loader.js"></script>
 </body>
 </html>
