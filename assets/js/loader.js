@@ -1,4 +1,7 @@
-/* Fixed-order production loader plus a deployment self-check. */
+/* Fixed-order production loader plus a deployment self-check.
+   departments.js is loaded AFTER schema.js and BEFORE auth.js, because it
+   registers the Site Engineers and Document Control screens that auth.js
+   then grants permissions on. */
 (function () {
   'use strict';
   var FILES = [
@@ -8,6 +11,7 @@
     'assets/js/i18n.js',
     'assets/js/store.js',
     'assets/js/schema.js',
+    'assets/js/departments.js',
     'assets/js/auth.js',
     'assets/js/identity.js',
     'assets/js/workflow.js',
@@ -16,7 +20,15 @@
     'assets/js/print.js',
     'assets/js/alerts.js',
     'assets/js/roleview.js',
+    /* ── المساعد المهني · the professional assistant ──
+       الترتيب مهم: الخبرة، ثم المفتّش، ثم فحوصات الأقسام، ثم المساعد.
+       Order matters: knowledge, inspector, department checks, then assistant. */
+    'assets/js/knowledge.js',
+    'assets/js/inspector.js',
+    'assets/js/inspector-departments.js',
     'assets/js/assistant.js',
+    'assets/js/assistant-pro.js',
+    'assets/js/agents.js',
     'assets/js/pages/dashboard.js',
     'assets/js/pages/dashboard-render.js',
     'assets/js/pages/entity.js',
@@ -57,6 +69,12 @@
     var missing = window.AZ_LOAD_FAILED.slice();
     for (var i = 0; i < NEEDED.length; i++) {
       if (!window[NEEDED[i][0]] && missing.indexOf(NEEDED[i][1]) === -1) missing.push(NEEDED[i][1]);
+    }
+    /* departments.js is checked separately: it has no global of its own,
+       it proves it ran by registering the new screens on Schema. */
+    if (window.Schema && !window.Schema.DEPARTMENT_MODULES &&
+        missing.indexOf('assets/js/departments.js') === -1) {
+      missing.push('assets/js/departments.js');
     }
     try {
       var probe = getComputedStyle(document.documentElement).getPropertyValue('--green-800');
