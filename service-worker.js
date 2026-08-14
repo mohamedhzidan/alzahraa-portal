@@ -45,6 +45,7 @@ var SHELL = [
   './assets/js/inspector-departments.js',
   './assets/js/assistant-pro.js',
   './assets/js/agents.js',
+  './assets/js/save-modes.js',
   /* ─────────────────────────────────────────────────────────────────── */
 
   './assets/js/auth.js', './assets/js/identity.js', './assets/js/workflow.js',
