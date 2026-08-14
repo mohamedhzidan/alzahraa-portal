@@ -252,6 +252,23 @@
               label: isAr() ? 'مسودة حتى الاتصال' : 'Draft until connected',
               cls: 'btn-gold', keepOpen: true,
               onClick: function () {
+                /* If there IS internet, queueing makes no sense — it would
+                   leave the document sitting on the device pretending to
+                   wait. Save it properly instead and say so. */
+                if (navigator.onLine !== false) {
+                  MODE = 'draft';
+                  var m0 = currentModule(opts);
+                  var r0;
+                  try { r0 = m0 ? withoutRequired(m0, runSave) : runSave(); }
+                  finally { MODE = 'normal'; }
+                  if (r0 !== false && global.UI && UI.toast) {
+                    UI.toast(isAr()
+                      ? 'الإنترنت متاح، فحُفظ على الخادم مباشرة كمسودة — لا داعي للانتظار.'
+                      : 'You are online, so it was saved to the server as a draft — no waiting needed.',
+                      'success', 5000);
+                  }
+                  return r0;
+                }
                 MODE = 'queue';
                 queuedThisSave = null;
                 var mod = currentModule(opts);

@@ -15,6 +15,7 @@
     'assets/js/auth.js',
     'assets/js/identity.js',
     'assets/js/workflow.js',
+    'assets/js/workflow-policy.js',
     'assets/js/ui.js',
     'assets/js/rules.js',
     'assets/js/print.js',

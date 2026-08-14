@@ -54,12 +54,45 @@
   var ROLES = {
 
     /* ═══════════════ إدارة النظام والإدارة العليا ═══════════════ */
+    /* ══ AUDIT FIX (Critical) · the technical administrator is no longer
+       also a business superuser.
+
+       Before: admin held ALL on every screen, so the person who manages
+       accounts could also approve payments, post journals and run payroll.
+       That is a separation-of-duties failure: one account could create a
+       supplier, raise an invoice, approve it and pay it.
+
+       Now: admin can see everything (needed for support) and manage users
+       and configuration, but cannot approve, review or delete business
+       documents. Business authority lives with gm and the department
+       managers.
+
+       مسؤول النظام يدير الحسابات والإعدادات ويرى كل شيء للدعم الفني،
+       لكنه لا يعتمد ولا يراجع ولا يحذف مستندات العمل. الصلاحية المالية
+       عند المدير العام ومديري الأقسام. */
     admin: {
       label: { ar: 'مسؤول النظام', en: 'System administrator' },
-      desc: { ar: 'كل الصلاحيات وإدارة المستخدمين', en: 'Full access and user management' },
+      desc: { ar: 'إدارة المستخدمين والإعدادات — بلا صلاحية اعتماد مالي',
+              en: 'Manages accounts and configuration — no financial approval authority' },
+      dept: 'system',
+      perms: { '*': ['view'] },
+      canManageUsers: true,
+      allProjects: true
+    },
+
+    /* Emergency break-glass account. Deliberately NOT given to anyone by
+       default. Create it only when a real emergency requires it, use it,
+       then disable it again — every action it takes is audited.
+       حساب الطوارئ: لا يُمنح لأحد افتراضياً. يُفعّل عند الضرورة فقط. */
+    breakglass: {
+      label: { ar: 'حساب طوارئ', en: 'Emergency break-glass' },
+      desc: { ar: 'صلاحية كاملة مؤقتة — تُفعّل عند الضرورة القصوى وتُوثّق بالكامل',
+              en: 'Temporary full authority — enable only in a genuine emergency, fully audited' },
       dept: 'system',
       perms: { '*': ALL },
-      canManageUsers: true
+      canManageUsers: true,
+      allProjects: true,
+      emergencyOnly: true
     },
 
     gm: {
@@ -67,7 +100,8 @@
       desc: { ar: 'اطلاع كامل واعتماد نهائي لكل المستندات', en: 'Full visibility and final approval on all documents' },
       dept: 'system',
       perms: { '*': ['view', 'review', 'approve'] },
-      canManageUsers: false
+      canManageUsers: false,
+      allProjects: true
     },
 
     auditor: {
@@ -552,13 +586,42 @@
 
   /* Restrict a list of rows to the projects the user is allowed to see.
      An empty `projects` array on the user means "all projects". */
+  /* ══ AUDIT FIX (Critical) · project scoping is now FAIL-CLOSED ══════
+     Before: an empty projects list meant "every project". Leaving the
+     boxes unchecked — the easy mistake — silently granted access to the
+     whole company. Empty must mean nothing, never everything.
+
+     A role that genuinely needs every project must now say so explicitly,
+     either by its role definition (allProjects) or by a deliberate
+     per-user entitlement (user.allProjects === true).
+
+     قبل التعديل: ترك خانات المشاريع فارغة كان يعني «كل المشاريع».
+     الآن يعني «لا شيء». الوصول لكل المشاريع يحتاج تفعيلاً صريحاً. */
+  var GLOBAL_PROJECT_ROLES = ['admin', 'gm', 'auditor', 'finance_manager', 'hr', 'legal'];
+
+  function hasAllProjects(u) {
+    var user = u || current;
+    if (!user) return false;
+    if (user.allProjects === true) return true;
+    var r = ROLES[user.role];
+    if (r && r.allProjects === true) return true;
+    return GLOBAL_PROJECT_ROLES.indexOf(user.role) !== -1;
+  }
+
   function scopeRows(moduleId, rows) {
-    if (!current || !current.projects || !current.projects.length) return rows;
+    if (!current) return [];
     var mod = Schema.get(moduleId);
     if (!mod) return rows;
     var hasProject = mod.fields.some(function (f) { return f.name === 'project'; });
     if (!hasProject) return rows;
-    var allowed = current.projects;
+
+    if (hasAllProjects()) return rows;
+
+    var allowed = current.projects || [];
+    if (!allowed.length) {
+      /* Fail closed. Show nothing rather than everything. */
+      return rows.filter(function (r) { return !r.project; });
+    }
     return rows.filter(function (r) { return !r.project || allowed.indexOf(r.project) !== -1; });
   }
 
@@ -574,7 +637,7 @@
     role: role, can: can, canSee: canSee, canLookup: canLookup,
     fieldHidden: fieldHidden, maskRecord: maskRecord,
     isAdmin: isAdmin,
-    scopeRows: scopeRows,
+    scopeRows: scopeRows, hasAllProjects: hasAllProjects,
     users: users,
     roleLabel: function (key) { return ROLES[key] ? L(ROLES[key].label) : key; }
   };
