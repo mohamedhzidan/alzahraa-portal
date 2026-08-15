@@ -73,6 +73,12 @@
     pourCards:         APPROVE, /* إذن الصب — لا صب بلا توقيع */
     mir:               APPROVE, /* فحص المواد — يمنع دخول مادة مرفوضة */
 
+    /* ══ الموارد البشرية — أضيفت بعد اجتماع القسم ١٥ أغسطس ٢٠٢٦ ══════ */
+    employeeAdvances:  APPROVE, /* سلفة = نقدية تخرج. اعتماد واحد يكفي */
+    dailyLabour:       APPROVE, /* صرف نقدي للعمالة اليومية */
+    siteAttendance:    RECORD,  /* كشف حضور — تسجيل واقعة لا قرار */
+    employeeDocs:      RECORD,  /* قائمة تحقق مستندات */
+
     /* ══ ٠ · تسجيل مباشر — واقعة تُوثَّق، لا قرار يُتخذ ══════════════
        These are records, not decisions. Forcing signatures here is what
        made the portal unusable. They remain fully audited — the system

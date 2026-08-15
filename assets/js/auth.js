@@ -137,6 +137,8 @@
         clientIPCs: ['view', 'review', 'approve'],
         subIPCs: ['view', 'review', 'approve'],
         payroll: ['view', 'review', 'approve'],
+        employeeAdvances: ['view', 'review', 'approve'],
+        dailyLabour: ['view', 'review', 'approve'],
         projects: ['view'], clientContracts: ['view'], subContracts: ['view'],
         subcontractors: ['view'],
         /* بيانات الموظفين للاعتماد فقط — بلا شاشة الملفات الشخصية */
@@ -157,6 +159,7 @@
         suppliers: ['view', 'create', 'edit'],
         customers: ['view', 'create', 'edit'],
         accounts: ['view'], costItems: ['view'], cashAccounts: ['view'],
+        employeeAdvances: ['view'],
         purchaseApprovals: ['view'], goodsReceipts: ['view'],
         clientIPCs: ['view'], subIPCs: ['view'],
         /* أسماء فقط للترميز والربط */
@@ -230,6 +233,8 @@
         rfi: ['view', 'create'], submittals: ['view'], docRegister: ['view'],
         transmittals: ['view'], correspondence: ['view'],
         attendance: ['view', 'create', 'edit'],
+        siteAttendance: ['view', 'review', 'approve'],
+        dailyLabour: ['view', 'review', 'approve'],
         costItems: LOOKUP, items: LOOKUP, warehouses: LOOKUP,
         customers: LOOKUP, employees: LOOKUP, suppliers: LOOKUP
       }
@@ -277,6 +282,8 @@
         safetyReports: ['view', 'create', 'edit'],
         siteReports: ['view', 'create', 'edit'],
         equipmentLogs: ['view', 'create', 'edit'],
+        siteAttendance: ['view', 'create', 'edit'],
+        dailyLabour: ['view', 'create', 'edit'],
         /* يقرأ ما يخص عمله فقط */
         projects: ['view'],
         drawings: ['view'],
@@ -326,6 +333,11 @@
       perms: {
         employees: ['view', 'create', 'edit', 'delete'],
         attendance: ['view', 'create', 'edit', 'delete'],
+        /* ── HR screens built from the 15 Aug 2026 department meeting ── */
+        employeeAdvances: ['view', 'create', 'edit'],
+        employeeDocs: ['view', 'create', 'edit', 'delete'],
+        siteAttendance: ['view', 'create', 'edit', 'delete'],
+        dailyLabour: ['view', 'create', 'edit'],
         leaves: ['view', 'create', 'edit', 'review'],
         payroll: ['view', 'create', 'edit'],
         announcements: ['view', 'create', 'edit', 'delete'],
