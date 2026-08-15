@@ -13,6 +13,7 @@
     'assets/js/schema.js',
     'assets/js/departments.js',
     'assets/js/hr-department.js',
+    'assets/js/sites.js',
     'assets/js/auth.js',
     'assets/js/identity.js',
     'assets/js/workflow.js',

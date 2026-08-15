@@ -42,10 +42,35 @@
     cubesPerVolume:     50,    /* مكعب اختبار لكل كم متر مكعب */
     ncrOverdueDays:     0,     /* بعد تاريخ الإغلاق المستهدف */
     incidentCloseDays:  14,
-    transmittalAckDays: 7,
-    noticeWarnDays:     7,     /* تنبيه قبل انتهاء المدة التعاقدية */
+
+    /* ══ CORRECTED after the DC meeting, 15 August 2026 ══════════════
+       أ. أحمد عبد الحي، المسؤول الإداري
+
+       I had set these from ordinary international practice: a reply
+       expected in 7 days, a transmittal acknowledged in 7 days, a
+       contractual notice window of 28 days.
+
+       His actual answers:
+         · مدة الرد على طلب المعلومات: «٥-٦ شهور»
+         · مدة الرد على الاعتماد: «١ - ٣٠» يوم حسب النوع
+         · خطابات لها مدة قانونية يسقط الحق بعدها: «لأ يوجد»
+         · التنبيه المطلوب قبل الموعد: «اسبوع»
+
+       Left as they were, the assistant would have raised a red alert on
+       every single RFI within a week of sending it, for a body that
+       genuinely takes five months to answer. Two hundred false alarms in
+       the first month, and nobody would ever trust it again.
+
+       كانت الحدود مضبوطة على الممارسة الدولية المعتادة. إجاباته تقول إن
+       الرد يستغرق خمسة إلى ستة شهور فعلياً. لو تُركت كما هي لأطلق النظام
+       إنذاراً أحمر على كل طلب بعد أسبوع، ولفقد الناس الثقة فيه من أول شهر.
+       ══════════════════════════════════════════════════════════════ */
+    transmittalAckDays: 21,    /* كان ٧ — الورق يتحرك ببطء بين الجهات */
+    noticeWarnDays:     7,     /* «اسبوع» — بكلماته */
     borrowReturnDays:   30,
-    rfiClaimDays:       7      /* تأخير رد يستحق التوثيق كمطالبة */
+    rfiClaimDays:       150,   /* كان ٧ — «٥-٦ شهور» هي المدة الفعلية */
+    rfiOverdueDays:     180,   /* لا إنذار قبل ستة شهور */
+    submittalOverdueDays: 30   /* «١ - ٣٠» حسب نوع الاعتماد */
   };
   I.TOL_DEPT = TOL;
 
@@ -357,7 +382,9 @@
       if (r.closed || r.replyDate) return;
       if (!r.replyDue) return;
       var late = since(r.replyDue);
-      if (late <= 0) return;
+      /* The consulting body genuinely takes five to six months. Only flag
+         once it passes even that, or the screen becomes noise. */
+      if (late <= TOL.rfiOverdueDays) return;
       out.push(F(r.workStopped ? 'critical' : (r.priority === 'block' ? 'critical' : 'high'),
         'dc', 'rfi', r.id,
         'طلب معلومات بلا رد منذ ' + late + ' يوماً بعد الموعد',
@@ -432,7 +459,7 @@
       if (s.result !== 'pending') return;
       if (!s.replyDue) return;
       var late = since(s.replyDue);
-      if (late <= 0) return;
+      if (late <= TOL.submittalOverdueDays) return;
       out.push(F('medium', 'dc', 'submittals', s.id,
         'اعتماد معلّق متأخر ' + late + ' يوماً',
         (s.docNo || '') + ' — ' + (s.title || ''),

@@ -40,6 +40,10 @@
   var ALL = ['view', 'create', 'edit', 'delete', 'review', 'approve'];
   var LOOKUP = ['lookup'];
 
+  /* Every role must be able to resolve a site NAME in a dropdown, or the
+     new Site field would be an empty box on every form.
+     كل دور يحتاج قراءة اسم الموقع في القائمة المنسدلة وإلا ظهر الحقل فارغاً. */
+
   /* Fields that must never leave the HR department, whatever happens.
      Used by the UI as a second line of defence behind the database rules. */
   var SENSITIVE = {
@@ -98,6 +102,7 @@
            فأصبح لا أحد في الشركة يستطيع إنشاء مشروع — وبدون مشروع لا
            يعمل أي مستند تقريباً. */
         projects:       ['view', 'create', 'edit'],
+        sites:          ['view', 'create', 'edit'],
         warehouses:     ['view', 'create', 'edit'],
         equipment:      ['view', 'create', 'edit'],
         accounts:       ['view', 'create', 'edit'],
@@ -140,7 +145,8 @@
       perms: {
         '*': ['view', 'review', 'approve'],
         /* A general manager opening a new project is ordinary business. */
-        projects: ['view', 'create', 'edit', 'review', 'approve']
+        projects: ['view', 'create', 'edit', 'review', 'approve'],
+        sites: ['view', 'create', 'edit']
       },
       canManageUsers: false,
       allProjects: true
@@ -150,7 +156,8 @@
       label: { ar: 'مراجع داخلي (قراءة فقط)', en: 'Internal auditor (read-only)' },
       desc: { ar: 'اطلاع كامل بدون أي تعديل', en: 'Full visibility, no changes at all' },
       dept: 'system',
-      perms: { '*': ['view'] }
+      perms: {
+        sites: LOOKUP, '*': ['view'] }
     },
 
     reviewer: {
@@ -158,6 +165,7 @@
       desc: { ar: 'مراجعة المستندات قبل الاعتماد', en: 'Reviews documents before approval' },
       dept: 'system',
       perms: {
+        sites: LOOKUP,
         '*': ['view', 'review'],
         /* المراجع لا يحتاج بيانات الموظفين الشخصية */
         employees: ['lookup'], payroll: []
@@ -170,6 +178,7 @@
       desc: { ar: 'اعتماد المستندات المالية ومتابعة ربحية المشروعات', en: 'Approves financial documents, tracks project profitability' },
       dept: 'finance',
       perms: {
+        sites: LOOKUP,
         accounts: ALL, journal: ALL, suppliers: ALL, customers: ALL, costItems: ALL,
         supplierInvoices: ALL, payments: ALL, receipts: ALL, cashAccounts: ALL,
         purchaseApprovals: ['view', 'review', 'approve'],
@@ -194,6 +203,7 @@
       desc: { ar: 'إدخال القيود والفواتير والسندات', en: 'Enters journals, invoices and vouchers' },
       dept: 'finance',
       perms: {
+        sites: LOOKUP,
         journal: ['view', 'create', 'edit', 'delete'],
         supplierInvoices: ['view', 'create', 'edit', 'delete'],
         payments: ['view', 'create', 'edit', 'delete'],
@@ -216,6 +226,7 @@
       desc: { ar: 'إعداد اعتمادات الشراء ومتابعة الموردين', en: 'Prepares purchase approvals, manages suppliers' },
       dept: 'finance',
       perms: {
+        sites: LOOKUP,
         purchaseApprovals: ['view', 'create', 'edit', 'delete'],
         suppliers: ['view', 'create', 'edit'],
         items: ['view', 'create', 'edit'],
@@ -231,6 +242,7 @@
       desc: { ar: 'الاستلام والصرف والتحويل والجرد', en: 'Receipts, issues, transfers and counts' },
       dept: 'finance',
       perms: {
+        sites: LOOKUP,
         goodsReceipts: ['view', 'create', 'edit', 'delete'],
         stockIssues: ['view', 'create', 'edit', 'delete'],
         stockTransfers: ['view', 'create', 'edit', 'delete'],
@@ -249,6 +261,7 @@
       desc: { ar: 'متابعة المشروع وتكلفته ومستخلصاته وموقعه', en: 'Runs the project: cost, IPCs and site' },
       dept: 'projects',
       perms: {
+        sites: LOOKUP,
         projects: ['view', 'edit'],
         budgets: ['view', 'create', 'edit'],
         clientIPCs: ['view', 'create', 'edit'],
@@ -287,6 +300,7 @@
       desc: { ar: 'الرسومات والموازنات وحصر الكميات والمستخلصات', en: 'Drawings, budgets, quantity surveying and IPCs' },
       dept: 'projects',
       perms: {
+        sites: LOOKUP,
         drawings: ['view', 'create', 'edit', 'delete'],
         budgets: ['view', 'create', 'edit'],
         clientIPCs: ['view', 'create', 'edit'],
@@ -313,6 +327,7 @@
               en: 'Daily execution: inspections, pours, asphalt, labour and safety' },
       dept: 'site',
       perms: {
+        sites: LOOKUP,
         wir: ['view', 'create', 'edit', 'delete'],
         mir: ['view', 'create', 'edit', 'delete'],
         pourCards: ['view', 'create', 'edit', 'delete'],
@@ -347,6 +362,7 @@
               en: 'Document register, revisions, correspondence, submittals and archive' },
       dept: 'dc',
       perms: {
+        sites: LOOKUP,
         docRegister: ['view', 'create', 'edit', 'delete'],
         transmittals: ['view', 'create', 'edit', 'delete'],
         rfi: ['view', 'create', 'edit', 'delete'],
@@ -373,6 +389,7 @@
       desc: { ar: 'الموظفون والحضور والإجازات والرواتب', en: 'Employees, attendance, leave and payroll' },
       dept: 'people',
       perms: {
+        sites: LOOKUP,
         employees: ['view', 'create', 'edit', 'delete'],
         attendance: ['view', 'create', 'edit', 'delete'],
         /* ── HR screens built from the 15 Aug 2026 department meeting ── */
@@ -426,6 +443,7 @@
               en: 'Runs the department and approves leave and advances himself' },
       dept: 'people',
       perms: {
+        sites: LOOKUP,
         /* everything the HR officer does */
         employees:           ['view', 'create', 'edit', 'delete'],
         employeeDocs:        ['view', 'create', 'edit', 'delete'],
@@ -456,6 +474,7 @@
       desc: { ar: 'العقود والتراخيص والقضايا والمطالبات', en: 'Contracts, licences, cases and claims' },
       dept: 'people',
       perms: {
+        sites: LOOKUP,
         legalDocs: ['view', 'create', 'edit', 'delete'],
         clientContracts: ['view', 'create', 'edit'],
         subContracts: ['view', 'create', 'edit'],
@@ -473,6 +492,7 @@
       desc: { ar: 'الأصول التقنية وطلبات الدعم', en: 'IT assets and support tickets' },
       dept: 'people',
       perms: {
+        sites: LOOKUP,
         itAssets: ['view', 'create', 'edit', 'delete'],
         itTickets: ['view', 'create', 'edit', 'delete'],
         announcements: ['view'],
@@ -485,6 +505,7 @@
       desc: { ar: 'الاطلاع على التعميمات وتقديم الطلبات', en: 'Reads announcements, submits requests' },
       dept: 'people',
       perms: {
+        sites: LOOKUP,
         announcements: ['view'],
         leaves: ['view', 'create', 'edit'],
         itTickets: ['view', 'create', 'edit'],
