@@ -41,6 +41,7 @@ var SHELL = [
      no signal loses every check and every piece of job knowledge. */
   './assets/js/departments.js',
   './assets/js/hr-department.js',
+  './assets/js/sites.js',
   './assets/js/knowledge.js',
   './assets/js/inspector.js',
   './assets/js/inspector-departments.js',
