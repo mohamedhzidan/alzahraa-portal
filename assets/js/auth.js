@@ -376,12 +376,16 @@
         employees: ['view', 'create', 'edit', 'delete'],
         attendance: ['view', 'create', 'edit', 'delete'],
         /* ── HR screens built from the 15 Aug 2026 department meeting ── */
-        employeeAdvances: ['view', 'create', 'edit'],
         employeeDocs: ['view', 'create', 'edit', 'delete'],
         employmentContracts: ['view', 'create', 'edit'],
         siteAttendance: ['view', 'create', 'edit', 'delete'],
         dailyLabour: ['view', 'create', 'edit'],
-        leaves: ['view', 'create', 'edit', 'review'],
+        /* HR OFFICER — شؤون العاملين
+           Prepares everything, approves nothing. His manager signs.
+           يُعدّ كل شيء ولا يعتمد شيئاً — المدير يوقّع. */
+        leaves: ['view', 'create', 'edit'],
+        employeeAdvances: ['view', 'create', 'edit'],
+        dailyLabour: ['view', 'create', 'edit'],
         payroll: ['view', 'create', 'edit'],
         announcements: ['view', 'create', 'edit', 'delete'],
         labourAllocation: ['view'],
