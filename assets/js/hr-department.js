@@ -317,10 +317,81 @@
     }
   };
 
+
+  /* ═══════════════════════════════════════════════════════════════════
+     ٥ · عقود العمل — EMPLOYMENT CONTRACTS
+     -------------------------------------------------------------------
+     كانت الشاشتان الوحيدتان باسم «عقود» هما عقود العملاء وعقود مقاولي
+     الباطن، وكلاهما تجاري لا علاقة له بالموارد البشرية. عقد العمل نفسه
+     — وهو مستند الموارد البشرية الأصلي — لم يكن موجوداً إطلاقاً.
+
+     The only two contract screens were client contracts and subcontractor
+     contracts, both commercial. The employment contract — HR's own core
+     document — did not exist. It does now, and HR owns it outright: no
+     approval from anyone else is required to record one.
+     ═══════════════════════════════════════════════════════════════════ */
+  var CONTRACT_TYPE = [
+    { value: 'fixed',       label: { ar: 'محدد المدة',        en: 'Fixed term' } },
+    { value: 'indefinite',  label: { ar: 'غير محدد المدة',    en: 'Indefinite' } },
+    { value: 'temporary',   label: { ar: 'مؤقت',              en: 'Temporary' } },
+    { value: 'daily',       label: { ar: 'عمالة يومية',       en: 'Daily labour' } },
+    { value: 'probation',   label: { ar: 'فترة اختبار',       en: 'Probation' } }
+  ];
+
+  var EMP_CONTRACT = {
+    id: 'employmentContracts', table: 'employmentContracts', group: 'people', icon: 'file-signature',
+    label: { ar: 'عقود العمل', en: 'Employment contracts' },
+    desc: { ar: 'عقد كل موظف ومدته وتجديده — تملكه الموارد البشرية بالكامل',
+            en: 'Each employee contract, its term and renewal — owned entirely by HR' },
+    columns: ['docNo', 'employee', 'contractType', 'startDate', 'endDate', 'status'],
+    search: ['docNo', 'employee'],
+    fields: [
+      F('docNo', 'رقم العقد', 'Contract no.', 'text', { section: SEC.main }),
+      F('employee', 'الموظف', 'Employee', 'ref',
+        { ref: 'employees', refLabel: 'name', required: true, section: SEC.main }),
+      F('contractType', 'نوع العقد', 'Contract type', 'select',
+        { options: CONTRACT_TYPE, default: 'fixed', required: true, section: SEC.main }),
+      F('jobTitle', 'المسمى الوظيفي في العقد', 'Job title on the contract', 'text', { section: SEC.main }),
+      F('project', 'المشروع / مكان العمل', 'Project / place of work', 'ref',
+        { ref: 'projects', refLabel: 'name', section: SEC.main }),
+
+      F('startDate', 'تاريخ البداية', 'Start date', 'date', { required: true, section: SEC.dates }),
+      F('endDate', 'تاريخ النهاية', 'End date', 'date',
+        { section: SEC.dates, help: { ar: 'اتركه فارغاً لغير محدد المدة', en: 'Leave empty for indefinite' } }),
+      F('probationMonths', 'فترة الاختبار (شهور)', 'Probation (months)', 'number', { default: 3, section: SEC.dates }),
+      F('noticePeriod', 'مدة الإخطار (يوم)', 'Notice period (days)', 'number', { section: SEC.dates }),
+      F('renewed', 'مُجدَّد', 'Renewed', 'checkbox', { section: SEC.dates }),
+      F('renewedFrom', 'تجديد للعقد رقم', 'Renewal of contract', 'text', { section: SEC.dates }),
+
+      F('basicSalary', 'الأجر الأساسي بالعقد', 'Basic salary on contract', 'money', { section: SEC.money }),
+      F('workingHours', 'ساعات العمل اليومية', 'Daily working hours', 'number', { default: 8, section: SEC.money }),
+      F('insuranceRegistered', 'مُسجَّل بالتأمينات', 'Registered for insurance', 'checkbox', { section: SEC.money }),
+      F('insuranceDate', 'تاريخ التسجيل بالتأمينات', 'Insurance registration date', 'date', { section: SEC.money }),
+
+      F('signedByEmployee', 'موقّع من الموظف', 'Signed by employee', 'checkbox', { section: SEC.hand }),
+      F('signedByCompany', 'موقّع من الشركة', 'Signed by the company', 'checkbox', { section: SEC.hand }),
+      F('signedDate', 'تاريخ التوقيع', 'Date signed', 'date', { section: SEC.hand }),
+      F('copyToEmployee', 'سُلّمت نسخة للموظف', 'Copy given to the employee', 'checkbox',
+        { section: SEC.hand, help: { ar: 'حق قانوني للموظف', en: 'A legal right of the employee' } }),
+      F('fileLocation', 'مكان الملف الورقي', 'Paper file location', 'text', { section: SEC.extra }),
+
+      F('status', 'الحالة', 'Status', 'select', {
+        options: [
+          { value: 'active',    label: { ar: 'ساري',           en: 'Active' } },
+          { value: 'expiring',  label: { ar: 'يقترب من الانتهاء', en: 'Expiring' } },
+          { value: 'expired',   label: { ar: 'منتهٍ',           en: 'Expired' } },
+          { value: 'renewed',   label: { ar: 'جُدِّد',          en: 'Renewed' } },
+          { value: 'terminated',label: { ar: 'مُنهى',           en: 'Terminated' } }
+        ], default: 'active', section: SEC.main }),
+      F('terminationReason', 'سبب الإنهاء', 'Reason for termination', 'textarea', { section: SEC.extra, full: true }),
+      F('notes', 'ملاحظات', 'Notes', 'textarea', { section: SEC.extra, full: true })
+    ]
+  };
+
   /* ═══════════════════════════════════════════════════════════════════
      التسجيل — REGISTRATION
      ═══════════════════════════════════════════════════════════════════ */
-  var NEW = [ADVANCE, HIRE_DOCS, SITE_SHEET, DAILY];
+  var NEW = [ADVANCE, HIRE_DOCS, SITE_SHEET, DAILY, EMP_CONTRACT];
   var extraById = {};
 
   NEW.forEach(function (m) {

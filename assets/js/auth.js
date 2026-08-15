@@ -49,7 +49,7 @@
     users:     ['password', 'login_email', 'auth_uid']
   };
   /* Roles allowed to read the sensitive fields above. */
-  var SENSITIVE_ROLES = ['admin', 'gm', 'hr', 'finance_manager', 'auditor'];
+  var SENSITIVE_ROLES = ['admin', 'gm', 'hr', 'hr_manager', 'finance_manager', 'auditor'];
 
   var ROLES = {
 
@@ -75,7 +75,45 @@
       desc: { ar: 'إدارة المستخدمين والإعدادات — بلا صلاحية اعتماد مالي',
               en: 'Manages accounts and configuration — no financial approval authority' },
       dept: 'system',
-      perms: { '*': ['view'] },
+      perms: {
+        /* Sees everything, for support. Approves nothing. */
+        '*': ['view'],
+
+        /* ── CONFIGURATION / MASTER DATA ──────────────────────────────
+           The audit's wording was precise: a technical administrator
+           "should manage accounts/configuration but should not approve
+           payments, journals, stock, payroll or procurement."
+
+           Setting up the company's projects, warehouses, items and
+           suppliers IS configuration. It is not a financial decision and
+           it moves no money.
+
+           My first version of this fix removed these too, which left the
+           portal with THREE screens nobody in the company could create:
+           projects, warehouses and equipment. That made the whole system
+           unusable, because almost every document asks for a project.
+
+           إعداد المشروعات والمخازن والأصناف والموردين هو ضبط للنظام،
+           وليس قراراً مالياً. النسخة الأولى من هذا التعديل منعته أيضاً
+           فأصبح لا أحد في الشركة يستطيع إنشاء مشروع — وبدون مشروع لا
+           يعمل أي مستند تقريباً. */
+        projects:       ['view', 'create', 'edit'],
+        warehouses:     ['view', 'create', 'edit'],
+        equipment:      ['view', 'create', 'edit'],
+        accounts:       ['view', 'create', 'edit'],
+        costItems:      ['view', 'create', 'edit'],
+        items:          ['view', 'create', 'edit'],
+        suppliers:      ['view', 'create', 'edit'],
+        customers:      ['view', 'create', 'edit'],
+        subcontractors: ['view', 'create', 'edit'],
+        cashAccounts:   ['view', 'create', 'edit'],
+        employees:      ['view', 'create', 'edit'],
+        announcements:  ['view', 'create', 'edit', 'delete']
+
+        /* Deliberately absent: create/edit on journal, payments, receipts,
+           supplierInvoices, IPCs, payroll, stock movements, purchase
+           approvals — and review/approve on anything at all. */
+      },
       canManageUsers: true,
       allProjects: true
     },
@@ -99,7 +137,11 @@
       label: { ar: 'المدير العام', en: 'General manager' },
       desc: { ar: 'اطلاع كامل واعتماد نهائي لكل المستندات', en: 'Full visibility and final approval on all documents' },
       dept: 'system',
-      perms: { '*': ['view', 'review', 'approve'] },
+      perms: {
+        '*': ['view', 'review', 'approve'],
+        /* A general manager opening a new project is ordinary business. */
+        projects: ['view', 'create', 'edit', 'review', 'approve']
+      },
       canManageUsers: false,
       allProjects: true
     },
@@ -336,6 +378,7 @@
         /* ── HR screens built from the 15 Aug 2026 department meeting ── */
         employeeAdvances: ['view', 'create', 'edit'],
         employeeDocs: ['view', 'create', 'edit', 'delete'],
+        employmentContracts: ['view', 'create', 'edit'],
         siteAttendance: ['view', 'create', 'edit', 'delete'],
         dailyLabour: ['view', 'create', 'edit'],
         leaves: ['view', 'create', 'edit', 'review'],
@@ -346,6 +389,61 @@
         legalDocs: ['view'],
         projects: LOOKUP, itAssets: LOOKUP,
         costItems: LOOKUP, equipment: LOOKUP
+      }
+    },
+
+    /* ══ مدير الموارد البشرية ═══════════════════════════════════════
+       لماذا هذا الدور موجود:
+
+       كانت الإجازات والسلف وكشوف العمالة اليومية لا يعتمدها إلا المدير
+       العام. أي أن صاحب الشركة يوقّع على كل إجازة اعتيادية وكل سلفة
+       أسبوعية لكل موظف من ٤٥٠ موظفاً. هذا ليس رقابة — هذا شلل، ونتيجته
+       الحتمية أن يوقّع الجميع بالجملة دون قراءة.
+
+       مدير الموارد البشرية يعتمد شغل قسمه بنفسه. المدير العام يبقى فوقه
+       للاستثناءات، والمال الكبير (مسير الرواتب) يظل عند المالية والمدير
+       العام لأنه مال فعلي يخرج.
+
+       WHY THIS ROLE EXISTS
+
+       Leave, advances and daily labour sheets could only be approved by
+       the general manager. That meant the owner of the company signing
+       every ordinary leave request and every weekly advance for 450
+       people. That is not control, it is paralysis — and it guarantees
+       bulk-approval without reading.
+
+       The HR manager now approves his own department's routine work.
+       The GM stays above him for exceptions, and payroll — real money
+       leaving the company — still needs finance and the GM.
+       ═══════════════════════════════════════════════════════════════ */
+    hr_manager: {
+      label: { ar: 'مدير الموارد البشرية', en: 'HR manager' },
+      desc: { ar: 'يدير القسم ويعتمد الإجازات والسلف بنفسه — بلا رجوع للإدارة العليا',
+              en: 'Runs the department and approves leave and advances himself' },
+      dept: 'people',
+      perms: {
+        /* everything the HR officer does */
+        employees:           ['view', 'create', 'edit', 'delete'],
+        employeeDocs:        ['view', 'create', 'edit', 'delete'],
+        employmentContracts: ['view', 'create', 'edit', 'delete'],
+        attendance:          ['view', 'create', 'edit', 'delete'],
+        siteAttendance:      ['view', 'create', 'edit', 'delete'],
+        announcements:       ['view', 'create', 'edit', 'delete'],
+
+        /* …plus the authority to sign off his own department's work */
+        leaves:              ['view', 'create', 'edit', 'review', 'approve'],
+        employeeAdvances:    ['view', 'create', 'edit', 'review', 'approve'],
+        dailyLabour:         ['view', 'create', 'edit', 'review', 'approve'],
+
+        /* payroll: prepares and reviews, but does NOT approve.
+           Real money leaving needs a second pair of eyes — finance or GM.
+           يعدّ المسير ويراجعه، لكن لا يعتمده. المال الفعلي يحتاج توقيعاً ثانياً. */
+        payroll:             ['view', 'create', 'edit', 'review'],
+
+        legalDocs:           ['view'],
+        labourAllocation:    ['view'],
+        safetyReports:       ['view'],
+        projects: LOOKUP, itAssets: LOOKUP, costItems: LOOKUP, equipment: LOOKUP
       }
     },
 
@@ -609,7 +707,7 @@
 
      قبل التعديل: ترك خانات المشاريع فارغة كان يعني «كل المشاريع».
      الآن يعني «لا شيء». الوصول لكل المشاريع يحتاج تفعيلاً صريحاً. */
-  var GLOBAL_PROJECT_ROLES = ['admin', 'gm', 'auditor', 'finance_manager', 'hr', 'legal'];
+  var GLOBAL_PROJECT_ROLES = ['admin', 'gm', 'auditor', 'finance_manager', 'hr', 'hr_manager', 'legal'];
 
   function hasAllProjects(u) {
     var user = u || current;

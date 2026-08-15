@@ -78,6 +78,7 @@
     dailyLabour:       APPROVE, /* صرف نقدي للعمالة اليومية */
     siteAttendance:    RECORD,  /* كشف حضور — تسجيل واقعة لا قرار */
     employeeDocs:      RECORD,  /* قائمة تحقق مستندات */
+    employmentContracts: RECORD, /* عقد العمل مستند تُمسكه الموارد البشرية */
 
     /* ══ ٠ · تسجيل مباشر — واقعة تُوثَّق، لا قرار يُتخذ ══════════════
        These are records, not decisions. Forcing signatures here is what
