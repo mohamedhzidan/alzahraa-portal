@@ -48,6 +48,8 @@ var SHELL = [
   './assets/js/assistant-pro.js',
   './assets/js/agents.js',
   './assets/js/save-modes.js',
+  './assets/js/attachments.js',
+  './assets/js/import.js',
   './assets/js/workflow-policy.js',
   /* ─────────────────────────────────────────────────────────────────── */
 
