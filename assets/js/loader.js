@@ -39,6 +39,8 @@
     'assets/js/pages/reports.js',
     'assets/js/pages/settings.js',
     'assets/js/save-modes.js',
+    'assets/js/attachments.js',
+    'assets/js/import.js',
     'assets/js/app.js'
   ];
   var NEEDED = [
