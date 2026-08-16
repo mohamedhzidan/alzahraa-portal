@@ -80,8 +80,21 @@
               en: 'Manages accounts and configuration — no financial approval authority' },
       dept: 'system',
       perms: {
-        /* Sees everything, for support. Approves nothing. */
-        '*': ['view'],
+        /* ⚠️ THE BUG THIS LINE CAUSED — fixed 17 August 2026
+           It used to read  '*': ['view']  — view only.
+           permsFor() falls back to '*' for every screen not named below,
+           so on ~40 screens the administrator could look but never create.
+           No «＋ إضافة» button, and no استيراد button either, because
+           import.js only shows itself where you may create.
+
+           كان السطر view فقط، فاختفى زر «إضافة» وزر «استيراد» من كل شاشة
+           غير مذكورة بالاسم تحت. الإنشاء ليس قراراً مالياً — الاعتماد هو
+           القرار، وهو ما يبقى ممنوعاً على مسؤول النظام.
+
+           Creating is not approving. The audit's objection was that one
+           account could raise an invoice AND approve AND pay it. Approve,
+           review and delete stay absent below, so that stays impossible. */
+        '*': ['view', 'create', 'edit'],
 
         /* ── CONFIGURATION / MASTER DATA ──────────────────────────────
            The audit's wording was precise: a technical administrator
@@ -143,8 +156,12 @@
       desc: { ar: 'اطلاع كامل واعتماد نهائي لكل المستندات', en: 'Full visibility and final approval on all documents' },
       dept: 'system',
       perms: {
-        '*': ['view', 'review', 'approve'],
-        /* A general manager opening a new project is ordinary business. */
+        /* Same fix as above. A general manager who cannot start a document
+           is not a general manager. He signs everything and he may also
+           write — in a company of this size he often does both, and every
+           action carries his name in the audit trail.
+           المدير العام يوقّع ويكتب. كل فعل مسجَّل باسمه. */
+        '*': ['view', 'create', 'edit', 'review', 'approve'],
         projects: ['view', 'create', 'edit', 'review', 'approve'],
         sites: ['view', 'create', 'edit']
       },
@@ -668,10 +685,24 @@
     return (u && ROLES[u.role]) || null;
   }
 
+  /* An unknown role name used to return null here, which means "no
+     permission on anything" — every button disappears and nothing on the
+     screen explains why. That is the worst kind of failure: silent.
+     Now it says so, loudly, in the console.
+     الدور غير المعروف كان يُفقد كل الصلاحيات بصمت. الآن يُعلن عن نفسه. */
+  var warnedRoles = {};
   function permsFor(moduleId) {
     if (!current) return null;
     var r = ROLES[current.role];
-    if (!r) return null;
+    if (!r) {
+      if (!warnedRoles[current.role]) {
+        warnedRoles[current.role] = true;
+        console.error('[auth] الدور «' + current.role + '» غير معرّف في auth.js — ' +
+          'لذلك لا تظهر أي أزرار. Unknown role "' + current.role + '": every ' +
+          'permission is denied. Known roles: ' + Object.keys(ROLES).join(', '));
+      }
+      return null;
+    }
     if (current.overrides && current.overrides[moduleId]) return current.overrides[moduleId];
     if (r.perms[moduleId]) return r.perms[moduleId];
     if (r.perms['*']) return r.perms['*'];
