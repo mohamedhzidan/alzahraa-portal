@@ -387,16 +387,39 @@
         correspondence: ['view', 'create', 'edit', 'delete'],
         distribution: ['view', 'create', 'edit', 'delete'],
         docArchive: ['view', 'create', 'edit', 'delete'],
-        /* يحتاج رؤية الرسومات والعقود لتسجيلها ومتابعة مراجعاتها */
-        drawings: ['view', 'create', 'edit'],
-        clientContracts: ['view'],
-        subContracts: ['view'],
-        legalDocs: ['view'],
-        projects: ['view'],
-        siteInstructions: ['view'],
-        ncr: ['view'],
-        items: LOOKUP, suppliers: LOOKUP, subcontractors: LOOKUP,
-        customers: LOOKUP, employees: LOOKUP, costItems: LOOKUP
+        /* ── تعديل ١٧ أغسطس ٢٠٢٦ · القاعدة: ما يراه يستطيع الإضافة فيه ──
+           كان يرى العقود والمشروعات ولا يستطيع تسجيل واحد. ضابط المستندات
+           هو من يقيّد العقد في السجل ويعطيه رقماً ويتابع مراجعاته — منعه
+           من ذلك يعني أن يظل العمل على الورق.
+
+           17 August 2026. The rule is now: whatever he can see, he can
+           add to. Registering a contract, giving it a number and tracking
+           its revisions IS document control. Refusing him that just keeps
+           the work on paper.
+
+           ما زال محجوباً عنه: الموظفون، الرواتب، الحسابات، المخازن،
+           وكل ما يخص المال. وما زال لا يعتمد شيئاً بنفسه.
+           Still hidden from him: employees, payroll, accounts, stock and
+           anything financial. And he still approves nothing himself. */
+        drawings:        ['view', 'create', 'edit'],
+        projects:        ['view', 'create', 'edit'],
+        clientContracts: ['view', 'create', 'edit'],
+        subContracts:    ['view', 'create', 'edit'],
+        legalDocs:       ['view', 'create', 'edit'],
+        siteInstructions:['view', 'create', 'edit'],
+        ncr:             ['view', 'create', 'edit'],
+
+        /* عقد مقاول باطن جديد يحتاج مقاولاً جديداً، وعقد عميل يحتاج عميلاً.
+           لولا هذان السطران لعجز عن تسجيل أول عقد لطرف جديد.
+           A new subcontract needs a new subcontractor and a client
+           contract needs a client. Without these two lines he could not
+           register the first contract with any new party. */
+        subcontractors:  ['view', 'create', 'edit'],
+        customers:       ['view', 'create', 'edit'],
+
+        /* هذه تبقى «بحث فقط» — يراها في القوائم المنسدلة ولا يفتح شاشتها.
+           الأصناف والموردون شأن المشتريات والمخازن، لا ضبط المستندات. */
+        items: LOOKUP, suppliers: LOOKUP, employees: LOOKUP, costItems: LOOKUP
       }
     },
 
