@@ -22,12 +22,23 @@
    إجبارية ولا يمكن تخطّيها.
 
    -------------------------------------------------------------------------
-   الصيغة: CSV — من إكسل: ملف ← حفظ باسم ← CSV UTF-8
+   الصيغ المقبولة · ACCEPTED FORMATS
 
-   Format: CSV. From Excel: File → Save As → CSV UTF-8.
-   Deliberately not .xlsx — parsing Excel needs a large third-party
-   library that would have to be uploaded and trusted untested. CSV is
-   one extra click and it cannot silently misread a number.
+     ‎.xlsx‎ / ‎.xlsm‎   ملف إكسل مباشرة — بلا حفظ باسم ولا خطوة إضافية
+     ‎.csv‎ / ‎.tsv‎     نص مفصول بفواصل
+
+   ‎.xls‎ القديمة (إكسل ٢٠٠٣) و PDF و Word مرفوضة عمداً، والرسالة تشرح
+   البديل. الملف الذي لا يُقرأ يُرفض بوضوح — ولا يُقرأ نصفه بصمت.
+
+   .xlsx is read directly: no Save As, no extra step. The old .xls, and
+   PDF, are refused on purpose with a message explaining what to do
+   instead. A file that cannot be read correctly is refused out loud
+   rather than half-read in silence.
+
+   لا مكتبة خارجية. ملف الإكسل هو ZIP بداخله XML، والمتصفح يفك الضغط
+   بنفسه — فيعمل الاستيراد بدون إنترنت أيضاً.
+   No third-party library: an .xlsx is a ZIP of XML and the browser
+   inflates it natively, so import works with no connection too.
 
    -------------------------------------------------------------------------
    ADDITIVE. Delete this file and the Import button disappears.
@@ -69,6 +80,232 @@
     }
     if (field.length || row.length) { row.push(field); rows.push(row); }
     return rows.filter(function (r) { return r.some(function (c) { return String(c).trim() !== ''; }); });
+  }
+
+  /* ═══════════════════════════════════════════════════════════════════
+     ١ب · قارئ إكسل ‎.xlsx‎ — بدون أي مكتبة خارجية
+     -------------------------------------------------------------------
+     ملف الإكسل الحديث هو في الحقيقة ملف ZIP بداخله ملفات XML. المتصفح
+     يعرف كيف يفكّ ضغط ZIP بنفسه منذ ٢٠٢٠ عبر DecompressionStream، لذلك
+     لا نحتاج تحميل مكتبة خارجية بحجم ٦٠ كيلوبايت ولا الوثوق بكود لم
+     نختبره. أقل كوداً = أقل مكان يختبئ فيه خطأ.
+
+     An .xlsx is a ZIP of XML files. Every browser since 2020 can inflate
+     a ZIP entry itself via DecompressionStream, so this needs no
+     third-party library — nothing downloaded, nothing to trust, and it
+     works with no connection. Less code is fewer places for a bug to hide.
+     ═══════════════════════════════════════════════════════════════════ */
+
+  /* ٱقرأ فهرس ZIP المركزي واستخرج ملفاً واحداً بالاسم */
+  function zipEntries(buf) {
+    var dv = new DataView(buf), u8 = new Uint8Array(buf), n = u8.length;
+    /* End of Central Directory: signature 0x06054b50, scan backwards */
+    var eocd = -1;
+    for (var i = n - 22; i >= 0 && i > n - 66000; i--) {
+      if (dv.getUint32(i, true) === 0x06054b50) { eocd = i; break; }
+    }
+    if (eocd < 0) throw new Error('ليس ملف إكسل صالح · not a valid .xlsx');
+
+    var count = dv.getUint16(eocd + 10, true);
+    var dirAt = dv.getUint32(eocd + 16, true);
+    var map = {}, p = dirAt;
+
+    for (var k = 0; k < count && p + 46 <= n; k++) {
+      if (dv.getUint32(p, true) !== 0x02014b50) break;
+      var method   = dv.getUint16(p + 10, true);
+      var compSize = dv.getUint32(p + 20, true);
+      var nameLen  = dv.getUint16(p + 28, true);
+      var extraLen = dv.getUint16(p + 30, true);
+      var cmtLen   = dv.getUint16(p + 32, true);
+      var localAt  = dv.getUint32(p + 42, true);
+      var name     = utf8(u8.subarray(p + 46, p + 46 + nameLen));
+      map[name] = { method: method, compSize: compSize, localAt: localAt };
+      p += 46 + nameLen + extraLen + cmtLen;
+    }
+    return { dv: dv, u8: u8, map: map };
+  }
+
+  function utf8(bytes) {
+    if (typeof TextDecoder !== 'undefined') return new TextDecoder('utf-8').decode(bytes);
+    var s = ''; for (var i = 0; i < bytes.length; i++) s += String.fromCharCode(bytes[i]);
+    try { return decodeURIComponent(escape(s)); } catch (e) { return s; }
+  }
+
+  /* استخرج ملفاً واحداً نصاً. يرجع '' إن لم يكن موجوداً — بعض الملفات
+     لا تحتوي sharedStrings مثلاً، وهذا ليس خطأ. */
+  function zipRead(zip, path) {
+    var e = zip.map[path];
+    if (!e) return Promise.resolve('');
+    /* The central directory does not say where the data starts; the local
+       header does, and its own name/extra lengths differ from the central
+       copy. Reading the wrong one shifts every byte. */
+    var at = e.localAt;
+    if (zip.dv.getUint32(at, true) !== 0x04034b50) throw new Error('ZIP معطوب · corrupt ZIP');
+    var start = at + 30 + zip.dv.getUint16(at + 26, true) + zip.dv.getUint16(at + 28, true);
+    var raw = zip.u8.subarray(start, start + e.compSize);
+
+    if (e.method === 0) return Promise.resolve(utf8(raw));          /* stored, not compressed */
+    if (e.method !== 8) return Promise.reject(new Error('ضغط غير مدعوم · unsupported compression'));
+
+    if (typeof DecompressionStream === 'undefined') {
+      return Promise.reject(new Error(
+        'متصفحك قديم ولا يفك ضغط الإكسل — حدّثه أو احفظ الملف بصيغة CSV · ' +
+        'browser too old for .xlsx, please save as CSV'));
+    }
+    /* copy into a fresh buffer: subarray views can upset some engines here */
+    var blob = new Blob([raw.slice()]);
+    return new Response(
+      blob.stream().pipeThrough(new DecompressionStream('deflate-raw'))
+    ).arrayBuffer().then(function (out) { return utf8(new Uint8Array(out)); });
+  }
+
+  /* A1 → 0 · AB7 → 27. Needed so an empty cell keeps its column. */
+  function colIndex(ref) {
+    var i = 0, c = 0;
+    while (i < ref.length) {
+      var code = ref.charCodeAt(i);
+      if (code < 65 || code > 90) break;
+      c = c * 26 + (code - 64); i++;
+    }
+    return c - 1;
+  }
+
+  /* تواريخ إكسل مخزّنة كأرقام. اليوم ١ = ١٩٠٠/١/١، مع خطأ الكبيسة الشهير
+     الذي يجعل نقطة الصفر ١٨٩٩/١٢/٣٠. Excel stores dates as numbers. */
+  function excelDate(serial) {
+    var ms = Date.UTC(1899, 11, 30) + Math.round(serial) * 86400000;
+    var d = new Date(ms);
+    if (isNaN(d.getTime())) return null;
+    function two(x) { return (x < 10 ? '0' : '') + x; }
+    return d.getUTCFullYear() + '-' + two(d.getUTCMonth() + 1) + '-' + two(d.getUTCDate());
+  }
+  global.__azExcelDate = excelDate;
+
+  function xmlDoc(text) {
+    var d = new DOMParser().parseFromString(text, 'application/xml');
+    if (d.getElementsByTagName('parsererror').length) throw new Error('XML تالف · malformed XML');
+    return d;
+  }
+
+  function readXLSX(buf) {
+    return Promise.resolve().then(function () {
+      var zip = zipEntries(buf);
+
+      /* أي ورقة هي الأولى فعلاً؟ ترتيب التبويبات في workbook.xml،
+         ومسار الملف في العلاقات. sheet1.xml ليس دائماً التبويب الأول. */
+      return Promise.all([
+        zipRead(zip, 'xl/workbook.xml'),
+        zipRead(zip, 'xl/_rels/workbook.xml.rels'),
+        zipRead(zip, 'xl/sharedStrings.xml'),
+        zipRead(zip, 'xl/styles.xml')
+      ]).then(function (parts) {
+        var target = 'xl/worksheets/sheet1.xml';
+        try {
+          var wb = xmlDoc(parts[0]);
+          var first = wb.getElementsByTagName('sheet')[0];
+          var rid = first && (first.getAttribute('r:id') ||
+                              first.getAttributeNS('http://schemas.openxmlformats.org/officeDocument/2006/relationships', 'id'));
+          if (rid) {
+            var rels = xmlDoc(parts[1]).getElementsByTagName('Relationship');
+            for (var i = 0; i < rels.length; i++) {
+              if (rels[i].getAttribute('Id') === rid) {
+                var t = rels[i].getAttribute('Target') || '';
+                target = t.charAt(0) === '/' ? t.slice(1) : 'xl/' + t.replace(/^\.\//, '');
+                break;
+              }
+            }
+          }
+        } catch (e) { /* fall back to sheet1.xml */ }
+        if (!zip.map[target]) target = 'xl/worksheets/sheet1.xml';
+        if (!zip.map[target]) throw new Error('لا توجد ورقة بيانات · no worksheet found');
+
+        /* النصوص المشتركة: إكسل يخزّن كل نص مرة واحدة ويشير إليه برقم */
+        var shared = [];
+        if (parts[2]) {
+          var si = xmlDoc(parts[2]).getElementsByTagName('si');
+          for (var s = 0; s < si.length; s++) {
+            var ts = si[s].getElementsByTagName('t'), txt = '';
+            for (var q = 0; q < ts.length; q++) txt += ts[q].textContent || '';
+            shared.push(txt);
+          }
+        }
+
+        /* أي أنماط تعني «تاريخ»؟ نقرأها لنحوّل ٤٥٩٠٠ إلى ٢٠٢٥-٧-٢١
+           بدل أن تدخل قاعدة البيانات كرقم بلا معنى. */
+        var dateStyle = {};
+        if (parts[3]) {
+          try {
+            var st = xmlDoc(parts[3]);
+            var custom = {};
+            var nf = st.getElementsByTagName('numFmt');
+            for (var f = 0; f < nf.length; f++) {
+              var code = nf[f].getAttribute('formatCode') || '';
+              if (/[dmyhs]/i.test(code.replace(/\[[^\]]*\]|"[^"]*"/g, ''))) {
+                custom[nf[f].getAttribute('numFmtId')] = true;
+              }
+            }
+            var BUILTIN = { 14:1,15:1,16:1,17:1,18:1,19:1,20:1,21:1,22:1,45:1,46:1,47:1 };
+            var xfs = st.getElementsByTagName('cellXfs')[0];
+            var list = xfs ? xfs.getElementsByTagName('xf') : [];
+            for (var x = 0; x < list.length; x++) {
+              var id = list[x].getAttribute('numFmtId');
+              if (BUILTIN[+id] || custom[id]) dateStyle[x] = true;
+            }
+          } catch (e) { /* dates simply stay numeric */ }
+        }
+
+        return zipRead(zip, target).then(function (sheetXml) {
+          var doc = xmlDoc(sheetXml);
+          var rowEls = doc.getElementsByTagName('row');
+          var rows = [], width = 0;
+
+          for (var r = 0; r < rowEls.length; r++) {
+            var cells = rowEls[r].getElementsByTagName('c');
+            var out = [];
+            for (var c = 0; c < cells.length; c++) {
+              var cell = cells[c];
+              var ref = cell.getAttribute('r') || '';
+              var at = ref ? colIndex(ref) : out.length;
+              if (at < 0) at = out.length;
+              while (out.length < at) out.push('');    /* keep blank columns */
+
+              var type = cell.getAttribute('t');
+              var val = '';
+              if (type === 'inlineStr') {
+                var its = cell.getElementsByTagName('t');
+                for (var y = 0; y < its.length; y++) val += its[y].textContent || '';
+              } else {
+                var vEl = cell.getElementsByTagName('v')[0];
+                var vTxt = vEl ? (vEl.textContent || '') : '';
+                if (type === 's') val = shared[+vTxt] != null ? shared[+vTxt] : '';
+                else if (type === 'b') val = vTxt === '1' ? 'true' : 'false';
+                else if (type === 'e') val = '';                    /* #REF! etc → empty */
+                else {
+                  var styleId = cell.getAttribute('s');
+                  if (styleId != null && dateStyle[+styleId] && vTxt !== '' && !isNaN(+vTxt)) {
+                    val = excelDate(+vTxt) || vTxt;
+                  } else val = vTxt;
+                }
+              }
+              out.push(val);
+            }
+            if (out.length > width) width = out.length;
+            rows.push(out);
+          }
+
+          /* صفوف متساوية الطول، وحذف الفارغ تماماً — نفس ما يفعله قارئ CSV */
+          rows = rows.map(function (rw) {
+            while (rw.length < width) rw.push('');
+            return rw;
+          }).filter(function (rw) {
+            return rw.some(function (v) { return String(v).trim() !== ''; });
+          });
+
+          if (rows.length > MAX_ROWS + 1) rows = rows.slice(0, MAX_ROWS + 1);
+          return rows;
+        });
+      });
+    });
   }
 
   /* ═══════════════════════════════════════════════════════════════════
@@ -114,7 +351,26 @@
       return ['نعم','yes','true','1','y','✓'].indexOf(v.toLowerCase()) !== -1;
     }
     if (field.type === 'date') {
-      var d = v.replace(/\//g, '-');
+      /* الأرقام العربية تظهر في ملفات حقيقية · Arabic-Indic digits appear in real files */
+      var d = v.replace(/[٠-٩]/g, function (x) { return '٠١٢٣٤٥٦٧٨٩'.indexOf(x); })
+               .replace(/[\/.]/g, '-');
+
+      /* شبكة أمان: خلية تاريخ لم يُنسَّق كتاريخ في إكسل تصل رقماً خاماً
+         مثل 45900. بدون هذا السطر تدخل قاعدة البيانات «45900» كتاريخ
+         تعيين — خطأ صامت وهو أسوأ نوع.
+         Safety net: a date cell that was never formatted as a date in
+         Excel arrives as the bare serial 45900. Without this it would be
+         stored as a hire date of "45900" — silently wrong.
+         The window 20000–60000 is 1954 to 2064; no real dd-mm-yyyy or
+         yyyy-mm-dd string can be mistaken for it. */
+      if (/^\d{5}$/.test(d)) {
+        var n2 = +d;
+        if (n2 >= 20000 && n2 <= 60000 && global.__azExcelDate) {
+          var conv = global.__azExcelDate(n2);
+          if (conv) return conv;
+        }
+      }
+
       var m = d.match(/^(\d{1,2})-(\d{1,2})-(\d{4})$/);   /* dd-mm-yyyy */
       if (m) return m[3] + '-' + m[2].padStart(2, '0') + '-' + m[1].padStart(2, '0');
       return d;
@@ -337,22 +593,74 @@
   function pick(moduleId) {
     var input = document.createElement('input');
     input.type = 'file';
-    input.accept = '.csv,text/csv';
+    /* Excel first, because that is what the company actually works in. */
+    input.accept = '.xlsx,.xlsm,.csv,.tsv,.txt,' +
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv';
+
     input.onchange = function () {
       var file = input.files && input.files[0];
       if (!file) return;
+      var name = (file.name || '').toLowerCase();
+
+      function done(rows) {
+        if (!rows || rows.length < 2) {
+          UI.toast(L({ ar: 'الملف فارغ أو به صف عناوين فقط.',
+                       en: 'The file is empty or has only a header row.' }), 'error');
+          return;
+        }
+        preview(moduleId, rows);
+      }
+      function fail(msgAr, msgEn) {
+        UI.toast(L({ ar: msgAr, en: msgEn }), 'error', 9000);
+      }
+
+      /* ── الصيغ التي لا تُقرأ، وسبب ذلك بوضوح ──────────────────────── */
+      if (/\.xls$/.test(name)) {
+        return fail('صيغة .xls القديمة (إكسل ٢٠٠٣) لا تُقرأ. افتح الملف في إكسل ثم: ' +
+                    'ملف ← حفظ باسم ← Excel Workbook (.xlsx) وأعد المحاولة.',
+                    'The old .xls format cannot be read. Open it in Excel, then ' +
+                    'File → Save As → Excel Workbook (.xlsx), and try again.');
+      }
+      if (/\.pdf$/.test(name)) {
+        return fail('ملف PDF ليس جدول بيانات — هو صورة للبيانات، وقراءته آلياً ' +
+                    'تُنتج أرقاماً خاطئة بصمت، وهو أخطر من الرفض. ' +
+                    'للاحتفاظ به: افتح المستند واستخدم «المرفقات» في أسفل الشاشة.',
+                    'A PDF is a picture of data, not a spreadsheet. Reading it ' +
+                    'automatically produces silently wrong numbers, which is worse ' +
+                    'than refusing. To keep the file, open the record and use the ' +
+                    'Attachments panel at the bottom.');
+      }
+      if (/\.(docx?|jpe?g|png|zip|rar)$/.test(name)) {
+        return fail('هذا ليس ملف بيانات. المقبول: ‎.xlsx‎ أو ‎.csv‎. ' +
+                    'أي ملف آخر يُرفق بالمستند من لوحة «المرفقات».',
+                    'Not a data file. Accepted: .xlsx or .csv. Anything else ' +
+                    'belongs in the Attachments panel on the record.');
+      }
+
+      /* ── إكسل ─────────────────────────────────────────────────────── */
+      if (/\.(xlsx|xlsm)$/.test(name)) {
+        var rx = new FileReader();
+        rx.onerror = function () { fail('تعذّرت قراءة الملف من القرص.', 'Could not read the file from disk.'); };
+        rx.onload = function () {
+          readXLSX(rx.result).then(done).catch(function (e) {
+            console.error('[import] xlsx', e);
+            fail('تعذّرت قراءة ملف الإكسل: ' + (e && e.message ? e.message : '') +
+                 ' — جرّب: ملف ← حفظ باسم ← CSV UTF-8.',
+                 'Could not read the Excel file: ' + (e && e.message ? e.message : '') +
+                 ' — try File → Save As → CSV UTF-8.');
+          });
+        };
+        return rx.readAsArrayBuffer(file);
+      }
+
+      /* ── CSV / TSV / نص ───────────────────────────────────────────── */
       var reader = new FileReader();
+      reader.onerror = function () { fail('تعذّرت قراءة الملف من القرص.', 'Could not read the file from disk.'); };
       reader.onload = function () {
-        try {
-          var rows = parseCSV(String(reader.result || ''));
-          if (rows.length < 2) {
-            UI.toast(L({ ar: 'الملف فارغ أو به عنوان فقط.', en: 'The file is empty or has only a header.' }), 'error');
-            return;
-          }
-          preview(moduleId, rows);
-        } catch (e) {
+        try { done(parseCSV(String(reader.result || ''))); }
+        catch (e) {
           console.error('[import]', e);
-          UI.toast(L({ ar: 'تعذّرت قراءة الملف.', en: 'Could not read the file.' }), 'error');
+          fail('تعذّرت قراءة الملف.', 'Could not read the file.');
         }
       };
       reader.readAsText(file, 'utf-8');
