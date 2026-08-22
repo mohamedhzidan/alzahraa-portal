@@ -706,8 +706,23 @@
 
   function start() {
     wireWorkType();
-    var content = document.getElementById('content') || document.body;
-    new MutationObserver(tick).observe(content, { childList: true, subtree: true });
+
+    /* ⚠️ السبب في أن قائمة المهن لم تعمل رغم صحة الكود:
+       كنا نراقب #content فقط، لكن نموذج «＋ إضافة» يُفتح داخل #modalHost
+       وهو خارج #content تماماً. فلا يُستدعى الكود عند فتح النموذج أبداً.
+
+       WHY THE TRADES LIST NEVER APPEARED even though the code was right:
+       we watched #content only, but the ＋ New form opens inside
+       #modalHost, which is outside #content. So the code never ran at
+       the one moment it mattered. */
+    ['content', 'modalHost', 'mainNav'].forEach(function (id) {
+      var el = document.getElementById(id);
+      if (el) new MutationObserver(tick).observe(el, { childList: true, subtree: true });
+    });
+    /* شبكة أمان أخيرة لو تغيّرت أسماء الحاويات */
+    if (document.body) {
+      new MutationObserver(tick).observe(document.body, { childList: true });
+    }
     tick();
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start);
