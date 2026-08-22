@@ -401,6 +401,20 @@
            وكل ما يخص المال. وما زال لا يعتمد شيئاً بنفسه.
            Still hidden from him: employees, payroll, accounts, stock and
            anything financial. And he still approves nothing himself. */
+        /* ── ٢٣ أغسطس · طلبات الفحص ──────────────────────────────────
+           أ. أحمد كتب بنفسه: «موضوع الريكوستات الردم والجيوجريد
+           والخرسانة». إذن هو يتعامل مع طلبات الفحص يومياً — يقيّدها
+           ويعطيها أرقاماً ويتابع ردّ الاستشاري عليها. وكانت الشاشة
+           محجوبة عنه تماماً فلم يجدها في القائمة أصلاً.
+
+           Ahmed raised the inspection requests himself. He registers
+           them, numbers them and chases the consultant's reply. The
+           screen was hidden from his role entirely, which is why it
+           was not in his menu at all. */
+        wir:             ['view', 'create', 'edit'],
+        mir:             ['view', 'create', 'edit'],
+        pourCards:       ['view'],
+
         drawings:        ['view', 'create', 'edit'],
         projects:        ['view', 'create', 'edit'],
         clientContracts: ['view', 'create', 'edit'],
