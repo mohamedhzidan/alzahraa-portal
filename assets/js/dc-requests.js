@@ -153,22 +153,121 @@
     ['tradeOther',      'أخرى',                  'Other']
   ];
 
-  TRADES.forEach(function (t) {
-    addField('subcontractors',
-      F(t[0], t[1], t[2], 'checkbox', { section: SEC_TRADE }));
-  });
+  /* حقل واحد يحمل كل المهن المختارة مفصولة بفاصلة.
+     ستة عشر مربع اختيار كانت تملأ الشاشة وتُقرأ بصعوبة. الآن قائمة
+     واحدة تُنقر أسطرها: نقرة تختار، ونقرة أخرى تلغي. اختر واحدة أو
+     كلها. One field holding every chosen trade. Click a line to select
+     it, click again to unselect. One, several, or all sixteen. */
   addField('subcontractors',
-    F('tradeOtherText', 'حدّد «أخرى»', 'Specify "other"', 'text', { section: SEC_TRADE }));
+    F('trades', 'المهن والتخصصات', 'Trades & specialities', 'text',
+      { section: SEC_TRADE, full: true,
+        help: { ar: 'انقر على كل مهنة يمارسها هذا المقاول — يمكن اختيار أي عدد',
+                en: 'Click every trade this subcontractor performs — any number' } }));
+
+  addField('subcontractors',
+    F('tradeOtherText', 'حدّد «أخرى»', 'Specify "other"', 'text',
+      { section: SEC_TRADE,
+        help: { ar: 'يُملأ فقط إذا اخترت «أخرى» من القائمة',
+                en: 'Only if you picked "Other" in the list' } }));
+
+  var TRADE_LABEL = {};
+  TRADES.forEach(function (t) { TRADE_LABEL[t[0]] = { ar: t[1], en: t[2] }; });
+
+  function tradeCodes(sub) {
+    if (!sub) return [];
+    if (sub.trades) {
+      return String(sub.trades).split(',').map(function (s) { return s.trim(); })
+                               .filter(function (s) { return !!TRADE_LABEL[s]; });
+    }
+    /* سجلات قديمة حُفظت بمربعات الاختيار — ما زالت تُقرأ.
+       Records saved by the earlier checkbox version still read correctly. */
+    return TRADES.filter(function (t) { return sub[t[0]] === true || sub[t[0]] === 'true'; })
+                 .map(function (t) { return t[0]; });
+  }
 
   /* اقرأ مهن مقاول كنص واحد — للطباعة والتقارير والبحث */
   function tradesOf(sub) {
-    if (!sub) return '';
-    var out = TRADES.filter(function (t) { return sub[t[0]] === true || sub[t[0]] === 'true'; })
-                    .map(function (t) { return isAr() ? t[1] : t[2]; });
-    if (sub.tradeOther && sub.tradeOtherText) {
-      out[out.length - 1] = (isAr() ? 'أخرى: ' : 'Other: ') + sub.tradeOtherText;
+    var out = tradeCodes(sub).map(function (c) { return L(TRADE_LABEL[c]); });
+    if (out.length && sub && sub.tradeOtherText &&
+        tradeCodes(sub).indexOf('tradeOther') !== -1) {
+      out[out.indexOf(L(TRADE_LABEL.tradeOther))] =
+        (isAr() ? 'أخرى: ' : 'Other: ') + sub.tradeOtherText;
     }
     return out.join(' · ');
+  }
+
+  /* ── القائمة نفسها ──────────────────────────────────────────────────
+     نستبدل خانة النص بقائمة متعددة الاختيار عند فتح النموذج. النقرة
+     الواحدة تكفي — لا حاجة للضغط على Command، لأن أحداً في الموقع لن
+     يعرف ذلك ولا يجب أن يُطلب منه.
+
+     The text box is swapped for a multi-select when the form opens.
+     A single click toggles a line: no Command key, because nobody on
+     site knows that and nobody should have to.
+     ────────────────────────────────────────────────────────────────── */
+  function enhanceTrades() {
+    var input = document.querySelector('[name="trades"]');
+    if (!input || input.getAttribute('data-az-multi')) return;
+    input.setAttribute('data-az-multi', '1');
+    input.style.display = 'none';
+
+    var box = document.createElement('select');
+    box.multiple = true;
+    box.size = 9;
+    box.className = 'form-control';
+    box.setAttribute('data-az-trades', '1');
+    box.style.cssText = 'width:100%;min-height:210px;padding:4px;line-height:1.9';
+
+    TRADES.forEach(function (t) {
+      var o = document.createElement('option');
+      o.value = t[0];
+      o.textContent = isAr() ? t[1] : t[2];
+      o.style.padding = '5px 8px';
+      box.appendChild(o);
+    });
+
+    var chosen = String(input.value || '').split(',').map(function (s) { return s.trim(); });
+    Array.prototype.forEach.call(box.options, function (o) {
+      if (chosen.indexOf(o.value) !== -1) o.selected = true;
+    });
+
+    function sync() {
+      var vals = Array.prototype.filter.call(box.options, function (o) { return o.selected; })
+                      .map(function (o) { return o.value; });
+      input.value = vals.join(',');
+      input.dispatchEvent(new Event('input',  { bubbles: true }));
+      input.dispatchEvent(new Event('change', { bubbles: true }));
+      count.textContent = vals.length
+        ? L({ ar: 'المختار: ', en: 'Selected: ' }) +
+          vals.map(function (v) { return L(TRADE_LABEL[v]); }).join(' · ')
+        : L({ ar: 'لم تختر أي مهنة بعد', en: 'Nothing selected yet' });
+    }
+
+    /* نقرة واحدة تبدّل السطر · one plain click toggles a row */
+    box.addEventListener('mousedown', function (ev) {
+      if (ev.target && ev.target.tagName === 'OPTION') {
+        ev.preventDefault();
+        ev.target.selected = !ev.target.selected;
+        box.focus();
+        sync();
+      }
+    });
+
+    var hint = document.createElement('div');
+    hint.className = 'muted small';
+    hint.style.margin = '6px 0 2px';
+    hint.textContent = L({
+      ar: 'انقر على أي مهنة لاختيارها، وانقر عليها ثانية لإلغائها. اختر ما شئت — واحدة أو كلها.',
+      en: 'Click a trade to select it, click again to remove it. One, several, or all.' });
+
+    var count = document.createElement('div');
+    count.className = 'small';
+    count.style.cssText = 'margin-top:6px;color:#1a7f37;font-weight:600';
+
+    input.parentNode.insertBefore(hint, input.nextSibling);
+    input.parentNode.insertBefore(box,  hint.nextSibling);
+    input.parentNode.insertBefore(count, box.nextSibling);
+    sync();
   }
 
   /* ═══════════════════════════════════════════════════════════════════
@@ -426,7 +525,7 @@
   /* ═══════════════════════════════════════════════════════════════════
      ٦ · التشغيل
      ═══════════════════════════════════════════════════════════════════ */
-  function tick() { addAssignButton(); addAttachShortcut(); }
+  function tick() { addAssignButton(); addAttachShortcut(); enhanceTrades(); }
 
   function start() {
     wireWorkType();
@@ -439,7 +538,8 @@
 
   global.DCRequests = {
     TRADES: TRADES, WORK_TYPE: WORK_TYPE, TESTS: TESTS,
-    tradesOf: tradesOf, assignPanel: assignPanel, report: report
+    tradesOf: tradesOf, tradeCodes: tradeCodes, enhanceTrades: enhanceTrades,
+    assignPanel: assignPanel, report: report
   };
 
   console.info('dc-requests.js: ' + report.added.length + ' fields added, ' +
