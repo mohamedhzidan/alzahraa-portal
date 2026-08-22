@@ -316,21 +316,159 @@
      ═══════════════════════════════════════════════════════════════════ */
   function norm(s) {
     return String(s || '').trim().toLowerCase()
-      .replace(/\s+/g, '').replace(/[ًٌٍَُِّْ]/g, '')
-      .replace(/[أإآ]/g, 'ا').replace(/ة/g, 'ه').replace(/ى/g, 'ي');
+      /* الكلام بين قوسين توضيح لا جزء من الاسم: «الاعتمادات (مواد ورسومات)» */
+      .replace(/[(（][^)）]*[)）]/g, '')
+      .replace(/[ًٌٍَُِّْـ]/g, '')            /* تشكيل وتطويل */
+      .replace(/[أإآٱ]/g, 'ا').replace(/ة/g, 'ه').replace(/ى/g, 'ي')
+      .replace(/[ؤئ]/g, 'ء')
+      .replace(/[٠-٩]/g, function (d) { return '٠١٢٣٤٥٦٧٨٩'.indexOf(d); })
+      .replace(/[^\p{L}\p{N}]+/gu, '')       /* رموز ومسافات وشرطات */
+      .replace(/^(ال)/, '');                 /* «التاريخ» = «تاريخ» */
   }
 
+  /* مرادفات شائعة في ملفات الشركة الحقيقية.
+     Synonyms that turn up in the company's real spreadsheets. */
+  var ALIAS = {
+    'اسم': 'name', 'الاسم': 'name', 'اسمالموظف': 'employee', 'الموظف': 'employee',
+    'كود': 'code', 'الكود': 'code', 'رقم': 'docNo', 'رقمالمستند': 'docNo',
+    'مسلسل': 'docNo', 'تاريخ': 'date', 'المشروع': 'project', 'الموقع': 'site',
+    'ملاحظات': 'notes', 'بيان': 'notes', 'الوصف': 'notes', 'وصف': 'notes',
+    'المبلغ': 'amount', 'قيمة': 'amount', 'القيمة': 'amount', 'اجمالي': 'amount',
+    'الكميه': 'quantity', 'كميه': 'quantity', 'الوحده': 'unit',
+    'تليفون': 'phone', 'موبايل': 'phone', 'الهاتف': 'phone',
+    'العنوان': 'address', 'الحاله': 'status', 'الوظيفه': 'jobTitle',
+    'الرقمالقومي': 'nationalIdNo', 'بطاقه': 'nationalIdNo',
+    'البطاقهالضريبيه': 'taxCardNo', 'سجلتجاري': 'commercialReg'
+  };
+
+  /* ═══════════════════════════════════════════════════════════════════
+     المطابقة على أربع مراحل بدل مرحلة واحدة
+     -------------------------------------------------------------------
+     كانت المطابقة تطلب تطابقاً حرفياً كاملاً، فأي اختلاف بسيط — «التاريخ»
+     بدل «تاريخ»، أو «الكمية (م٣)» بدل «الكمية» — يجعل العمود مجهولاً،
+     وتظهر رسالة «لم يُتعرَّف على أي عمود» على ملف صحيح تماماً.
+
+     Matching demanded a character-perfect match, so any small difference
+     — «التاريخ» for «تاريخ», or «الكمية (م٣)» for «الكمية» — left the
+     column unrecognised and produced "no column was recognised" on a
+     perfectly good file.
+     ═══════════════════════════════════════════════════════════════════ */
   function mapColumns(mod, headers) {
     var fields = (mod.fields || []).filter(function (f) {
       return f.type !== 'calc' && !f.readonly;
     });
+    var used = {};
+
+    function pick(n) {
+      var i, f, cand;
+
+      /* ١ · تطابق تام */
+      for (i = 0; i < fields.length; i++) {
+        f = fields[i];
+        if (used[f.name]) continue;
+        if (norm(f.label.ar) === n || norm(f.label.en) === n || norm(f.name) === n) return f;
+      }
+      /* ٢ · مرادف معروف */
+      if (ALIAS[n]) {
+        for (i = 0; i < fields.length; i++) {
+          if (!used[fields[i].name] && fields[i].name === ALIAS[n]) return fields[i];
+        }
+      }
+      /* ٣ · أحدهما يحتوي الآخر — «تاريخالطلب» مقابل «تاريخ» */
+      if (n.length >= 3) {
+        cand = null;
+        for (i = 0; i < fields.length; i++) {
+          f = fields[i];
+          if (used[f.name]) continue;
+          [norm(f.label.ar), norm(f.label.en), norm(f.name)].forEach(function (v) {
+            if (!v || v.length < 3 || cand) return;
+            if (v === n || v.indexOf(n) === 0 || n.indexOf(v) === 0) cand = f;
+          });
+          if (cand) return cand;
+        }
+        for (i = 0; i < fields.length; i++) {
+          f = fields[i];
+          if (used[f.name]) continue;
+          if (norm(f.label.ar).indexOf(n) !== -1 || n.indexOf(norm(f.label.ar)) !== -1) {
+            if (norm(f.label.ar).length >= 3) return f;
+          }
+        }
+      }
+      return null;
+    }
+
     return headers.map(function (h) {
       var n = norm(h);
       if (!n) return null;
-      var hit = fields.filter(function (f) {
-        return norm(f.label.ar) === n || norm(f.label.en) === n || norm(f.name) === n;
-      })[0];
+      var hit = pick(n);
+      if (hit) used[hit.name] = true;   /* عمود واحد لكل حقل */
       return hit || null;
+    });
+  }
+
+  /* ═══════════════════════════════════════════════════════════════════
+     ٢ب · الربط اليدوي — الحل الأخير الذي كان ناقصاً
+     -------------------------------------------------------------------
+     مهما تحسّنت المطابقة الآلية ستفشل أحياناً: ملف بعناوين إنجليزية
+     مختصرة، أو عناوين من نظام آخر. الرفض حينها ليس حلاً — الحل أن يربط
+     المستخدم الأعمدة بنفسه مرة واحدة ويكمل.
+
+     However good the automatic matching gets it will sometimes fail, and
+     refusing the file is not an answer. The person maps the columns
+     himself, once, and carries on.
+     ═══════════════════════════════════════════════════════════════════ */
+  function mapDialog(moduleId, rows, cols) {
+    var mod = Schema.get(moduleId);
+    var headers = rows[0] || [];
+    var sample = rows[1] || [];
+    var fields = (mod.fields || []).filter(function (f) {
+      return f.type !== 'calc' && !f.readonly;
+    });
+
+    var opts = '<option value="">' + esc(L({ ar: '— تجاهل هذا العمود —', en: '— ignore this column —' })) + '</option>' +
+      fields.map(function (f) {
+        return '<option value="' + esc(f.name) + '">' + esc(lab(f.label)) +
+               (f.required ? ' *' : '') + '</option>';
+      }).join('');
+
+    var body =
+      '<p>' + esc(L({
+        ar: 'اربط كل عمود في ملفك بالحقل المقابل. ما تتركه فارغاً يُتجاهل.',
+        en: 'Match each column in your file to a field. Anything left blank is ignored.' })) + '</p>' +
+      '<div style="max-height:52vh;overflow:auto"><table style="width:100%;border-collapse:collapse">' +
+      '<thead><tr style="border-bottom:2px solid #ddd">' +
+        '<th style="padding:7px 9px;text-align:start">' + esc(L({ ar: 'عمود الملف', en: 'Column in your file' })) + '</th>' +
+        '<th style="padding:7px 9px;text-align:start">' + esc(L({ ar: 'أول قيمة', en: 'First value' })) + '</th>' +
+        '<th style="padding:7px 9px;text-align:start">' + esc(L({ ar: 'الحقل في الشاشة', en: 'Field on the screen' })) + '</th>' +
+      '</tr></thead><tbody>' +
+      headers.map(function (h, i) {
+        var chosen = cols[i] ? cols[i].name : '';
+        return '<tr>' +
+          '<td style="padding:6px 9px;font-weight:600">' + esc(h) + '</td>' +
+          '<td style="padding:6px 9px;color:#667">' + esc(String(sample[i] == null ? '' : sample[i]).slice(0, 30)) + '</td>' +
+          '<td style="padding:6px 9px"><select data-az-map="' + i + '" style="min-width:230px;padding:5px">' +
+            (chosen ? opts.replace('value="' + esc(chosen) + '"', 'value="' + esc(chosen) + '" selected') : opts) +
+          '</select></td></tr>';
+      }).join('') +
+      '</tbody></table></div>';
+
+    UI.modal({
+      title: L({ ar: 'ربط أعمدة الملف', en: 'Match your columns' }),
+      wide: true,
+      body: body,
+      buttons: [
+        { label: L({ ar: 'إلغاء', en: 'Cancel' }), cls: 'btn-ghost' },
+        { label: L({ ar: 'متابعة ←', en: 'Continue →' }), cls: 'btn-primary',
+          onClick: function () {
+            var manual = headers.map(function (h, i) {
+              var sel = document.querySelector('[data-az-map="' + i + '"]');
+              var name = sel ? sel.value : '';
+              if (!name) return null;
+              return fields.filter(function (f) { return f.name === name; })[0] || null;
+            });
+            setTimeout(function () { preview(moduleId, rows, manual); }, 60);
+          } }
+      ]
     });
   }
 
@@ -444,26 +582,22 @@
   /* ═══════════════════════════════════════════════════════════════════
      ٤ · المعاينة الإجبارية
      ═══════════════════════════════════════════════════════════════════ */
-  function preview(moduleId, rows) {
+  function preview(moduleId, rows, manualCols) {
     var mod = Schema.get(moduleId);
     var headers = rows[0] || [];
-    var cols = mapColumns(mod, headers);
+    var cols = manualCols || mapColumns(mod, headers);
     var matched = cols.filter(Boolean).length;
 
+    /* لا نرفض الملف بعد اليوم. إن عجزت المطابقة الآلية نفتح شاشة الربط
+       اليدوي مباشرة — الرفض كان يترك المستخدم بلا طريق.
+       We no longer refuse the file. If automatic matching fails we open
+       the manual mapping screen; refusing left the person with nowhere
+       to go. */
+    if (!matched && !manualCols) { mapDialog(moduleId, rows, cols); return; }
     if (!matched) {
-      UI.modal({
-        title: L({ ar: 'لم يُتعرَّف على أي عمود', en: 'No column was recognised' }),
-        body: '<div class="alert alert-danger">' + esc(L({
-                ar: 'أسماء الأعمدة في الملف لا تطابق أي حقل في هذه الشاشة.',
-                en: 'The column names in the file match no field on this screen.' })) + '</div>' +
-              '<p>' + esc(L({ ar: 'أسهل طريقة: اضغط «تصدير» أولاً، افتح الملف الناتج، ' +
-                                  'واكتب بياناتك تحت نفس العناوين.',
-                              en: 'Easiest fix: press Export first, open that file, and put your ' +
-                                  'data under the same headings.' })) + '</p>' +
-              '<p class="muted small">' + esc(L({ ar: 'أعمدة ملفك: ', en: 'Your columns: ' })) +
-                esc(headers.join(' · ')) + '</p>',
-        buttons: [{ label: L({ ar: 'إغلاق', en: 'Close' }), cls: 'btn-primary' }]
-      });
+      UI.toast(L({ ar: 'لم تربط أي عمود بحقل. لن يُستورد شيء.',
+                   en: 'No column was matched to a field. Nothing would be imported.' }), 'error');
+      mapDialog(moduleId, rows, cols);
       return;
     }
 
@@ -525,6 +659,12 @@
       size: 'wide', body: body,
       buttons: [
         { label: L({ ar: 'إلغاء', en: 'Cancel' }), cls: 'btn-ghost' },
+        /* حتى لو تعرّف على بعض الأعمدة، قد يكون تعرّف عليها خطأ. هذا الزر
+           يفتح الربط اليدوي لتصحيحه قبل كتابة أي صف.
+           Even a partial match can be the wrong match. This reopens the
+           mapping so it can be corrected before a single row is written. */
+        { label: L({ ar: '⇄ تعديل ربط الأعمدة', en: '⇄ Change column matching' }), cls: 'btn-outline',
+          onClick: function () { setTimeout(function () { mapDialog(moduleId, rows, cols); }, 60); } },
         {
           label: L({ ar: 'استورد ' + importable.length + ' صفاً', en: 'Import ' + importable.length + ' rows' }),
           cls: 'btn-primary',
