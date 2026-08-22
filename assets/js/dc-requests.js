@@ -595,9 +595,114 @@
   }
 
   /* ═══════════════════════════════════════════════════════════════════
-     ٦ · التشغيل
+     ٦ · القائمة الجانبية — المجموعتان الغائبتان
+     -------------------------------------------------------------------
+     السبب الحقيقي لاختفاء «ضبط المستندات» و«الموقع والتنفيذ»:
+
+     app.js يبني القائمة من خمس مجموعات مكتوبة بخط اليد داخل الكود:
+         main · finance · projects · people · system
+     ولا يقرأ Schema.GROUPS إطلاقاً. فمهما سجّل departments.js من
+     مجموعات، ومهما كانت الصلاحيات صحيحة، لا تُرسم أبداً.
+
+     THE ACTUAL CAUSE. app.js builds the sidebar from five group ids
+     written by hand in the code and never reads Schema.GROUPS. So the
+     screens existed, the group existed, Ahmed was permitted to open
+     them — and the menu simply never drew them.
+
+     لا نعدّل app.js. ننتظر حتى تُبنى القائمة ثم نضيف ما نقص، فيبقى
+     الإصلاح قابلاً للتراجع بحذف هذا الملف وحده.
+     We do not edit app.js. We wait until the menu is built and append
+     what is missing, so deleting this one file reverts everything.
      ═══════════════════════════════════════════════════════════════════ */
-  function tick() { addAssignButton(); addAttachShortcut(); enhanceTrades(); }
+  var NATIVE_GROUPS = ['main', 'finance', 'projects', 'people', 'system'];
+
+  function addMissingNavGroups() {
+    var nav = document.getElementById('mainNav');
+    if (!nav || !nav.children.length) return;
+    if (!global.Auth || !Auth.current || !Auth.current()) return;
+
+    (S.GROUPS || []).forEach(function (g) {
+      if (NATIVE_GROUPS.indexOf(g.id) !== -1) return;
+      if (nav.querySelector('[data-az-group="' + g.id + '"]')) return;
+
+      var mods = (S.MODULES || []).filter(function (m) {
+        return m.group === g.id && Auth.canSee && Auth.canSee(m.id);
+      });
+      if (!mods.length) return;          /* لا شاشات مسموحة — لا تُرسم المجموعة */
+
+      var gEl = document.createElement('div');
+      gEl.className = 'nav-group';
+      gEl.setAttribute('data-az-group', g.id);
+
+      var title = document.createElement('div');
+      title.className = 'nav-group-title';
+      title.textContent = L(g.label);
+      gEl.appendChild(title);
+
+      var here = global.App && App.route ? App.route() : '';
+      mods.forEach(function (m) {
+        var b = document.createElement('button');
+        b.className = 'nav-item' + (here === m.id ? ' active' : '');
+        b.setAttribute('data-route', m.id);
+        var ic = (global.UI && UI.icon) ? UI.icon(m.icon || 'file', 17) : '';
+        b.innerHTML = '<span class="nav-icon">' + ic + '</span>' +
+                      '<span class="nav-label">' + esc(L(m.label)) + '</span>';
+        b.onclick = function () { if (global.App && App.go) App.go(m.id); };
+        gEl.appendChild(b);
+      });
+
+      /* قبل «التقارير والنظام» — وهي دائماً آخر مجموعة */
+      nav.insertBefore(gEl, nav.children[nav.children.length - 1] || null);
+      console.info('[dc-requests] menu group «' + L(g.label) + '» added with ' +
+                   mods.length + ' screen(s).');
+    });
+  }
+
+  /* app.js يمسح القائمة ويعيد بناءها عند الدخول وعند تغيير اللغة،
+     فنراقبها ونعيد الإضافة. الفحص أعلاه يمنع التكرار. */
+  function watchNav() {
+    var nav = document.getElementById('mainNav');
+    if (!nav || nav.__azWatched) return;
+    nav.__azWatched = true;
+    new MutationObserver(function () { addMissingNavGroups(); })
+      .observe(nav, { childList: true });
+    addMissingNavGroups();
+  }
+
+  /* ═══════════════════════════════════════════════════════════════════
+     ٧ · لوحة تحكم للأدوار الجديدة
+     -------------------------------------------------------------------
+     roleview.js لا يعرف الأدوار الأربعة الجديدة، فيعطيها لوحة «الموظف
+     العادي» — إجازاتي وتذاكري وتعميمات. لهذا كانت صفحة أحمد تقول
+     «صفحتي» ولا تعرض شيئاً من عمله.
+     roleview.js has no entry for the four new roles, so it falls back to
+     the ordinary-employee dashboard. That is why Ahmed's page said
+     «صفحتي» and showed leave requests instead of his documents.
+     ═══════════════════════════════════════════════════════════════════ */
+  function addRoleDashboards() {
+    if (!global.RoleView || !RoleView.VIEWS || RoleView.VIEWS.document_control) return;
+    RoleView.VIEWS.document_control = {
+      title: { ar: 'لوحة ضبط المستندات', en: 'Document control desk' },
+      money: false,
+      kpis: ['inbox', 'alerts'],
+      panels: ['alerts', 'myWork', 'quickActions']
+    };
+    RoleView.VIEWS.site_engineer = {
+      title: { ar: 'لوحة الموقع', en: 'Site desk' },
+      money: false,
+      kpis: ['myProjects', 'inbox', 'alerts'],
+      panels: ['alerts', 'myWork', 'quickActions']
+    };
+    RoleView.VIEWS.hr_manager = RoleView.VIEWS.hr || RoleView.VIEWS.employee;
+  }
+
+  /* ═══════════════════════════════════════════════════════════════════
+     ٨ · التشغيل
+     ═══════════════════════════════════════════════════════════════════ */
+  function tick() {
+    addAssignButton(); addAttachShortcut(); enhanceTrades();
+    watchNav(); addMissingNavGroups(); addRoleDashboards();
+  }
 
   function start() {
     wireWorkType();
@@ -611,7 +716,8 @@
   global.DCRequests = {
     TRADES: TRADES, WORK_TYPE: WORK_TYPE, TESTS: TESTS,
     tradesOf: tradesOf, tradeCodes: tradeCodes, enhanceTrades: enhanceTrades,
-    assignPanel: assignPanel, report: report
+    assignPanel: assignPanel, report: report,
+    addMissingNavGroups: addMissingNavGroups, addRoleDashboards: addRoleDashboards
   };
 
   /* اطبع أسماء الحقول المتصادمة بدل عددها فقط. «حقل واحد موجود مسبقاً»
