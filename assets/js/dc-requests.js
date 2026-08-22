@@ -205,8 +205,36 @@
      A single click toggles a line: no Command key, because nobody on
      site knows that and nobody should have to.
      ────────────────────────────────────────────────────────────────── */
+  /* لا نعرف كيف يسمّي entity.js حقوله بالضبط، فنجرّب كل الاحتمالات
+     المعقولة بدل الاعتماد على واحد. لو فشلت كلها تظهر خانة نص عادية —
+     يكتب فيها الأكواد بفاصلة، فلا يتعطّل شيء.
+     We do not control how entity.js names its inputs, so try every
+     reasonable form rather than betting on one. If all fail the plain
+     text box remains usable, so nothing breaks. */
+  function findTradesInput() {
+    var tries = [
+      '[name="trades"]', '#trades', '#field-trades', '[data-field="trades"]',
+      '[data-name="trades"]', 'input[id$="trades"]', 'textarea[id$="trades"]'
+    ];
+    for (var i = 0; i < tries.length; i++) {
+      var el = document.querySelector(tries[i]);
+      if (el && /^(INPUT|TEXTAREA)$/.test(el.tagName)) return el;
+    }
+    /* آخر محاولة: ابحث عن الحقل الذي عنوانه «المهن والتخصصات» */
+    var labels = document.querySelectorAll('label, .field-label, .form-label');
+    for (var j = 0; j < labels.length; j++) {
+      var txt = (labels[j].textContent || '').trim();
+      if (txt.indexOf('المهن والتخصصات') !== -1 || txt.indexOf('Trades & specialities') !== -1) {
+        var wrap = labels[j].parentNode;
+        var f = wrap && wrap.querySelector('input, textarea');
+        if (f) return f;
+      }
+    }
+    return null;
+  }
+
   function enhanceTrades() {
-    var input = document.querySelector('[name="trades"]');
+    var input = findTradesInput();
     if (!input || input.getAttribute('data-az-multi')) return;
     input.setAttribute('data-az-multi', '1');
     input.style.display = 'none';
