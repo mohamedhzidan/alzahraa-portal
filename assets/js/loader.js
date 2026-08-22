@@ -13,6 +13,8 @@
     'assets/js/schema.js',
     'assets/js/departments.js',
     'assets/js/hr-department.js',
+    /* dc-requests.js يضيف حقولاً لشاشات departments.js، فيجب أن يأتي بعده */
+    'assets/js/dc-requests.js',
     'assets/js/sites.js',
     'assets/js/auth.js',
     'assets/js/identity.js',
