@@ -117,6 +117,11 @@
         administrator opens an empty Sites screen. Editable afterwards
         like any other record.
      ═══════════════════════════════════════════════════════════════════ */
+  /* المواقع الأربعة كما حدّدتها الإدارة في ١٧ أغسطس ٢٠٢٦:
+       سوهاج · الخلاطة · الروبيكي · المكتب
+     The four sites as named by management on 17 August 2026.
+     «الخلاطة» موقع إنتاج الخرسانة، وكان ناقصاً تماماً.
+     The batching plant was missing entirely. */
   var SEED = [
     { id: 'site_robaki',  code: 'ROB', name: 'الروبيكي — مشروع الكوبري',
       siteType: 'project', city: 'الشرقية', allSites: false, status: 'active',
@@ -126,13 +131,19 @@
       siteType: 'project', city: 'سوهاج', allSites: false, status: 'active',
       notes: 'مشروع رصف طرق.' },
 
-    { id: 'site_qurien',  code: 'QUR', name: 'القرين — مكتب المحاسبة والموارد البشرية',
-      siteType: 'office', city: 'الشرقية', allSites: true, status: 'active',
-      notes: 'مكتب يجمع بيانات الشركة كلها. أ. محمد عمارة — مدير الموارد البشرية.' },
+    /* الخلاطة تغذّي الروبيكي وسوهاج معاً، فلا بد أن ترى طلبات الخرسانة
+       والصب في الموقعين. لذلك allSites = true.
+       The batching plant feeds both projects, so it must see the concrete
+       and pour requests at both. Hence allSites = true. */
+    { id: 'site_khalata', code: 'KHL', name: 'الخلاطة — محطة الخرسانة',
+      siteType: 'workshop', city: 'الشرقية', allSites: true, status: 'active',
+      notes: 'محطة إنتاج الخرسانة. تغذّي مواقع المشروعات وترى بياناتها كلها.' },
 
-    { id: 'site_hq',      code: 'HQ',  name: 'المركز الرئيسي',
-      siteType: 'hq', allSites: true, status: 'active',
-      notes: 'الإدارة العليا.' }
+    /* المكتب يجمع بيانات الشركة كلها — لذلك يرى كل المواقع.
+       The office consolidates the whole company, so it sees every site. */
+    { id: 'site_qurien',  code: 'OFF', name: 'المكتب — الإدارة والمحاسبة والموارد البشرية',
+      siteType: 'office', city: 'الشرقية', allSites: true, status: 'active',
+      notes: 'مكتب يجمع بيانات الشركة كلها. أ. محمد عمارة — مدير الموارد البشرية.' }
   ];
 
   function seedIfEmpty() {
