@@ -212,25 +212,71 @@
      reasonable form rather than betting on one. If all fail the plain
      text box remains usable, so nothing breaks. */
   function findTradesInput() {
+    /* ⚠️ SELECT مقصودة هنا.
+       الشاشة كانت فيها بالفعل قائمة «المهنة» باختيار واحد — حدادة أو
+       نجارة — وهي سبب الشكوى الأصلية. نسختنا الأولى بحثت عن خانة نص
+       فقط فلم تجدها، فبقيت القائمة القديمة كما هي.
+       A single-choice dropdown was already on the screen — steel OR
+       carpentry — which is the original complaint. The first version
+       looked only for a text box, missed it, and left it untouched. */
     var tries = [
-      '[name="trades"]', '#trades', '#field-trades', '[data-field="trades"]',
-      '[data-name="trades"]', 'input[id$="trades"]', 'textarea[id$="trades"]'
+      '[name="trades"]', '[name="trade"]',
+      '#trades', '#trade', '#field-trades', '#field-trade',
+      '[data-field="trades"]', '[data-field="trade"]',
+      '[data-name="trades"]', '[data-name="trade"]',
+      '[id$="trades"]', '[id$="trade"]'
     ];
     for (var i = 0; i < tries.length; i++) {
       var el = document.querySelector(tries[i]);
-      if (el && /^(INPUT|TEXTAREA)$/.test(el.tagName)) return el;
+      if (el && /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName)) return el;
     }
-    /* آخر محاولة: ابحث عن الحقل الذي عنوانه «المهن والتخصصات» */
+    /* آخر محاولة: ابحث عن الحقل الذي عنوانه «المهنة» أو «المهن والتخصصات» */
     var labels = document.querySelectorAll('label, .field-label, .form-label');
     for (var j = 0; j < labels.length; j++) {
       var txt = (labels[j].textContent || '').trim();
-      if (txt.indexOf('المهن والتخصصات') !== -1 || txt.indexOf('Trades & specialities') !== -1) {
-        var wrap = labels[j].parentNode;
-        var f = wrap && wrap.querySelector('input, textarea');
+      if (txt.indexOf('المهن') !== -1 || txt.indexOf('المهنة') !== -1 ||
+          txt.indexOf('Trade') !== -1) {
+        var wrap = labels[j].closest ? labels[j].closest('.field, .form-group, div') : labels[j].parentNode;
+        var f = wrap && wrap.querySelector('input, textarea, select');
         if (f) return f;
       }
     }
     return null;
+  }
+
+  /* اقرأ القيمة الحالية أياً كان نوع الحقل */
+  function readTrades(el) {
+    if (el.tagName === 'SELECT') {
+      var picked = Array.prototype.filter.call(el.options, function (o) { return o.selected; })
+                        .map(function (o) { return o.value; });
+      return picked.join(',').split(',');
+    }
+    return String(el.value || '').split(',');
+  }
+
+  /* اكتب القيمة بحيث يقرأها النموذج عند الحفظ.
+     القائمة المنسدلة لا تحمل إلا قيمة أحد خياراتها، فنضيف خياراً مخفياً
+     قيمته النص المجمّع ونجعله المختار — فيحفظ النموذج «أسفلت,كهرباء».
+     A <select> can only hold one of its option values, so we append a
+     hidden option whose value IS the joined string and select it. */
+  function writeTrades(el, vals) {
+    var joined = vals.join(',');
+    if (el.tagName === 'SELECT') {
+      var combo = el.querySelector('option[data-az-combined]');
+      if (!combo) {
+        combo = document.createElement('option');
+        combo.setAttribute('data-az-combined', '1');
+        el.appendChild(combo);
+      }
+      Array.prototype.forEach.call(el.options, function (o) { o.selected = false; });
+      combo.value = joined;
+      combo.textContent = joined;
+      combo.selected = true;
+    } else {
+      el.value = joined;
+    }
+    el.dispatchEvent(new Event('input',  { bubbles: true }));
+    el.dispatchEvent(new Event('change', { bubbles: true }));
   }
 
   function enhanceTrades() {
@@ -254,7 +300,7 @@
       box.appendChild(o);
     });
 
-    var chosen = String(input.value || '').split(',').map(function (s) { return s.trim(); });
+    var chosen = readTrades(input).map(function (s) { return s.trim(); });
     Array.prototype.forEach.call(box.options, function (o) {
       if (chosen.indexOf(o.value) !== -1) o.selected = true;
     });
@@ -262,9 +308,7 @@
     function sync() {
       var vals = Array.prototype.filter.call(box.options, function (o) { return o.selected; })
                       .map(function (o) { return o.value; });
-      input.value = vals.join(',');
-      input.dispatchEvent(new Event('input',  { bubbles: true }));
-      input.dispatchEvent(new Event('change', { bubbles: true }));
+      writeTrades(input, vals);
       count.textContent = vals.length
         ? L({ ar: 'المختار: ', en: 'Selected: ' }) +
           vals.map(function (v) { return L(TRADE_LABEL[v]); }).join(' · ')
@@ -570,7 +614,26 @@
     assignPanel: assignPanel, report: report
   };
 
-  console.info('dc-requests.js: ' + report.added.length + ' fields added, ' +
-               report.skipped.length + ' already existed' +
-               (report.missing.length ? ', screens not found: ' + report.missing.join(', ') : '') + '.');
+  /* اطبع أسماء الحقول المتصادمة بدل عددها فقط. «حقل واحد موجود مسبقاً»
+     لا تفيد أحداً؛ «trades موجود مسبقاً» تشرح المشكلة كلها.
+     Name the colliding fields, don't just count them. "1 already
+     existed" helps nobody; "trades already existed" explains everything. */
+  console.info('dc-requests.js: ' + report.added.length + ' fields added' +
+    (report.skipped.length ? ' · already existed: ' + report.skipped.join(', ') : '') +
+    (report.missing.length ? ' · screens not found: ' + report.missing.join(', ') : '') + '.');
+
+  /* شاشات ضبط المستندات موجودة في Schema لكنها لا تظهر في القائمة —
+     هذه السطور تكشف السبب فوراً بدل البحث في لقطات الشاشة. */
+  setTimeout(function () {
+    if (!global.Schema || !global.Auth || !Auth.current) return;
+    var want = ['docRegister', 'transmittals', 'rfi', 'submittals',
+                'correspondence', 'distribution', 'docArchive', 'wir', 'mir'];
+    var missing = want.filter(function (id) { return !Schema.get(id); });
+    var hidden  = want.filter(function (id) { return Schema.get(id) && !Auth.can(id, 'view'); });
+    var groups  = (Schema.GROUPS || []).map(function (g) { return g.id; });
+    console.info('[dc-requests] role=' + (Auth.current() || {}).role +
+      ' · screens missing from Schema: ' + (missing.join(',') || 'none') +
+      ' · hidden by permissions: '       + (hidden.join(',')  || 'none') +
+      ' · menu groups: ' + groups.join(','));
+  }, 1200);
 })(window);
