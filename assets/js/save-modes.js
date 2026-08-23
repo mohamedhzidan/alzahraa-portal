@@ -169,6 +169,46 @@
      ═══════════════════════════════════════════════════════════════════ */
   var queuedThisSave = null;
 
+  /* ═══════════════════════════════════════════════════════════════════
+     ⚠️ الخطأ الذي كان هنا — «المسودة لا تُحفظ ولا تخرج من المسودة أبداً»
+     -------------------------------------------------------------------
+     كان السطر:   data.status = 'draft'
+     يُطبَّق على كل الشاشات بلا استثناء.
+
+     لكن «الحالة» تعني شيئين مختلفين تماماً في هذا النظام:
+
+       • شاشة لها دورة اعتماد (مستخلص، سند صرف…)
+         الحالة = مسودة · قيد المراجعة · معتمد …  ← «مسودة» صحيحة هنا
+
+       • شاشة بيانات أساسية (مقاولو الباطن، الموردون، الأصناف…)
+         الحالة = نشط · موقوف فقط         ← «مسودة» قيمة غير موجودة أصلاً
+
+     فما حدث في «مقاولو الباطن»: حُفظ السجل بحالة draft، ثم عند فتحه
+     للتعديل لا تجد القائمة المنسدلة خياراً يطابق draft فتظهر فارغة،
+     فلا يلمسها المستخدم، فتُحفظ draft مرة أخرى. سجل لا يخرج من المسودة أبداً.
+
+     THE BUG THAT WAS HERE. `data.status = 'draft'` was applied to every
+     screen. But "status" means two different things: on an approval
+     document it is a workflow state where draft is valid; on master data
+     it is only Active/Inactive, where draft is not an option at all.
+
+     So a subcontractor saved as draft could never leave that state: the
+     dropdown matches no option, shows blank, the user does not touch it,
+     and draft is written straight back on every save.
+
+     الإصلاح: «مسودة» تفرض الحالة على شاشات الاعتماد فقط. أما البيانات
+     الأساسية فتُحفظ حفظاً عادياً كاملاً — مع التساهل في الحقول المطلوبة
+     وحده، وهو الغرض الحقيقي من الزر هناك.
+     THE FIX: draft forces the status only on workflow screens. Master
+     data saves completely normally — with only the required-field check
+     relaxed, which is all the button was ever meant to do there.
+     ═══════════════════════════════════════════════════════════════════ */
+  function tableHasWorkflow(table) {
+    if (!global.Schema || !Schema.MODULES) return false;
+    var m = Schema.MODULES.filter(function (x) { return x.table === table; })[0];
+    return !!(m && m.workflow);
+  }
+
   function install() {
     if (!global.Store || Store.__saveModesInstalled) return;
 
@@ -178,14 +218,18 @@
     Store.create = function (table, data) {
       if (MODE === 'queue') {
         var payload = Object.assign({}, data);
-        payload.status = payload.status || 'draft';
+        /* نفس القاعدة: الحالة «مسودة» لشاشات الاعتماد فقط */
+        if (tableHasWorkflow(table)) payload.status = payload.status || 'draft';
         payload[QUEUE_FLAG] = true;
         queuedThisSave = { table: table, id: null, payload: payload };
         /* Return a truthy object so entity.js believes the save succeeded
            and closes the form. The real upload happens on reconnect. */
         return payload;
       }
-      if (MODE === 'draft') { data = Object.assign({}, data); data.status = 'draft'; }
+      if (MODE === 'draft' && tableHasWorkflow(table)) {
+        data = Object.assign({}, data);
+        data.status = 'draft';
+      }
       return origCreate.apply(Store, [table, data]);
     };
 
@@ -196,7 +240,7 @@
         queuedThisSave = { table: table, id: id, payload: payload };
         return payload;
       }
-      if (MODE === 'draft') {
+      if (MODE === 'draft' && tableHasWorkflow(table)) {
         data = Object.assign({}, data);
         if (!data.status || data.status === 'draft') data.status = 'draft';
       }
@@ -241,8 +285,15 @@
                   result = mod ? withoutRequired(mod, runSave) : runSave();
                 } finally { MODE = 'normal'; }
                 if (result !== false && global.UI && UI.toast) {
-                  UI.toast(isAr() ? 'حُفظت كمسودة. يمكنك إكمالها لاحقاً.'
-                                  : 'Saved as a draft. You can finish it later.', 'success');
+                  var wf = mod && mod.workflow;
+                  UI.toast(
+                    wf ? (isAr() ? 'حُفظت كمسودة. يمكنك إكمالها لاحقاً.'
+                                 : 'Saved as a draft. You can finish it later.')
+                       : (isAr() ? 'حُفظ بالكامل. هذه الشاشة بلا دورة اعتماد، فالسجل نشط ' +
+                                   'ويمكنك إكمال باقي الحقول متى شئت.'
+                                 : 'Saved in full. This screen has no approval cycle, so the record ' +
+                                   'is active and you can complete the remaining fields any time.'),
+                    'success', 6000);
                 }
                 return result;
               }
