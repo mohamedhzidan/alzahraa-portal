@@ -161,7 +161,13 @@
                   en: 'A company has a tax card; an individual has a national ID' } }),
 
       /* ── طلب أ. أحمد رقم ١ ── */
-      F('taxCardNo', 'رقم البطاقة الضريبية', 'Tax card number', 'text',
+      /* schema.js فيه بالفعل taxId بعنوان «البطاقة الضريبية». نستخدم نفس
+         الاسم فيتخطّاه النظام حيث يوجد ويضيفه حيث لا يوجد — بدل أن نصنع
+         خانتين للبطاقة الضريبية في نفس الشاشة كما كان يحدث.
+         schema.js already has taxId labelled «البطاقة الضريبية». Using the
+         same name means it is skipped where it exists and added where it
+         does not, instead of putting two tax-card boxes on one screen. */
+      F('taxId', 'البطاقة الضريبية', 'Tax card number', 'text',
         { section: SEC_LEGAL,
           hint: { ar: 'مثال ٤٥٦-٧٨٩-١٢٣', en: 'e.g. 456-789-123' } }),
       F('taxCardExpiry', 'انتهاء البطاقة الضريبية', 'Tax card expiry', 'date',
@@ -232,35 +238,78 @@
     ['tradeOther',      'أخرى',                  'Other']
   ];
 
-  /* حقل واحد يحمل كل المهن المختارة مفصولة بفاصلة.
-     ستة عشر مربع اختيار كانت تملأ الشاشة وتُقرأ بصعوبة. الآن قائمة
-     واحدة تُنقر أسطرها: نقرة تختار، ونقرة أخرى تلغي. اختر واحدة أو
-     كلها. One field holding every chosen trade. Click a line to select
-     it, click again to unselect. One, several, or all sixteen. */
-  addField('subcontractors',
-    F('trades', 'المهن والتخصصات', 'Trades & specialities', 'text',
-      { section: SEC_TRADE, full: true,
-        help: { ar: 'انقر على كل مهنة يمارسها هذا المقاول — يمكن اختيار أي عدد',
-                en: 'Click every trade this subcontractor performs — any number' } }));
+  /* ⚠️ الخطأ الذي أضاع ساعات — وهو خطئي أنا
+     -------------------------------------------------------------------
+     الحقل الحقيقي في schema.js اسمه  trade  (مفرد) وعنوانه «التخصص».
+     وأنا أضفتُ حقلاً ثانياً اسمه  trades  (جمع)، ثم بحث الكود عن
+     [name="trades"] فوجد حقلي المكرَّر أنا، وحوّله إلى قائمة متعددة —
+     وهو حقل لا قيمة له وربما خارج الشاشة — وترك «التخصص» الحقيقي كما هو.
+     فكان كل شيء «يعمل» في الاختبارات ولا يتغيّر شيء على الشاشة.
 
-  addField('subcontractors',
-    F('tradeOtherText', 'حدّد «أخرى»', 'Specify "other"', 'text',
-      { section: SEC_TRADE,
-        help: { ar: 'يُملأ فقط إذا اخترت «أخرى» من القائمة',
-                en: 'Only if you picked "Other" in the list' } }));
+     THE MISTAKE THAT COST HOURS, and it was mine. The real field in
+     schema.js is `trade` (singular), labelled «التخصص». I added a second
+     field called `trades` (plural). The code then searched for
+     [name="trades"], found MY duplicate, converted that one — a useless
+     field, probably scrolled out of sight — and left the real dropdown
+     alone. Every test passed and nothing changed on screen.
 
+     الحل: لا حقل جديد إطلاقاً. نوسّع خيارات الحقل الأصلي، ونحوّله هو.
+     The fix: no new field at all. Extend the original field's options
+     and convert that very field. */
+
+  var TRADE_FIELD = null;
+  (function () {
+    var sub = S.get('subcontractors');
+    if (!sub || !sub.fields) return;
+    TRADE_FIELD = sub.fields.filter(function (f) { return f.name === 'trade'; })[0] || null;
+    if (!TRADE_FIELD) return;
+    TRADE_FIELD.options = TRADE_FIELD.options || [];
+
+    /* تخصصات تنقص شركة طرق وكباري — تُضاف لنفس القائمة، بنفس آلية
+       النظام، فتظهر حتى لو حُذف هذا الملف نصفَ حذف.
+       Trades a roads-and-bridges contractor needs, appended to the same
+       list through the portal's own mechanism. */
+    var EXTRA = [
+      ['steel',      'حدادة تسليح',      'Steel fixing'],
+      ['carpentry',  'نجارة وشدّات',      'Formwork & carpentry'],
+      ['asphalt',    'أسفلت',            'Asphalt'],
+      ['geogrid',    'جيوجريد وفرش',     'Geogrid & geotextile'],
+      ['insulation', 'عزل',              'Waterproofing'],
+      ['survey',     'مساحة',            'Surveying'],
+      ['equipment',  'تأجير معدات',      'Equipment hire'],
+      ['transport',  'نقل',              'Haulage'],
+      ['labour',     'توريد عمالة',      'Labour supply'],
+      ['other',      'أخرى',             'Other']
+    ];
+    EXTRA.forEach(function (t) {
+      if (TRADE_FIELD.options.some(function (o) { return o.value === t[0]; })) return;
+      TRADE_FIELD.options.push({ value: t[0], label: { ar: t[1], en: t[2] } });
+    });
+
+    TRADE_FIELD.help = {
+      ar: 'انقر على كل تخصص يمارسه هذا المقاول — يمكنك اختيار أكثر من واحد',
+      en: 'Click every trade this subcontractor performs — you may choose more than one'
+    };
+  })();
+
+  /* الأسماء تُقرأ من القائمة الحقيقية، لا من قائمة عندي قد تخالفها */
   var TRADE_LABEL = {};
-  TRADES.forEach(function (t) { TRADE_LABEL[t[0]] = { ar: t[1], en: t[2] }; });
+  if (TRADE_FIELD) {
+    TRADE_FIELD.options.forEach(function (o) { TRADE_LABEL[o.value] = o.label; });
+  }
+  TRADES.forEach(function (t) {
+    if (!TRADE_LABEL[t[0]]) TRADE_LABEL[t[0]] = { ar: t[1], en: t[2] };
+  });
 
   function tradeCodes(sub) {
     if (!sub) return [];
-    if (sub.trades) {
+    if (sub.trade) {
       /* لا نحذف القيمة لأننا لا نعرفها. قائمة schema.js لها قيمها الخاصة
          مثل «أعمال خرسانية»، وحذفها كان سيُفقد بيانات مقاولين مسجَّلين.
          We do not drop a value merely because we don't recognise it: the
          schema.js list has its own values and discarding them would lose
          data on subcontractors already on file. */
-      return String(sub.trades).split(',').map(function (s) { return s.trim(); })
+      return String(sub.trade).split(',').map(function (s) { return s.trim(); })
                                .filter(function (s) { return !!s; });
     }
     /* سجلات قديمة حُفظت بمربعات الاختيار — ما زالت تُقرأ.
@@ -274,11 +323,6 @@
     var out = tradeCodes(sub).map(function (c) {
       return TRADE_LABEL[c] ? L(TRADE_LABEL[c]) : c;   /* اعرض القيمة كما هي إن لم نعرفها */
     });
-    if (out.length && sub && sub.tradeOtherText &&
-        tradeCodes(sub).indexOf('tradeOther') !== -1) {
-      out[out.indexOf(L(TRADE_LABEL.tradeOther))] =
-        (isAr() ? 'أخرى: ' : 'Other: ') + sub.tradeOtherText;
-    }
     return out.join(' · ');
   }
 
@@ -313,7 +357,7 @@
   var TRADE_SIGNATURE = [
     'أعمال خرسانية', 'مباني ومحارة', 'أعمال كهربائية', 'أعمال صحية',
     'تكييف وتهوية', 'تشطيبات', 'أعمال ترابية', 'ألوميتال وزجاج',
-    'حدادة', 'نجارة', 'أسفلت', 'عزل'
+    'حدادة تسليح', 'نجارة وشدّات', 'أسفلت', 'عزل'
   ];
 
   function findTradesSelect() {
@@ -341,12 +385,15 @@
        A single-choice dropdown was already on the screen — steel OR
        carpentry — which is the original complaint. The first version
        looked only for a text box, missed it, and left it untouched. */
+    /* ⭐ trade أولاً — وهو الحقل الحقيقي. لا نبحث عن trades إطلاقاً بعد
+       اليوم: لم يعد موجوداً، وكان وجوده هو المشكلة.
+       `trade` first — it is the real field. We no longer look for
+       `trades` at all: it no longer exists, and its existence was the bug.
+       [data-fname] هو ما يكتبه entity.js فعلاً على كل حقل — أوثق مرساة. */
     var tries = [
-      '[name="trades"]', '[name="trade"]',
-      '#trades', '#trade', '#field-trades', '#field-trade',
-      '[data-field="trades"]', '[data-field="trade"]',
-      '[data-name="trades"]', '[data-name="trade"]',
-      '[id$="trades"]', '[id$="trade"]'
+      '#entForm [name="trade"]', '[name="trade"]',
+      '[data-fname="trade"] select', '[data-fname="trade"] input',
+      '#trade', '#field-trade', '[data-field="trade"]', '[data-name="trade"]'
     ];
     for (var i = 0; i < tries.length; i++) {
       var el = document.querySelector(tries[i]);
@@ -356,7 +403,7 @@
     var labels = document.querySelectorAll('label, .field-label, .form-label');
     for (var j = 0; j < labels.length; j++) {
       var txt = (labels[j].textContent || '').trim();
-      if (txt.indexOf('المهن') !== -1 || txt.indexOf('المهنة') !== -1 ||
+      if (txt.indexOf('التخصص') !== -1 || txt.indexOf('المهن') !== -1 ||
           txt.indexOf('Trade') !== -1) {
         var wrap = labels[j].closest ? labels[j].closest('.field, .form-group, div') : labels[j].parentNode;
         var f = wrap && wrap.querySelector('input, textarea, select');
@@ -461,22 +508,28 @@
         box.appendChild(n);
       });
     }
-    /* مهن إضافية لم تكن في القائمة الأصلية.
-       نتخطّى المكرر بالقيمة وبالنص معاً: «مباني ومحارة» موجودة عندهم
-       بقيمة عربية وعندي بقيمة tradeMasonry — نفس المهنة، والمستخدم لا
-       يجوز أن يراها مرتين ولا أن يختار الاثنتين فتُحفظ مزدوجة.
-       Skip duplicates by value AND by displayed text: «مباني ومحارة»
-       exists in their list under an Arabic value and in mine under
-       tradeMasonry. Same trade — the user must not see it twice, nor be
-       able to tick both and store it twice. */
-    TRADES.forEach(function (t) {
-      var txt = isAr() ? t[1] : t[2];
-      if (added[t[0]] || seenText[txt]) return;
-      added[t[0]] = true; seenText[txt] = true; labelOf[t[0]] = txt;
-      var o = document.createElement('option');
-      o.value = t[0]; o.textContent = txt; o.style.padding = '5px 8px';
-      box.appendChild(o);
-    });
+    /* لا نضيف شيئاً هنا.
+       التخصصات الإضافية أُضيفت بالفعل إلى خيارات الحقل نفسه في القسم ٢،
+       فهي موجودة في القائمة الأصلية أعلاه. إضافتها مرة أخرى هنا كانت
+       تُظهر ٢٥ خياراً بدل ١٨ — نفس التخصص مرتين بقيمتين مختلفتين، وهو
+       بالضبط نوع الازدواج الذي يفسد البيانات لاحقاً.
+
+       Nothing is appended here. The extra trades were already added to
+       the field's own options in section 2, so they are in the list
+       above. Appending them again produced 25 options instead of 18 —
+       the same trade twice under two different values, exactly the kind
+       of duplication that corrupts the data later. */
+    if (input.tagName !== 'SELECT') {
+      /* حالة نادرة: الحقل ليس قائمة أصلاً — عندها فقط نبني الخيارات */
+      TRADES.forEach(function (t) {
+        var txt = isAr() ? t[1] : t[2];
+        if (added[t[0]] || seenText[txt]) return;
+        added[t[0]] = true; seenText[txt] = true; labelOf[t[0]] = txt;
+        var o = document.createElement('option');
+        o.value = t[0]; o.textContent = txt; o.style.padding = '5px 8px';
+        box.appendChild(o);
+      });
+    }
 
     var chosen = readTrades(input).map(function (s) { return s.trim(); });
     Array.prototype.forEach.call(box.options, function (o) {
@@ -949,7 +1002,7 @@
       try {
         var mod = id && global.Schema && Schema.get(moduleId);
         var rec = mod && global.Store && Store.find(mod.table, id);
-        if (rec && rec.trades) pendingTrades = String(rec.trades);
+        if (rec && rec.trade) pendingTrades = String(rec.trade);
       } catch (e) {}
       var out = orig.apply(EntityPage, arguments);
       afterModal();
