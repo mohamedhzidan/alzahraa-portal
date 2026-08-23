@@ -46,7 +46,9 @@
     'assets/js/app.js',
     /* آخر ملف: يلفّ Store بعد أن يكتمل كل شيء */
     'assets/js/save-guard.js',
-    'assets/js/access-check.js'
+    'assets/js/access-check.js',
+    /* يحوّل الحذف إلى إلغاء موثّق ويسجّل كل تغيير على الخادم */
+    'assets/js/audit-trail.js'
   ];
   var NEEDED = [
     ['ALZAHRAA_CONFIG','assets/js/config.js'],
