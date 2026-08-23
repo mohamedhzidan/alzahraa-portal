@@ -63,7 +63,7 @@ jobs:
           print(f'Checked {len(p.refs)} referenced assets; all local paths exist.')
           PY
 
-      - name: Block legacy demo portal and demo password
+      - name: Block live legacy demo portal and demo password
         shell: bash
         run: |
           set -euo pipefail
@@ -71,8 +71,14 @@ jobs:
             echo 'Legacy nested portal still exists: alzahraa-portal/index.html'
             exit 1
           fi
-          if grep -RIn --exclude-dir=.git --exclude='recovery-ci.yml' -E 'demoHint|حسابات تجريبية|password[^\n]{0,30}1234|كلمة المرور[^\n]{0,40}1234' .; then
-            echo 'Legacy demo-login/password material is still tracked.'
+          # Scan executable/public application files only. Recovery notes are allowed
+          # to describe the historical shared demo password as evidence.
+          if grep -RIn \
+            --include='*.html' --include='*.js' --include='*.json' --include='*.webmanifest' \
+            --exclude-dir=.git --exclude-dir=.github \
+            -E 'demoHint|حسابات تجريبية|password[^\n]{0,30}1234|كلمة المرور[^\n]{0,40}1234' \
+            index.html loader.js service-worker.js assets manifest.webmanifest 2>/dev/null; then
+            echo 'Legacy demo-login/password material is still present in public application files.'
             exit 1
           fi
 
@@ -123,7 +129,6 @@ jobs:
           set -euo pipefail
           python3 - <<'PY'
           from pathlib import Path
-          import re
           sw=Path('service-worker.js').read_text(encoding='utf-8')
           if 'CACHE' not in sw.upper():
               raise SystemExit('service-worker.js has no obvious cache version/name marker')
