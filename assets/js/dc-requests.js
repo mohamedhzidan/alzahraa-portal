@@ -366,8 +366,13 @@
     return null;
   }
 
+  /* القيمة المحفوظة للسجل الجاري تعديله، تُلتقط قبل رسم النموذج */
+  var pendingTrades = null;
+
   /* اقرأ القيمة الحالية أياً كان نوع الحقل */
   function readTrades(el) {
+    /* السجل المحفوظ أولاً — النموذج لا يستطيع إظهار قيمة مركّبة */
+    if (pendingTrades) return String(pendingTrades).split(',');
     if (el.tagName === 'SELECT') {
       var picked = Array.prototype.filter.call(el.options, function (o) { return o.selected; })
                         .map(function (o) { return o.value; });
@@ -514,7 +519,8 @@
     input.parentNode.insertBefore(hint, input.nextSibling);
     input.parentNode.insertBefore(box,  hint.nextSibling);
     input.parentNode.insertBefore(count, box.nextSibling);
-    sync();
+    sync();                 /* يكتب القيمة المستعادة في النموذج فوراً */
+    pendingTrades = null;   /* استُهلكت — لا تتسرّب للسجل التالي */
   }
 
   /* ═══════════════════════════════════════════════════════════════════
@@ -879,8 +885,90 @@
     watchNav(); addMissingNavGroups(); addRoleDashboards();
   }
 
+  /* ═══════════════════════════════════════════════════════════════════
+     الطريقة التي تعمل فعلاً · THE MECHANISM THAT ACTUALLY WORKS
+     -------------------------------------------------------------------
+     كنت أعتمد على مراقبة تغيّر الصفحة (MutationObserver). قرأت entity.js
+     فوجدت أن النموذج يُرسم داخل UI.modal، وأن زرَّي «مسودة» و«مسودة حتى
+     الاتصال» يظهران في نفس النموذج لأن save-modes.js يلفّ UI.modal —
+     لا يراقب الصفحة. أي أن اللفّ ناجح مجرَّب في هذا الموقع، والمراقبة لا.
+
+     I was relying on watching the page for changes. Reading entity.js
+     showed the form is drawn inside UI.modal, and that the Draft buttons
+     appear in that same form because save-modes.js WRAPS UI.modal rather
+     than watching the DOM. So wrapping is proven to work here; watching
+     is not. Same technique, applied to the trades list.
+
+     نشغّلها ثلاث مرات: فوراً، وبعد ٦٠ مللي، وبعد ٣٠٠ — لأن onOpen في
+     entity.js يبني الحقول بعد فتح النافذة، فقد لا تكون موجودة لحظة الفتح.
+     Run it three times — immediately, at 60ms and at 300ms — because
+     entity.js builds the fields in onOpen, after the window opens.
+     ═══════════════════════════════════════════════════════════════════ */
+  function afterModal() {
+    [0, 60, 300, 900].forEach(function (ms) {
+      setTimeout(function () {
+        try { enhanceTrades(); } catch (e) { console.error('[dc-requests] trades', e); }
+        try { addAttachShortcut(); } catch (e) {}
+      }, ms);
+    });
+  }
+
+  function wrapModal() {
+    if (!global.UI || !UI.modal || UI.__azTradesWrapped) return;
+    var orig = UI.modal;
+    UI.modal = function () {
+      var out = orig.apply(UI, arguments);
+      afterModal();
+      return out;
+    };
+    UI.__azTradesWrapped = true;
+    console.info('[dc-requests] UI.modal wrapped — the trades picker now builds when a form opens.');
+  }
+
+  /* لفّ openForm أيضاً — حزام وحمّالة. لو تغيّرت UI.modal يوماً ما زال
+     هذا المسار يعمل. Belt and braces: if UI.modal ever changes, this
+     second path still catches the form opening. */
+  function wrapOpenForm() {
+    if (!global.EntityPage || !EntityPage.openForm || EntityPage.__azTradesWrapped) return;
+    var orig = EntityPage.openForm;
+    EntityPage.openForm = function (moduleId, id) {
+      /* ⚠️ فقدان بيانات صامت كنت على وشك إطلاقه.
+         entity.js يعلّم الخيار المختار هكذا:  String(v) === String(o.value)
+         وقيمتنا المخزّنة «أعمال خرسانية,أعمال كهربائية» لا تساوي أي خيار
+         مفرد، فيفتح النموذج بلا اختيار. لو حفظ المستخدم عندها لضاعت مهنه
+         كلها — دون رسالة ودون أن يلاحظ.
+
+         SILENT DATA LOSS I was about to ship. entity.js marks an option
+         selected with String(v) === String(o.value). Our stored value
+         «أعمال خرسانية,أعمال كهربائية» equals no single option, so the
+         form opens with nothing selected. Saving then would wipe every
+         trade on that subcontractor, with no message and nothing to see.
+
+         نلتقط القيمة المحفوظة قبل رسم النموذج ونعيد ضبط الاختيار منها. */
+      pendingTrades = null;
+      try {
+        var mod = id && global.Schema && Schema.get(moduleId);
+        var rec = mod && global.Store && Store.find(mod.table, id);
+        if (rec && rec.trades) pendingTrades = String(rec.trades);
+      } catch (e) {}
+      var out = orig.apply(EntityPage, arguments);
+      afterModal();
+      return out;
+    };
+    EntityPage.__azTradesWrapped = true;
+  }
+
   function start() {
     wireWorkType();
+    wrapModal();
+    wrapOpenForm();
+
+    /* UI و EntityPage يُحمَّلان بعد هذا الملف، فنحاول اللفّ ثانيةً بعد
+       اكتمال التحميل. UI and EntityPage load after this file, so try
+       again once everything has finished loading. */
+    [0, 300, 1200, 3000].forEach(function (ms) {
+      setTimeout(function () { wrapModal(); wrapOpenForm(); }, ms);
+    });
 
     /* ⚠️ السبب في أن قائمة المهن لم تعمل رغم صحة الكود:
        كنا نراقب #content فقط، لكن نموذج «＋ إضافة» يُفتح داخل #modalHost
