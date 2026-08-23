@@ -188,6 +188,7 @@
 
     flushing = true;
     var sent = 0, failed = 0;
+    var attempted = [];
     try {
       await migrateQueue();          /* أصلح القديم قبل أي إرسال */
       var jobs = await OfflineDB.queueList(user);
@@ -218,24 +219,81 @@
           } else {
             Store.create(j.table, body);
           }
-          await OfflineDB.queueRemove(j.queueId);
-          sent++;
+          /* ⚠️ لا نحذف المهمة من الطابور هنا.
+             كان السطر التالي هو الكارثة:
+
+                 await OfflineDB.queueRemove(j.queueId);   ← حذف فوري
+                 sent++;                                    ← «تم الرفع»
+
+             لكن Store.create ترجع قبل أن يردّ الخادم أصلاً. فإن رفض
+             الخادم الصف بعدها بلحظة، تكون المسودة قد حُذفت من الطابور
+             ومن الخادم معاً — فتختفي، ويقول النظام إنها رُفعت.
+             وهذا بالضبط ما رأيتَه.
+
+             WE DO NOT REMOVE THE JOB HERE. Store.create returns before
+             the server has answered, so removing it now means a later
+             refusal wipes the draft from the queue AND the server, while
+             the portal reports success. Exactly what you saw.
+
+             نبقيها في الطابور حتى يؤكّد الخادم وجودها بنفسه. */
+          attempted.push({ job: j, table: j.table, id: body.id || j.recordId || j.id });
         } catch (e) {
           console.warn('[save-modes] job failed, will retry later', j.queueId, e);
           failed++;
         }
       }
 
+      /* ── التأكيد: نسأل الخادم عن كل صف قبل حذف مهمته ──────────────
+         Confirmation: ask the server for each row before deleting its job. */
+      if (attempted.length) {
+        await new Promise(function (r) { setTimeout(r, 2600); });
+        var client = global.Auth && Auth.client && Auth.client();
+
+        for (var k = 0; k < attempted.length; k++) {
+          var a = attempted[k];
+          var landed = false;
+          if (client && a.id) {
+            try {
+              var res = await client.from(a.table).select('id').eq('id', a.id).maybeSingle();
+              landed = !!(res && !res.error && res.data && res.data.id);
+            } catch (e) { landed = false; }
+          }
+
+          if (landed) {
+            await OfflineDB.queueRemove(a.job.queueId);
+            sent++;
+          } else {
+            /* لم يصل — تبقى المسودة في الطابور ولا تضيع.
+               بعد خمس محاولات نتوقف ونسجّلها تعارضاً ليقرأها إنسان،
+               بدل إعادة المحاولة إلى الأبد بصمت. */
+            var tries = (a.job.tries || 0) + 1;
+            if (tries >= 5) {
+              await OfflineDB.conflictAdd(user, a.job, isAr()
+                ? 'حاول النظام رفع هذه المسودة خمس مرات ورفضها الخادم في كل مرة.'
+                : 'The portal tried to upload this draft five times and the server refused each time.');
+              await OfflineDB.queueRemove(a.job.queueId);
+            } else {
+              await OfflineDB.queueRemove(a.job.queueId);
+              await OfflineDB.queueAdd(user, Object.assign({}, a.job, { tries: tries }));
+            }
+            failed++;
+          }
+        }
+      }
+
       if (sent && !silent && global.UI && UI.toast) {
         UI.toast(isAr()
-          ? 'تم رفع ' + sent + ' مستند كان محفوظاً على الجهاز.'
-          : sent + ' saved-on-device document(s) uploaded.', 'success', 5000);
+          ? 'رُفع ' + sent + ' مستند وتأكّد وجوده على الخادم.'
+          : sent + ' document(s) uploaded and confirmed on the server.', 'success', 5000);
         if (global.App && App.refresh) App.refresh();
       }
       if (failed && global.UI && UI.toast) {
         UI.toast(isAr()
-          ? failed + ' مستند يحتاج مراجعتك قبل الرفع.'
-          : failed + ' document(s) need your review before upload.', 'warn', 6000);
+          ? 'لم يُرفع ' + failed + ' مستند — ما زال محفوظاً على جهازك ولن يضيع. ' +
+            'سيُحاول النظام مرة أخرى، وستظهر لك التفاصيل إن تكرّر الرفض.'
+          : failed + ' document(s) did not upload — still saved on your device and not lost. ' +
+            'The portal will try again and will show you the reason if it keeps failing.',
+          'warn', 9000);
       }
     } finally { flushing = false; }
   }
