@@ -69,16 +69,71 @@
     return 'q_' + r;
   }
 
+  /* ═══════════════════════════════════════════════════════════════════
+     ⚠️ الخطأ الذي كان يمحو المسودات دون اتصال — «unsupported-operation»
+     -------------------------------------------------------------------
+     هذا الملف و store.js يتشاركان طابور الانتظار نفسه في المتصفح،
+     لكنهما كانا يكتبان فيه بشكلين مختلفين:
+
+         save-modes.js  →  { kind: 'create', payload: {...} }
+         store.js       →  { op:   'insert', row:     {...} }
+
+     وعند عودة الاتصال يقرأ store.js الطابور كاملاً — بما فيه مهامّنا —
+     فلا يجد op، فيرمي 'unsupported-operation'، ويسجّلها تعارضاً،
+     ثم يحذف المهمة من الطابور. فتضيع المسودة التي كتبها الموظف دون
+     اتصال، ويُطلب منه إعادة إدخالها. وهو ما حدث بالضبط.
+
+     THE BUG THAT DESTROYED OFFLINE DRAFTS. This file and store.js share
+     one browser queue but wrote two different job shapes. On reconnect
+     store.js reads the whole queue, finds no `op`, throws
+     'unsupported-operation', files a conflict, and DELETES the job — so
+     the offline draft is gone and the employee is asked to type it again.
+
+     الإصلاح: نكتب المهمة بالشكلين معاً في نفس السجل. فأيّاً كان من
+     يصل إليها أولاً — store.js عند فتح الصفحة، أو هذا الملف عند عودة
+     الاتصال — يفهمها ويرسلها صحيحة. ومن يصل ثانياً يجدها مرفوعة.
+
+     THE FIX: write both shapes into the same job. Whichever reaches it
+     first — store.js at page load, or this file on reconnect —
+     understands it and sends it correctly. The other finds it gone.
+     ═══════════════════════════════════════════════════════════════════ */
+  function nowISO() { return new Date().toISOString(); }
+
   async function queueRecord(table, id, payload, moduleLabel) {
     var user = uid();
     if (!user || !global.OfflineDB) return { ok: false, error: 'no-offline-store' };
+
+    /* معرّف ثابت يُولَّد الآن، لا عند الرفع. لولاه لأنتجت كل محاولة رفع
+       معرّفاً جديداً، فتتكرّر نفس المسودة عند أي إعادة إرسال.
+       A stable id generated now, not at upload time. Without it every
+       retry would mint a new id and duplicate the same draft. */
+    var row = Object.assign({}, payload);
+    delete row[QUEUE_FLAG];
+    row.id = row.id || id ||
+      ((global.Store && Store.uid) ? Store.uid(table) : 'q_' + jobId());
+    if (!id) {
+      row.createdAt = row.createdAt || nowISO();
+      row.createdBy = row.createdBy || user;
+    }
+    row.updatedAt = nowISO();
+    row.updatedBy = user;
+
     var job = {
       queueId: jobId(),
+
+      /* ── الشكل الذي يفهمه store.js ── */
+      op: id ? 'update' : 'insert',
+      table: table,
+      row: row,
+      id: row.id,
+      baseUpdatedAt: null,
+      at: nowISO(),
+
+      /* ── الشكل الذي يفهمه هذا الملف ── */
       kind: id ? 'update' : 'create',
-      table: table, recordId: id || null,
-      payload: payload,
+      recordId: id || null,
+      payload: row,
       moduleLabel: moduleLabel || table,
-      at: new Date().toISOString(),
       by: user
     };
     try {
@@ -88,6 +143,38 @@
       console.error('[save-modes] could not queue', e);
       return { ok: false, error: String(e && e.message) };
     }
+  }
+
+  /* ═══════════════════════════════════════════════════════════════════
+     ترقية المسودات القديمة العالقة في الطابور بالشكل القديم
+     Repair drafts already queued in the old shape, so nothing written
+     before this fix is lost.
+     ═══════════════════════════════════════════════════════════════════ */
+  async function migrateQueue() {
+    var user = uid();
+    if (!user || !global.OfflineDB) return 0;
+    var fixed = 0;
+    try {
+      var jobs = await OfflineDB.queueList(user);
+      for (var i = 0; i < jobs.length; i++) {
+        var j = jobs[i];
+        if (!j || j.op || !j.kind || !j.table) continue;   /* سليمة أو ليست لنا */
+        var row = Object.assign({}, j.payload || {});
+        delete row[QUEUE_FLAG];
+        row.id = row.id || j.recordId ||
+          ((global.Store && Store.uid) ? Store.uid(j.table) : 'q_' + jobId());
+        row.updatedAt = row.updatedAt || j.at || nowISO();
+        var upgraded = Object.assign({}, j, {
+          op: j.kind === 'update' ? 'update' : 'insert',
+          row: row, id: row.id, baseUpdatedAt: null, payload: row
+        });
+        await OfflineDB.queueRemove(j.queueId);
+        await OfflineDB.queueAdd(user, upgraded);
+        fixed++;
+      }
+      if (fixed) console.info('[save-modes] upgraded ' + fixed + ' queued draft(s) to the shared format.');
+    } catch (e) { console.warn('[save-modes] queue migration skipped', e); }
+    return fixed;
   }
 
   /* رفع الطابور — يُستدعى عند عودة الاتصال وعند فتح الموقع */
@@ -102,6 +189,7 @@
     flushing = true;
     var sent = 0, failed = 0;
     try {
+      await migrateQueue();          /* أصلح القديم قبل أي إرسال */
       var jobs = await OfflineDB.queueList(user);
       /* only our own jobs; Store may keep its own entries in the same queue */
       jobs = jobs.filter(function (j) { return j && j.kind && j.table && j.payload; });
@@ -112,7 +200,8 @@
           var body = Object.assign({}, j.payload);
           delete body[QUEUE_FLAG];
 
-          if (j.kind === 'update' && j.recordId) {
+          /* الترقية جعلت payload يحمل id ثابتاً — نستخدمه كما هو */
+          if ((j.kind === 'update' || j.op === 'update') && (j.recordId || j.id)) {
             /* If someone changed the record while we were offline, do not
                overwrite silently — record a conflict for a human to read. */
             var current = Store.find(j.table, j.recordId);
@@ -125,7 +214,7 @@
               failed++;
               continue;
             }
-            Store.save(j.table, j.recordId, body);
+            Store.save(j.table, j.recordId || j.id, body);
           } else {
             Store.create(j.table, body);
           }
@@ -422,6 +511,7 @@
   } else { start(); }
 
   global.SaveModes = {
+    migrateQueue: migrateQueue,
     flush: flushQueue,
     pending: pendingCount,
     updateBadge: updateBadge,
