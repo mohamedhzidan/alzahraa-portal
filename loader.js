@@ -1,15 +1,15 @@
 /* Fixed-order production loader plus a deployment self-check.
-   departments.js is loaded AFTER schema.js and BEFORE auth.js, because it
-   registers the Site Engineers and Document Control screens that auth.js
-   then grants permissions on. */
+   Recovery branch: use the partial-load/server-confirmed Store and keep
+   local drafts in a separate encrypted database. */
 (function () {
   'use strict';
   var FILES = [
     'assets/js/env.js',
     'assets/js/config.js',
     'assets/js/offline-db.js',
+    'assets/js/draft-db.js',
     'assets/js/i18n.js',
-    'assets/js/store.js',
+    'assets/js/store-recovery.js',
     'assets/js/schema.js',
     'assets/js/departments.js',
     'assets/js/auth.js',
@@ -20,9 +20,8 @@
     'assets/js/print.js',
     'assets/js/alerts.js',
     'assets/js/roleview.js',
-    /* ── المساعد المهني · the professional assistant ──
-       الترتيب مهم: الخبرة، ثم المفتّش، ثم فحوصات الأقسام، ثم المساعد.
-       Order matters: knowledge, inspector, department checks, then assistant. */
+    /* Professional assistant stack. The AI source will be audited separately
+       before any server-side model key is enabled. */
     'assets/js/knowledge.js',
     'assets/js/inspector.js',
     'assets/js/inspector-departments.js',
@@ -32,6 +31,8 @@
     'assets/js/pages/dashboard.js',
     'assets/js/pages/dashboard-render.js',
     'assets/js/pages/entity.js',
+    'assets/js/page-availability.js',
+    'assets/js/form-save-recovery.js',
     'assets/js/pages/approvals.js',
     'assets/js/pages/reports.js',
     'assets/js/pages/settings.js',
@@ -40,8 +41,9 @@
   var NEEDED = [
     ['ALZAHRAA_CONFIG','assets/js/config.js'],
     ['OfflineDB','assets/js/offline-db.js'],
+    ['DraftDB','assets/js/draft-db.js'],
     ['I18N','assets/js/i18n.js'],
-    ['Store','assets/js/store.js'],
+    ['Store','assets/js/store-recovery.js'],
     ['Schema','assets/js/schema.js'],
     ['Auth','assets/js/auth.js'],
     ['Workflow','assets/js/workflow.js'],
@@ -70,8 +72,6 @@
     for (var i = 0; i < NEEDED.length; i++) {
       if (!window[NEEDED[i][0]] && missing.indexOf(NEEDED[i][1]) === -1) missing.push(NEEDED[i][1]);
     }
-    /* departments.js is checked separately: it has no global of its own,
-       it proves it ran by registering the new screens on Schema. */
     if (window.Schema && !window.Schema.DEPARTMENT_MODULES &&
         missing.indexOf('assets/js/departments.js') === -1) {
       missing.push('assets/js/departments.js');
