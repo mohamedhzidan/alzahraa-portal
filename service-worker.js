@@ -17,7 +17,7 @@
 
       بدون إضافتها لن يعمل الذكاء الاصطناعي ولا القسمان الجديدان بدون إنترنت.
    --------------------------------------------------------------------------- */
-var CACHE = 'alzahraa-shell-v2.0.5';
+var CACHE = 'alzahraa-shell-v2.0.6';
 
 var SHELL = [
   './', './index.html', './manifest.webmanifest', './robots.txt',
@@ -44,6 +44,7 @@ var SHELL = [
   './assets/js/dc-requests.js',
   './assets/js/save-guard.js',
   './assets/js/access-check.js',
+  './assets/js/audit-trail.js',
   './assets/js/sites.js',
   './assets/js/knowledge.js',
   './assets/js/inspector.js',
