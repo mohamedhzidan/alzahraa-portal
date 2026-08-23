@@ -203,6 +203,71 @@
   }
 
   /* ═══════════════════════════════════════════════════════════════════
+     التعارضات القديمة — إظهار ما تخفيه البوابة بالفعل
+     -------------------------------------------------------------------
+     كتب store.js عند كل رفض:
+
+         conflictsCache.push(await OfflineDB.conflictAdd(user, job, detail))
+
+     و`detail` هو نص الخطأ الحرفي من قاعدة البيانات. لكنه لا يظهر إلا
+     لمن يفتح «الإعدادات ← البيانات» ويعرف أن عليه البحث هناك. فبقي
+     السبب مكتوباً بوضوح ومخفياً في آنٍ واحد، بينما يقول أسفل الشاشة
+     «تعارضات · ٣» فقط.
+
+     store.js records the database's verbatim error on every refusal, but
+     it is only visible to someone who opens Settings → Data and knows to
+     look. So the cause sat there, written plainly and hidden at the same
+     time, while the footer said only "Conflicts · 3".
+
+     نعرضها هنا فور فتح البوابة — بنصّها كما ردّت قاعدة البيانات.
+     We show them the moment the portal opens, in the database own words.
+     ═══════════════════════════════════════════════════════════════════ */
+  var conflictsShown = false;
+
+  function showExistingConflicts() {
+    if (conflictsShown) return;
+    if (!global.Store || !Store.conflicts || !global.UI || !UI.modal) return;
+
+    var list = Store.conflicts() || [];
+    if (!list.length) return;
+    conflictsShown = true;
+
+    var rows = list.map(function (c, i) {
+      var job = c.job || {};
+      var table = job.table || '—';
+      var detail = String(c.detail || '').trim() || '—';
+      console.error('[save-guard] conflict ' + (i + 1) + ' · table=' + table +
+                    ' · op=' + (job.op || '?') + ' · ' + detail);
+      return '<tr>' +
+        '<td style="padding:7px 9px;font-weight:600">' + esc(screenName(table)) + '</td>' +
+        '<td style="padding:7px 9px;color:#667">' + esc(job.op || '—') + '</td>' +
+        '<td style="padding:7px 9px;direction:ltr;text-align:left;font-family:monospace;' +
+            'font-size:12px;background:#fdeceb;color:#912018;border-radius:5px">' +
+            esc(detail) + '</td>' +
+      '</tr>';
+    }).join('');
+
+    UI.modal({
+      title: L({ ar: '⚠️ عمليات حفظ رفضتها قاعدة البيانات',
+                 en: '⚠️ Saves the database refused' }),
+      wide: true,
+      body:
+        '<p>' + esc(L({
+          ar: 'هذه العمليات لم تصل. النص على اليسار هو ردّ قاعدة البيانات حرفياً — ' +
+              'أرسله كما هو لمن يصلح النظام.',
+          en: 'These did not go through. The text on the left is the database verbatim reply — ' +
+              'send it as it is to whoever maintains the system.' })) + '</p>' +
+        '<div style="max-height:52vh;overflow:auto"><table style="width:100%;border-collapse:collapse">' +
+        '<thead><tr style="border-bottom:2px solid #ddd">' +
+          '<th style="padding:8px 9px;text-align:start">' + esc(L({ ar: 'الشاشة', en: 'Screen' })) + '</th>' +
+          '<th style="padding:8px 9px;text-align:start">' + esc(L({ ar: 'العملية', en: 'Operation' })) + '</th>' +
+          '<th style="padding:8px 9px;text-align:start">' + esc(L({ ar: 'ردّ قاعدة البيانات', en: 'Database reply' })) + '</th>' +
+        '</tr></thead><tbody>' + rows + '</tbody></table></div>',
+      buttons: [{ label: L({ ar: 'إغلاق', en: 'Close' }), cls: 'btn-primary' }]
+    });
+  }
+
+  /* ═══════════════════════════════════════════════════════════════════
      التركيب — نلفّ Store.create و Store.save ولا نغيّر سلوكهما
      ═══════════════════════════════════════════════════════════════════ */
   function install() {
@@ -224,6 +289,20 @@
     };
 
     console.info('save-guard.js ready — every save is now confirmed against the server.');
+
+    /* اعرض التعارضات المخزَّنة بعد أن تكتمل تهيئة البيانات */
+    [2000, 6000].forEach(function (ms) { setTimeout(showExistingConflicts, ms); });
+    if (Store.onChange) {
+      Store.onChange(function (type) {
+        if (type === 'ready-online' || type === 'ready-offline') {
+          setTimeout(showExistingConflicts, 1500);
+        }
+        if (type === 'conflict' || type === 'sync-error') {
+          conflictsShown = false;
+          setTimeout(showExistingConflicts, 400);
+        }
+      });
+    }
   }
 
   install();
@@ -231,6 +310,7 @@
 
   global.SaveGuard = {
     verify: verify,
+    conflicts: showExistingConflicts,
     /* افحص يدوياً: SaveGuard.check('docRegister') — يقارن ما على الشاشة بما على الخادم */
     check: function (table) {
       var client = global.Auth && Auth.client && Auth.client();
