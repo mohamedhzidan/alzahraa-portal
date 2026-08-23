@@ -17,7 +17,7 @@
 
       بدون إضافتها لن يعمل الذكاء الاصطناعي ولا القسمان الجديدان بدون إنترنت.
    --------------------------------------------------------------------------- */
-var CACHE = 'alzahraa-shell-v2.0.2';
+var CACHE = 'alzahraa-shell-v2.0.5';
 
 var SHELL = [
   './', './index.html', './manifest.webmanifest', './robots.txt',
@@ -41,6 +41,9 @@ var SHELL = [
      no signal loses every check and every piece of job knowledge. */
   './assets/js/departments.js',
   './assets/js/hr-department.js',
+  './assets/js/dc-requests.js',
+  './assets/js/save-guard.js',
+  './assets/js/access-check.js',
   './assets/js/sites.js',
   './assets/js/knowledge.js',
   './assets/js/inspector.js',
