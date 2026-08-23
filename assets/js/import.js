@@ -431,7 +431,21 @@
                (f.required ? ' *' : '') + '</option>';
       }).join('');
 
-    var body =
+    /* عمود واحد فقط = الملف على الأرجح ليس جدول بيانات إطلاقاً.
+       قل ذلك صراحة بدل ترك المستخدم يظن أن الاستيراد معطّل.
+       One column means the file is probably not a spreadsheet at all.
+       Say so plainly instead of letting the person think import is broken. */
+    var warn = headers.length < 2
+      ? '<div class="alert alert-danger" style="margin-bottom:10px">' + esc(L({
+          ar: 'هذا الملف فيه عمود واحد فقط، وغالباً ليس ملف بيانات — قد يكون ملف ' +
+              'نصي أو ملف تحقّق. اضغط «⬇ ملف نموذجي» بجوار «استيراد» لتنزيل ملف ' +
+              'بعناوين هذه الشاشة، املأه بإكسل، ثم استورده.',
+          en: 'This file has only one column and is probably not a data file — it may be ' +
+              'a text or checksum file. Press «⬇ Template» next to Import to download a ' +
+              'file with this screen\'s headings, fill it in Excel, then import it.' })) + '</div>'
+      : '';
+
+    var body = warn +
       '<p>' + esc(L({
         ar: 'اربط كل عمود في ملفك بالحقل المقابل. ما تتركه فارغاً يُتجاهل.',
         en: 'Match each column in your file to a field. Anything left blank is ignored.' })) + '</p>' +
@@ -458,6 +472,8 @@
       body: body,
       buttons: [
         { label: L({ ar: 'إلغاء', en: 'Cancel' }), cls: 'btn-ghost' },
+        { label: L({ ar: '⬇ ملف نموذجي', en: '⬇ Template' }), cls: 'btn-outline',
+          onClick: function () { template(moduleId); } },
         { label: L({ ar: 'متابعة ←', en: 'Continue →' }), cls: 'btn-primary',
           onClick: function () {
             var manual = headers.map(function (h, i) {
@@ -704,11 +720,79 @@
   /* ═══════════════════════════════════════════════════════════════════
      ٦ · زر «استيراد» بجوار «تصدير» في كل شاشة
      ═══════════════════════════════════════════════════════════════════ */
+  /* ═══════════════════════════════════════════════════════════════════
+     ملف نموذجي — الحل الحقيقي لمشكلة «لم يُتعرَّف على أي عمود»
+     -------------------------------------------------------------------
+     السبب الأول لفشل الاستيراد ليس الكود، بل أن الملف المرفوع ليس
+     جدول بيانات أصلاً، أو عناوينه من نظام آخر. بدل أن نطلب من المستخدم
+     تخمين العناوين الصحيحة، ننزّلها له جاهزة.
+
+     The commonest reason import fails is not the code — it is that the
+     file is not a spreadsheet, or its headings came from another system.
+     Rather than ask the person to guess the right headings, hand them
+     the file with the headings already in it.
+     ═══════════════════════════════════════════════════════════════════ */
+  function template(moduleId) {
+    var mod = Schema.get(moduleId);
+    if (!mod) return;
+    var fields = (mod.fields || []).filter(function (f) {
+      return f && f.name && f.type !== 'calc' && !f.readonly &&
+             ['trail', 'lines', 'attachments'].indexOf(f.name) === -1;
+    });
+
+    function cell(v) {
+      v = String(v == null ? '' : v);
+      return /[",\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v;
+    }
+
+    var head = fields.map(function (f) { return cell(lab(f.label)); }).join(',');
+
+    /* صف مثال يشرح الصيغة المتوقعة لكل نوع حقل */
+    var sample = fields.map(function (f) {
+      if (f.type === 'date') return cell('2026-08-23');
+      if (f.type === 'number' || f.type === 'money' || f.type === 'percent') return cell('0');
+      if (f.type === 'checkbox') return cell(isAr() ? 'نعم' : 'yes');
+      if (f.type === 'select' && f.options && f.options.length) return cell(lab(f.options[0].label));
+      if (f.type === 'ref') return cell(isAr() ? 'اكتب الاسم كما هو مسجّل' : 'type the name exactly as recorded');
+      return '';
+    }).join(',');
+
+    /* BOM لازم وإلا فتح إكسل العربية كرموز غير مفهومة.
+       The BOM is required or Excel opens Arabic as mojibake. */
+    var csv = '﻿' + head + '\n' + sample + '\n';
+    var blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = 'نموذج-' + moduleId + '.csv';
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(function () { URL.revokeObjectURL(url); a.remove(); }, 1500);
+
+    if (global.UI && UI.toast) {
+      UI.toast(L({
+        ar: 'نزّلنا ملفاً بعناوين هذه الشاشة. افتحه بإكسل، امسح صف المثال، ' +
+            'اكتب بياناتك، احفظ، ثم اضغط «استيراد».',
+        en: 'A file with this screen\'s headings was downloaded. Open it in Excel, ' +
+            'delete the example row, enter your data, save, then press Import.' }), 'success', 9000);
+    }
+  }
+
   function addButton() {
     var exportBtn = document.querySelector('[data-x="export"]');
     if (!exportBtn || document.getElementById('azImportBtn')) return;
     var moduleId = (global.App && App.currentModule && App.currentModule()) || currentFromBreadcrumb();
     if (!moduleId || !global.Auth || !Auth.can(moduleId, 'create')) return;
+
+    var tpl = document.createElement('button');
+    tpl.id = 'azTemplateBtn';
+    tpl.className = 'btn btn-outline btn-sm';
+    tpl.type = 'button';
+    tpl.textContent = L({ ar: '⬇ ملف نموذجي', en: '⬇ Template' });
+    tpl.title = L({ ar: 'ملف فارغ بعناوين هذه الشاشة — املأه واستورده',
+                    en: 'An empty file with this screen\'s headings — fill it in and import it' });
+    tpl.onclick = function () { template(moduleId); };
+    exportBtn.parentNode.insertBefore(tpl, exportBtn);
 
     var btn = document.createElement('button');
     btn.id = 'azImportBtn';
@@ -716,7 +800,7 @@
     btn.type = 'button';
     btn.textContent = L({ ar: '⬆ استيراد', en: '⬆ Import' });
     btn.onclick = function () { pick(moduleId); };
-    exportBtn.parentNode.insertBefore(btn, exportBtn);
+    exportBtn.parentNode.insertBefore(btn, tpl);
   }
 
   function currentFromBreadcrumb() {
@@ -819,6 +903,7 @@
   else start();
 
   global.DataImport = {
+    template: template, mapDialog: mapDialog, readXLSX: readXLSX,
     parseCSV: parseCSV, mapColumns: mapColumns, coerce: coerce,
     checkRow: checkRow, preview: preview, pick: pick
   };
