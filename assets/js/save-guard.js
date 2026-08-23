@@ -263,8 +263,41 @@
           '<th style="padding:8px 9px;text-align:start">' + esc(L({ ar: 'العملية', en: 'Operation' })) + '</th>' +
           '<th style="padding:8px 9px;text-align:start">' + esc(L({ ar: 'ردّ قاعدة البيانات', en: 'Database reply' })) + '</th>' +
         '</tr></thead><tbody>' + rows + '</tbody></table></div>',
-      buttons: [{ label: L({ ar: 'إغلاق', en: 'Close' }), cls: 'btn-primary' }]
+      buttons: [
+        { label: L({ ar: 'إغلاق', en: 'Close' }), cls: 'btn-ghost' },
+        /* بدون هذا الزر تعود النافذة عند كل تحديث للأبد، لأنها تعرض
+           التعارضات المخزَّنة لا الجديدة — فيظن المستخدم أن العطل مستمر
+           بعد إصلاحه. الزر يمسحها من متصفحه.
+           Without this the window returns on every refresh forever,
+           because it lists STORED failures, not new ones — so the person
+           believes the fault is still there after it has been fixed. */
+        { label: L({ ar: '🗑 امسح هذه التعارضات (' + list.length + ')',
+                     en: '🗑 Clear these conflicts (' + list.length + ')' }),
+          cls: 'btn-primary',
+          onClick: function () { clearAll(list); } }
+      ]
     });
+  }
+
+  function clearAll(list) {
+    if (!global.Store || !Store.dismissConflict) return;
+    var done = 0;
+    list.forEach(function (c) {
+      try {
+        Promise.resolve(Store.dismissConflict(c.conflictId)).then(function () {
+          done++;
+          if (done === list.length && global.UI && UI.toast) {
+            UI.toast(L({
+              ar: 'مُسحت ' + done + ' تعارضات. أعد إدخال المستندات التي لم تُحفظ.',
+              en: done + ' conflicts cleared. Re-enter the documents that were not saved.' }),
+              'success', 7000);
+            var bar = document.getElementById('azSaveGuardBar');
+            if (bar) bar.remove();
+          }
+        }).catch(function () {});
+      } catch (e) {}
+    });
+    conflictsShown = true;   /* لا تعرضها ثانية في هذه الجلسة */
   }
 
   /* ═══════════════════════════════════════════════════════════════════
