@@ -33,6 +33,10 @@
     'assets/js/pages/entity.js',
     'assets/js/page-availability.js',
     'assets/js/form-save-recovery.js',
+    /* Keep the mature XLSX/CSV parser, but replace its row-by-row commit with
+       a single server-confirmed statement. */
+    'assets/js/import.js',
+    'assets/js/import-transaction-recovery.js',
     'assets/js/pages/approvals.js',
     'assets/js/pages/reports.js',
     'assets/js/pages/settings.js',
@@ -50,6 +54,8 @@
     ['UI','assets/js/ui.js'],
     ['Dashboard','assets/js/pages/dashboard.js'],
     ['EntityPage','assets/js/pages/entity.js'],
+    ['DataImport','assets/js/import.js'],
+    ['AtomicImportRecovery','assets/js/import-transaction-recovery.js'],
     ['ApprovalsPage','assets/js/pages/approvals.js'],
     ['ReportsPage','assets/js/pages/reports.js'],
     ['SettingsPage','assets/js/pages/settings.js'],
