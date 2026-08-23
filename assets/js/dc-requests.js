@@ -255,8 +255,13 @@
   function tradeCodes(sub) {
     if (!sub) return [];
     if (sub.trades) {
+      /* لا نحذف القيمة لأننا لا نعرفها. قائمة schema.js لها قيمها الخاصة
+         مثل «أعمال خرسانية»، وحذفها كان سيُفقد بيانات مقاولين مسجَّلين.
+         We do not drop a value merely because we don't recognise it: the
+         schema.js list has its own values and discarding them would lose
+         data on subcontractors already on file. */
       return String(sub.trades).split(',').map(function (s) { return s.trim(); })
-                               .filter(function (s) { return !!TRADE_LABEL[s]; });
+                               .filter(function (s) { return !!s; });
     }
     /* سجلات قديمة حُفظت بمربعات الاختيار — ما زالت تُقرأ.
        Records saved by the earlier checkbox version still read correctly. */
@@ -266,7 +271,9 @@
 
   /* اقرأ مهن مقاول كنص واحد — للطباعة والتقارير والبحث */
   function tradesOf(sub) {
-    var out = tradeCodes(sub).map(function (c) { return L(TRADE_LABEL[c]); });
+    var out = tradeCodes(sub).map(function (c) {
+      return TRADE_LABEL[c] ? L(TRADE_LABEL[c]) : c;   /* اعرض القيمة كما هي إن لم نعرفها */
+    });
     if (out.length && sub && sub.tradeOtherText &&
         tradeCodes(sub).indexOf('tradeOther') !== -1) {
       out[out.indexOf(L(TRADE_LABEL.tradeOther))] =
@@ -290,6 +297,42 @@
      We do not control how entity.js names its inputs, so try every
      reasonable form rather than betting on one. If all fail the plain
      text box remains usable, so nothing breaks. */
+  /* ═══════════════════════════════════════════════════════════════════
+     العثور على القائمة ببصمة محتواها — لا باسمها
+     -------------------------------------------------------------------
+     جرّبتُ إيجاد الحقل باسمه أربع مرات وفشلت أربع مرات، لأنني كنت أخمّن
+     الاسم من لقطات الشاشة. الاسم قد يكون أي شيء، لكن محتوى القائمة لا
+     يكذب: قائمة تحتوي «أعمال خرسانية» و«مباني ومحارة» هي قائمة المهن
+     بالتأكيد، مهما كان اسم الحقل في الكود.
+
+     I tried to find this field by name four times and missed four times,
+     because I was guessing the name from screenshots. The name can be
+     anything; the CONTENTS cannot lie. A dropdown holding «أعمال خرسانية»
+     and «مباني ومحارة» is the trades list, whatever it is called.
+     ═══════════════════════════════════════════════════════════════════ */
+  var TRADE_SIGNATURE = [
+    'أعمال خرسانية', 'مباني ومحارة', 'أعمال كهربائية', 'أعمال صحية',
+    'تكييف وتهوية', 'تشطيبات', 'أعمال ترابية', 'ألوميتال وزجاج',
+    'حدادة', 'نجارة', 'أسفلت', 'عزل'
+  ];
+
+  function findTradesSelect() {
+    var best = null, bestScore = 0;
+    var sels = document.querySelectorAll('select');
+    for (var i = 0; i < sels.length; i++) {
+      var sel = sels[i];
+      if (sel.getAttribute('data-az-trades')) continue;   /* لا نلتقط قائمتنا نحن */
+      var score = 0;
+      for (var j = 0; j < sel.options.length; j++) {
+        var txt = (sel.options[j].textContent || '').trim();
+        if (TRADE_SIGNATURE.indexOf(txt) !== -1) score++;
+      }
+      if (score > bestScore) { bestScore = score; best = sel; }
+    }
+    /* خياران مطابقان يكفيان — احتمال الصدفة معدوم عملياً */
+    return bestScore >= 2 ? best : null;
+  }
+
   function findTradesInput() {
     /* ⚠️ SELECT مقصودة هنا.
        الشاشة كانت فيها بالفعل قائمة «المهنة» باختيار واحد — حدادة أو
@@ -377,7 +420,8 @@
   }
 
   function enhanceTrades() {
-    var input = findTradesInput();
+    /* بالاسم أولاً، فإن فشل فببصمة المحتوى — وهي التي لا تخيب */
+    var input = findTradesInput() || findTradesSelect();
     if (!input) { reportTradeMiss(); return; }
     if (input.getAttribute('data-az-multi')) return;
     input.setAttribute('data-az-multi', '1');
@@ -390,11 +434,42 @@
     box.setAttribute('data-az-trades', '1');
     box.style.cssText = 'width:100%;min-height:210px;padding:4px;line-height:1.9';
 
+    /* ⭐ المصدر هو خيارات القائمة الأصلية نفسها، لا قائمتي أنا.
+       لو استبدلتُها بقائمتي لتغيّرت القيم المحفوظة ولانقطعت الصلة بكل
+       مقاول مسجَّل من قبل. نأخذ خياراته كما هي، ثم نضيف ما ينقص فقط.
+
+       The source list is the dropdown's OWN options, not mine. Replacing
+       them would change the stored values and orphan every subcontractor
+       already on file. We take its options as they are and only append
+       what is missing. */
+    var labelOf = {};
+    var added = {};      /* بالقيمة */
+    var seenText = {};   /* وبالنص المعروض */
+    if (input.tagName === 'SELECT') {
+      Array.prototype.forEach.call(input.options, function (o) {
+        var v = o.value, txt = (o.textContent || '').trim();
+        if (!v || o.getAttribute('data-az-combined')) return;   /* تخطَّ «— اختر —» */
+        if (added[v]) return;
+        added[v] = true; seenText[txt] = true; labelOf[v] = txt;
+        var n = document.createElement('option');
+        n.value = v; n.textContent = txt; n.style.padding = '5px 8px';
+        box.appendChild(n);
+      });
+    }
+    /* مهن إضافية لم تكن في القائمة الأصلية.
+       نتخطّى المكرر بالقيمة وبالنص معاً: «مباني ومحارة» موجودة عندهم
+       بقيمة عربية وعندي بقيمة tradeMasonry — نفس المهنة، والمستخدم لا
+       يجوز أن يراها مرتين ولا أن يختار الاثنتين فتُحفظ مزدوجة.
+       Skip duplicates by value AND by displayed text: «مباني ومحارة»
+       exists in their list under an Arabic value and in mine under
+       tradeMasonry. Same trade — the user must not see it twice, nor be
+       able to tick both and store it twice. */
     TRADES.forEach(function (t) {
+      var txt = isAr() ? t[1] : t[2];
+      if (added[t[0]] || seenText[txt]) return;
+      added[t[0]] = true; seenText[txt] = true; labelOf[t[0]] = txt;
       var o = document.createElement('option');
-      o.value = t[0];
-      o.textContent = isAr() ? t[1] : t[2];
-      o.style.padding = '5px 8px';
+      o.value = t[0]; o.textContent = txt; o.style.padding = '5px 8px';
       box.appendChild(o);
     });
 
@@ -403,13 +478,15 @@
       if (chosen.indexOf(o.value) !== -1) o.selected = true;
     });
 
+    function nameOf(v) { return labelOf[v] || (TRADE_LABEL[v] ? L(TRADE_LABEL[v]) : v); }
+
     function sync() {
       var vals = Array.prototype.filter.call(box.options, function (o) { return o.selected; })
                       .map(function (o) { return o.value; });
       writeTrades(input, vals);
       count.textContent = vals.length
-        ? L({ ar: 'المختار: ', en: 'Selected: ' }) +
-          vals.map(function (v) { return L(TRADE_LABEL[v]); }).join(' · ')
+        ? L({ ar: 'المختار (' + vals.length + '): ', en: 'Selected (' + vals.length + '): ' }) +
+          vals.map(nameOf).join(' · ')
         : L({ ar: 'لم تختر أي مهنة بعد', en: 'Nothing selected yet' });
     }
 
