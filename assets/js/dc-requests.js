@@ -58,6 +58,85 @@
   }
 
   /* ═══════════════════════════════════════════════════════════════════
+     ٠ · إصلاح الصفحة البيضاء — أهم إصلاح في هذا الملف
+     -------------------------------------------------------------------
+     كل شاشة في النظام تُعرّف قائمة أعمدة الجدول:
+
+         columns: ['code', 'name', 'city', 'status']
+
+     الشاشات الست عشرة في departments.js لم تُعرّف هذه القائمة إطلاقاً.
+     صفحة العرض تبني الجدول من columns، فتجد undefined وتتوقف بخطأ،
+     فلا يُرسم شيء — لا عنوان ولا جدول ولا زر «جديد». صفحة بيضاء.
+
+     لهذا كانت «سجل المستندات» و«مذكرات الإرسال» و«طلبات فحص الأعمال»
+     فارغة تماماً، بينما شاشات الموارد البشرية والمواقع تعمل — لأنها
+     تعرّف columns.
+
+     EVERY screen in the portal declares its table columns. The sixteen
+     screens in departments.js never did. The page builder reads
+     `columns`, finds undefined, throws, and renders nothing at all —
+     no title, no table, no New button. A white page.
+
+     That is why Document Control and Site screens were blank while the
+     HR and Sites screens worked: those declare columns and these did not.
+
+     نستنتج الأعمدة من الحقول نفسها بترتيب منطقي، ونضيفها فقط للشاشات
+     التي تنقصها. أي شاشة عرّفت أعمدتها لا تُمسّ.
+     We derive the columns from the fields themselves and only fill in
+     screens that lack them. Any screen that declares its own is untouched.
+     ═══════════════════════════════════════════════════════════════════ */
+  var PREFERRED = ['docNo', 'code', 'date', 'name', 'employee', 'project', 'site',
+                   'subject', 'title', 'workItem', 'workType', 'party', 'direction',
+                   'docKind', 'discipline', 'revision', 'priority', 'result', 'status'];
+
+  /* حقول لا تصلح عموداً في جدول: نص طويل، أو توقيعات، أو مسارات ملفات */
+  var NOT_A_COLUMN = /^(notes|comments|description|remarks|address|trail|lines|attachments|fileLink|fileLocation|preparedBy|reviewedBy|approvedBy|receivedBy|handedBy|signature)/i;
+
+  function deriveColumns(m) {
+    var fields = (m.fields || []).filter(function (f) {
+      return f && f.name && f.type !== 'textarea' && !NOT_A_COLUMN.test(f.name);
+    });
+    var names = fields.map(function (f) { return f.name; });
+    var picked = [];
+
+    PREFERRED.forEach(function (p) {
+      if (picked.length < 6 && names.indexOf(p) !== -1 && picked.indexOf(p) === -1) picked.push(p);
+    });
+    names.forEach(function (n) {
+      if (picked.length < 6 && picked.indexOf(n) === -1) picked.push(n);
+    });
+    /* «الحالة» آخر عمود دائماً — هكذا تقرأ كل الشاشات الأخرى */
+    if (names.indexOf('status') !== -1) {
+      picked = picked.filter(function (n) { return n !== 'status'; });
+      if (picked.length > 5) picked = picked.slice(0, 5);
+      picked.push('status');
+    }
+    return picked.length ? picked : names.slice(0, 4);
+  }
+
+  function deriveSearch(m) {
+    return (m.fields || []).filter(function (f) {
+      return f && f.name && (f.type === 'text' || !f.type) && !NOT_A_COLUMN.test(f.name);
+    }).slice(0, 4).map(function (f) { return f.name; });
+  }
+
+  var repaired = [];
+  (S.MODULES || []).forEach(function (m) {
+    if (!m || !m.fields) return;
+    if (!Array.isArray(m.columns) || !m.columns.length) {
+      m.columns = deriveColumns(m);
+      repaired.push(m.id);
+    }
+    if (!Array.isArray(m.search) || !m.search.length) {
+      m.search = deriveSearch(m);
+    }
+  });
+  if (repaired.length) {
+    console.info('[dc-requests] blank-page fix: table columns supplied for ' +
+                 repaired.length + ' screen(s) — ' + repaired.join(', '));
+  }
+
+  /* ═══════════════════════════════════════════════════════════════════
      ١ · البطاقة الضريبية والسجل التجاري والبطاقة الشخصية
      -------------------------------------------------------------------
      الشركة تتعامل مع نوعين: شركات لها بطاقة ضريبية وسجل تجاري،
@@ -279,9 +358,28 @@
     el.dispatchEvent(new Event('change', { bubbles: true }));
   }
 
+  /* لو لم نجد الحقل، اطبع أسماء كل حقول النموذج مرة واحدة. بدون هذا
+     نظل نخمّن اسم الحقل من لقطات الشاشة بدل معرفته.
+     If the field is not found, print every field name in the open form,
+     once. Without this we keep guessing the name from screenshots. */
+  var tradeMissReported = false;
+  function reportTradeMiss() {
+    if (tradeMissReported) return;
+    var form = document.querySelector('#modalHost form, #modalHost .modal, form');
+    if (!form) return;
+    var names = [];
+    form.querySelectorAll('input, select, textarea').forEach(function (e) {
+      if (e.name || e.id) names.push(e.tagName.toLowerCase() + '[' + (e.name || e.id) + ']');
+    });
+    if (!names.length) return;
+    tradeMissReported = true;
+    console.warn('[dc-requests] trades field NOT found. Fields in this form: ' + names.join(' · '));
+  }
+
   function enhanceTrades() {
     var input = findTradesInput();
-    if (!input || input.getAttribute('data-az-multi')) return;
+    if (!input) { reportTradeMiss(); return; }
+    if (input.getAttribute('data-az-multi')) return;
     input.setAttribute('data-az-multi', '1');
     input.style.display = 'none';
 
