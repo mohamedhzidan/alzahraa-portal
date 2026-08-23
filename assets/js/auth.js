@@ -114,18 +114,18 @@
            وليس قراراً مالياً. النسخة الأولى من هذا التعديل منعته أيضاً
            فأصبح لا أحد في الشركة يستطيع إنشاء مشروع — وبدون مشروع لا
            يعمل أي مستند تقريباً. */
-        projects:       ['view', 'create', 'edit'],
-        sites:          ['view', 'create', 'edit'],
-        warehouses:     ['view', 'create', 'edit'],
-        equipment:      ['view', 'create', 'edit'],
-        accounts:       ['view', 'create', 'edit'],
-        costItems:      ['view', 'create', 'edit'],
-        items:          ['view', 'create', 'edit'],
-        suppliers:      ['view', 'create', 'edit'],
-        customers:      ['view', 'create', 'edit'],
-        subcontractors: ['view', 'create', 'edit'],
-        cashAccounts:   ['view', 'create', 'edit'],
-        employees:      ['view', 'create', 'edit'],
+        projects:       ['view', 'create', 'edit', 'delete'],
+        sites:          ['view', 'create', 'edit', 'delete'],
+        warehouses:     ['view', 'create', 'edit', 'delete'],
+        equipment:      ['view', 'create', 'edit', 'delete'],
+        accounts:       ['view', 'create', 'edit', 'delete'],
+        costItems:      ['view', 'create', 'edit', 'delete'],
+        items:          ['view', 'create', 'edit', 'delete'],
+        suppliers:      ['view', 'create', 'edit', 'delete'],
+        customers:      ['view', 'create', 'edit', 'delete'],
+        subcontractors: ['view', 'create', 'edit', 'delete'],
+        cashAccounts:   ['view', 'create', 'edit', 'delete'],
+        employees:      ['view', 'create', 'edit', 'delete'],
         announcements:  ['view', 'create', 'edit', 'delete']
 
         /* Deliberately absent: create/edit on journal, payments, receipts,
@@ -161,8 +161,14 @@
            write — in a company of this size he often does both, and every
            action carries his name in the audit trail.
            المدير العام يوقّع ويكتب. كل فعل مسجَّل باسمه. */
-        '*': ['view', 'create', 'edit', 'review', 'approve'],
-        projects: ['view', 'create', 'edit', 'review', 'approve'],
+        /* «حذف» لم تعد محواً — صارت إلغاءً موثّقاً بسبب إجباري، يبقى
+           الصف في قاعدة البيانات ويمكن للإدارة استعادته. لذلك يجوز
+           للمدير العام إلغاء أي مستند: القرار قراره، والأثر محفوظ.
+           Delete is now a logged, reversible cancellation, so the general
+           manager may cancel any document: the decision is his and the
+           trace is permanent. */
+        '*': ['view', 'create', 'edit', 'delete', 'review', 'approve'],
+        projects: ['view', 'create', 'edit', 'delete', 'review', 'approve'],
         sites: ['view', 'create', 'edit']
       },
       canManageUsers: false,
@@ -207,7 +213,14 @@
         payroll: ['view', 'review', 'approve'],
         employeeAdvances: ['view', 'review', 'approve'],
         dailyLabour: ['view', 'review', 'approve'],
-        projects: ['view'], clientContracts: ['view'], subContracts: ['view'],
+        /* إلغاء عقد قرار تجاري ومالي — يشترك فيه المدير المالي مع
+           المدير العام. والإلغاء موثّق بسبب إجباري وقابل للاستعادة.
+           Cancelling a contract is a commercial and financial decision,
+           shared between the finance manager and the GM. Every
+           cancellation carries a mandatory reason and is reversible. */
+        projects: ['view'],
+        clientContracts: ['view', 'delete'],
+        subContracts:    ['view', 'delete'],
         subcontractors: ['view'],
         /* بيانات الموظفين للاعتماد فقط — بلا شاشة الملفات الشخصية */
         employees: ['lookup'],
@@ -285,7 +298,7 @@
         clientContracts: ['view'],
         subIPCs: ['view', 'create', 'edit', 'review'],
         subContracts: ['view', 'create', 'edit'],
-        subcontractors: ['view', 'create', 'edit'],
+        subcontractors: ['view', 'create', 'edit', 'delete'],
         siteReports: ['view', 'create', 'edit', 'delete'],
         drawings: ['view'],
         equipment: ['view'], equipmentLogs: ['view', 'create', 'edit'],
@@ -417,6 +430,10 @@
 
         drawings:        ['view', 'create', 'edit'],
         projects:        ['view', 'create', 'edit'],
+        /* ضابط المستندات يسجّل العقد ويتابعه، ولا يلغيه. إلغاء عقد
+           قرار تجاري — للمدير العام والمدير المالي.
+           Document Control registers and tracks a contract; cancelling
+           one is a commercial decision for the GM and finance manager. */
         clientContracts: ['view', 'create', 'edit'],
         subContracts:    ['view', 'create', 'edit'],
         legalDocs:       ['view', 'create', 'edit'],
@@ -568,6 +585,44 @@
       }
     }
   };
+
+  /* ═══════════════════════════════════════════════════════════════════
+     قاعدة واحدة: ما تستطيع إنشاءه تستطيع إلغاءه
+     -------------------------------------------------------------------
+     طلب الإدارة ٢٤ أغسطس ٢٠٢٦:
+       «أريد ضبط المستندات أن يلغي تعاقد مقاول باطن دون انتظار مدير،
+        على أن يُسجَّل كل شيء — من أنشأ ومن عدّل ومن ألغى ولماذا ومتى —
+        ولا أريد كل شيء ينتظر مديراً.»
+
+     صار «الحذف» إلغاءً موثّقاً: الصف يبقى في قاعدة البيانات، ويحمل اسم
+     من ألغاه وتاريخه وسببه الإجباري، وتستطيع الإدارة استعادته في ثوانٍ.
+     وما دام كذلك، فلا معنى لإيقاف الموظف عن إلغاء ما أنشأه بنفسه —
+     الانتظار يعطّل العمل ولا يحمي شيئاً، والسجل هو الحماية الحقيقية.
+
+     ONE RULE: whatever you may create, you may cancel.
+
+     Cancelling is now logged and reversible — the row stays, carrying who
+     cancelled it, when, and a mandatory reason, and management can
+     restore it in seconds. Given that, there is no sense in making an
+     employee wait for a manager to cancel work he created himself.
+     Waiting stops the work and protects nothing; the log is the real
+     protection.
+
+     ينطبق على أقسام التنفيذ الثلاثة فقط. الإدارة العليا والمالية لها
+     صلاحياتها المكتوبة أعلاه بالاسم، ولا تُمسّ هنا.
+     Applies to the three operating departments only. Executive and
+     finance authority is written out by name above and untouched here. */
+  ['document_control', 'site_engineer', 'hr_manager'].forEach(function (roleName) {
+    var r = ROLES[roleName];
+    if (!r || !r.perms) return;
+    Object.keys(r.perms).forEach(function (screen) {
+      if (screen === '*') return;
+      var acts = r.perms[screen];
+      if (!Array.isArray(acts)) return;
+      var canMake = acts.indexOf('create') !== -1 || acts.indexOf('edit') !== -1;
+      if (canMake && acts.indexOf('delete') === -1) acts.push('delete');
+    });
+  });
 
   var current = null;
   var client = null;
