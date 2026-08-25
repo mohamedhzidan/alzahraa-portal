@@ -17,7 +17,7 @@
 
       بدون إضافتها لن يعمل الذكاء الاصطناعي ولا القسمان الجديدان بدون إنترنت.
    --------------------------------------------------------------------------- */
-var CACHE = 'alzahraa-shell-v2.0.6';
+var CACHE = 'alzahraa-shell-v2.0.7';
 
 var SHELL = [
   './', './index.html', './manifest.webmanifest', './robots.txt',
