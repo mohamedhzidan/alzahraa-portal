@@ -338,7 +338,13 @@
     'تليفون': 'phone', 'موبايل': 'phone', 'الهاتف': 'phone',
     'العنوان': 'address', 'الحاله': 'status', 'الوظيفه': 'jobTitle',
     'الرقمالقومي': 'nationalIdNo', 'بطاقه': 'nationalIdNo',
-    'البطاقهالضريبيه': 'taxCardNo', 'سجلتجاري': 'commercialReg'
+    /* كل حقول النماذج تستخدم الاسم taxId — لا يوجد taxCardNo في أي مكان
+       (تأكدنا بالبحث في الشجرة كلها). العمود كان يستورد بيانات لحقل غير
+       موجود فتُفقد صامتة.
+       Every form field uses taxId — taxCardNo exists nowhere else (grepped
+       the whole tree). The column was importing into a field that does not
+       exist, so the data silently vanished. */
+    'البطاقهالضريبيه': 'taxId', 'سجلتجاري': 'commercialReg'
   };
 
   /* ═══════════════════════════════════════════════════════════════════
