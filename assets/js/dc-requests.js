@@ -200,6 +200,53 @@
     legalFields().forEach(function (f) { addField(id, f); });
   });
 
+  /* أُضيف رقم السجل التجاري والبطاقة الشخصية كحقلين، لكن لم يُضافا لقائمة
+     البحث — فكان بإمكانك تخزين الرقم ولا تقدر تبحث به. الحارس (indexOf)
+     يمنع التكرار لو نُفّذ هذا الملف أكثر من مرة أو كانت الشاشة أضافتهما
+     بنفسها من قبل.
+     commercialReg and nationalIdNo were added as fields but never made
+     searchable — you could store the number but never find a record by
+     it. The indexOf guard prevents duplicate entries if this file runs
+     twice or the module already lists them. */
+  ['subcontractors', 'suppliers', 'customers'].forEach(function (id) {
+    var m = S.get(id);
+    if (!m || !Array.isArray(m.search)) return;
+    ['commercialReg', 'nationalIdNo'].forEach(function (key) {
+      if (m.search.indexOf(key) === -1) m.search.push(key);
+    });
+  });
+
+  /* البطاقة الضريبية (taxId) كانت موجودة في schema.js قبل هذا الملف،
+     في قسم عام (SEC.extra) منفصل تماماً عن قسم «المستندات القانونية
+     والضريبية» (SEC_LEGAL) الذي وُضع فيه السجل التجاري أعلاه — فكان
+     المستخدم يجد البطاقة الضريبية في مكان والسجل التجاري في مكان آخر
+     من نفس الشاشة رغم أنهما مستند واحد منطقياً.
+     taxId already existed in schema.js, in a generic section (SEC.extra)
+     unrelated to the "legal & tax documents" section (SEC_LEGAL) where
+     commercialReg landed above — so the tax card and the commercial
+     register showed up in different parts of the same screen even
+     though they are logically one folder of documents.
+
+     السجل التجاري (commercialReg) نفسه كان موجوداً مسبقاً في schema.js
+     لعنصر الموردين (suppliers) في قسم آخر (SEC.extra) قبل هذا الملف —
+     فالفلتر القديم الذي يبحث عن taxId فقط لم يلتقطه، وبقي السجل التجاري
+     للموردين في قسم مختلف عن البطاقة الضريبية رغم كل هذا الإصلاح.
+     commercialReg itself already pre-existed in schema.js for suppliers,
+     in a different section (SEC.extra) before this file ran — the old
+     filter, which only matched taxId, never caught it, so suppliers'
+     commercialReg stayed in a different section from taxId despite this
+     very fix. Widening the filter to catch both names re-homes any
+     pre-existing field with either name into SEC_LEGAL, for all three
+     modules. */
+  ['subcontractors', 'suppliers', 'customers'].forEach(function (id) {
+    var m = S.get(id);
+    if (!m || !m.fields) return;
+    var tf = m.fields.filter(function (f) {
+      return f.name === 'taxId' || f.name === 'commercialReg';
+    });
+    tf.forEach(function (f) { f.section = SEC_LEGAL; });
+  });
+
   /* ═══════════════════════════════════════════════════════════════════
      ٢ · مهن مقاول الباطن — أكثر من واحدة
      -------------------------------------------------------------------
