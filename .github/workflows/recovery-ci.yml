@@ -1,0 +1,136 @@
+name: Recovery validation
+
+on:
+  push:
+    branches:
+      - codex/recovery-2026-08-23
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Syntax check canonical JavaScript
+        shell: bash
+        run: |
+          set -euo pipefail
+          find assets/js -type f -name '*.js' -print0 | sort -z | xargs -0 -n1 node --check
+          node --check service-worker.js
+          node --check loader.js
+
+      - name: Verify local assets referenced by index.html
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from html.parser import HTMLParser
+          from pathlib import Path
+          from urllib.parse import urlparse
+
+          class P(HTMLParser):
+              def __init__(self):
+                  super().__init__(); self.refs=[]
+              def handle_starttag(self, tag, attrs):
+                  d=dict(attrs)
+                  for key in ('src','href'):
+                      v=d.get(key)
+                      if v: self.refs.append(v)
+
+          p=P(); p.feed(Path('index.html').read_text(encoding='utf-8'))
+          missing=[]
+          for ref in p.refs:
+              if ref.startswith(('http://','https://','data:','blob:','#','mailto:','tel:')):
+                  continue
+              path=urlparse(ref).path.lstrip('./')
+              if not path: continue
+              if not Path(path).exists(): missing.append((ref,path))
+          if missing:
+              for ref,path in missing: print(f'MISSING {ref} -> {path}')
+              raise SystemExit(1)
+          print(f'Checked {len(p.refs)} referenced assets; all local paths exist.')
+          PY
+
+      - name: Block live legacy demo portal and demo password
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -e alzahraa-portal/index.html ]; then
+            echo 'Legacy nested portal still exists: alzahraa-portal/index.html'
+            exit 1
+          fi
+          # Scan executable/public application files only. Recovery notes are allowed
+          # to describe the historical shared demo password as evidence.
+          if grep -RIn \
+            --include='*.html' --include='*.js' --include='*.json' --include='*.webmanifest' \
+            --exclude-dir=.git --exclude-dir=.github \
+            -E 'demoHint|حسابات تجريبية|password[^\n]{0,30}1234|كلمة المرور[^\n]{0,40}1234' \
+            index.html loader.js service-worker.js assets manifest.webmanifest 2>/dev/null; then
+            echo 'Legacy demo-login/password material is still present in public application files.'
+            exit 1
+          fi
+
+      - name: Block private credential material in public files
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          roots=[Path('index.html'),Path('service-worker.js'),Path('loader.js'),Path('assets')]
+          files=[]
+          for root in roots:
+              if root.is_file(): files.append(root)
+              elif root.exists(): files.extend(p for p in root.rglob('*') if p.is_file())
+
+          patterns=[
+              ('Supabase secret key', re.compile(rb'sb_secret_[A-Za-z0-9._-]{20,}')),
+              ('legacy service role JWT marker', re.compile(rb'eyJ[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{20,}')),
+              ('OpenAI API key', re.compile(rb'sk-(?:proj-)?[A-Za-z0-9_-]{20,}')),
+          ]
+          failures=[]
+          for f in files:
+              try: data=f.read_bytes()
+              except Exception: continue
+              for label,rx in patterns:
+                  if rx.search(data): failures.append((label,str(f)))
+          if failures:
+              for label,path in failures: print(f'POSSIBLE PRIVATE CREDENTIAL: {label} in {path}')
+              raise SystemExit(1)
+          print('No private credential patterns detected in public files.')
+          PY
+
+      - name: Validate public Supabase configuration contains no private key names
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f assets/js/env.js
+          if grep -Ein 'service_role|SUPABASE_SERVICE_ROLE|OPENAI_API_KEY|AUTH_RATE_SALT|DATABASE_PASSWORD|sb_secret_' assets/js/env.js; then
+            echo 'Private server-only configuration leaked into assets/js/env.js'
+            exit 1
+          fi
+
+      - name: Basic version/cache consistency
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          sw=Path('service-worker.js').read_text(encoding='utf-8')
+          if 'CACHE' not in sw.upper():
+              raise SystemExit('service-worker.js has no obvious cache version/name marker')
+          print('Service worker cache marker found.')
+          PY
