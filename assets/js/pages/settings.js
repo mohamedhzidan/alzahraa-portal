@@ -75,9 +75,63 @@
     if (sv) sv.onclick = function () {
       var out = {};
       body.querySelectorAll('[data-cf]').forEach(function (el) { out[el.getAttribute('data-cf')] = el.value; });
-      Store.setMeta({ company: out });
-      Store.log('update', 'settings', 'company', L({ ar: 'بيانات الشركة', en: 'Company profile' }));
-      UI.toast(t('g.saved'));
+
+      /* ── تأكيد قبل الحفظ + تسجيل ما تغيّر بالضبط ─────────────────────
+         البطاقة الضريبية والسجل التجاري يُطبعان على كل مستند رسمي
+         (print.js:156). كانت الشاشة تحفظ فوراً بلا تأكيد وبلا تفاصيل في
+         السجل. الآن: نعرض ما تغيّر، ننتظر تأكيداً، ونسجّل القديم والجديد.
+         Tax ID and commercial registry print on every official document
+         (print.js:156). This screen used to save instantly with no
+         confirmation and no detail in the log. Now: show what changed,
+         wait for confirmation, and record old → new. */
+      var before = Store.meta().company || {};
+      var changed = [];
+      fields.forEach(function (f) {
+        var a = String(before[f[0]] || ''), b = String(out[f[0]] || '');
+        if (a !== b) changed.push(L(f[1]) + ': ' + (a || '—') + ' ← ' + (b || '—'));
+      });
+      if (!changed.length) { UI.toast(t('g.saved')); return; }
+
+      UI.confirm({
+        title: L({ ar: 'تأكيد تعديل بيانات الشركة', en: 'Confirm company profile change' }),
+        message: L({
+          ar: 'هذه البيانات تُطبع على كل مستند رسمي يخرج من النظام، وسيُسجَّل التعديل باسمك في سجل المسؤولية.',
+          en: 'These details print on every official document, and the change is recorded under your name in the accountability log.' }),
+        warn: changed.join(' · '),
+        okLabel: t('g.save'),
+        onOk: function () {
+          /* ⚠️ لا نكتب في السجل الدائم قبل أن نتأكد أن الحفظ وقع فعلاً.
+             Store.setMeta ترفض الكتابة بصمت بلا اتصال (store.js:327)
+             وتعيد القيم القديمة كما هي. وبعد ربط أحداث الإعدادات بالسجل
+             الدائم (audit-security-events.js) صار السطر الكاذب يبقى
+             للأبد في سجل لا يمكن تعديله — وسجل يكذب أسوأ من سجل ناقص.
+             نقارن ما عاد به الحفظ بما أردنا حفظه: إن تطابق فقد وقع.
+
+             ⚠️ Never write to the permanent log before confirming the
+             save actually happened. Store.setMeta silently refuses when
+             offline (store.js:327) and returns the OLD values unchanged.
+             Now that settings events are routed to the permanent,
+             un-editable log (audit-security-events.js), a false line
+             there would last forever — and a log that lies is worse
+             than a log with a gap. Compare what came back against what
+             we asked to save: matching means it landed. */
+          var after = (Store.setMeta({ company: out }) || {}).company || {};
+          var landed = fields.every(function (f) {
+            return String(after[f[0]] || '') === String(out[f[0]] || '');
+          });
+          if (!landed) {
+            UI.toast(L({
+              ar: 'لم يُحفظ التعديل — تحتاج اتصالاً بالإنترنت. لم يُسجَّل شيء.',
+              en: 'Not saved — this needs an internet connection. Nothing was recorded.'
+            }), 'error', 7000);
+            return true;
+          }
+          Store.log('update', 'settings', 'company',
+            L({ ar: 'بيانات الشركة', en: 'Company profile' }), changed.join(' · '));
+          UI.toast(t('g.saved'));
+          return true;
+        }
+      });
     };
   }
 
