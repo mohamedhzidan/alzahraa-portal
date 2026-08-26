@@ -169,7 +169,20 @@
     '</div>';
 
     /* approval stamp */
-    if (rec.status === 'approved' || rec.status === 'reversed') {
+    /* ٢٦ أغسطس ٢٠٢٦ — إصلاح: كان الشرط يشمل 'reversed' أيضاً، فكان
+       المستند الملغى يُطبع وعليه ختم «معتمد إلكترونياً» الأخضر واسم
+       المعتمِد وتاريخه. وختم «مستند معكوس — لاغٍ» الأحمر المكتوب أسفله
+       لم يكن يظهر أبداً، لأن هذا السطر يلتقط الملغى قبله.
+       ورقة تخرج من الشركة تقول غير الحقيقة — لمورّد أو لمراجع.
+
+       26 August 2026 fix: this condition also matched 'reversed', so a
+       CANCELLED document printed carrying the green "ELECTRONICALLY
+       APPROVED" stamp with an approver's name and date on it. The red
+       "REVERSED — VOID" stamp written just below could never appear,
+       because this line caught cancelled documents first. That is a
+       piece of paper leaving the company saying something untrue — to a
+       supplier, or to an auditor. */
+    if (rec.status === 'approved') {
       h += '<div class="stamp">' +
         '<div class="stamp-t">' + (ar ? 'معتمد إلكترونياً' : 'ELECTRONICALLY APPROVED') + '</div>' +
         '<div class="stamp-b">' + (ar ? 'بواسطة: ' : 'By: ') + UI.esc(userName(rec.approvedBy)) +
