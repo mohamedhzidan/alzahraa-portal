@@ -23,7 +23,84 @@
     { id: 'attendance', icon: 'clock',    label: 'rep.attendance' }
   ];
 
+  /* ═══════════════════════════════════════════════════════════════════
+     ⛔ من يرى أي تقرير — سدّ ثغرة: الصفحة كانت بلا أي فحص صلاحيات إطلاقاً
+     -------------------------------------------------------------------
+     الخطأ الذي يمنعه هذا الجزء: صفحة التقارير كانت مفتوحة لكل من سجّل
+     دخوله — أمين المخزن كان يستطيع فتح مستحقات الموردين والعملاء
+     والنقدية وميزان المراجعة وإجمالي أجور الشركة. بينما لوحة التحكم
+     تحترم قاعدة roleview.js: أرقام الشركة الإجمالية لمن في MONEY_ROLES
+     فقط. هنا نطبّق القاعدة الموجودة نفسها — لا نخترع نظام صلاحيات جديداً.
+
+     THE BUG THIS PREVENTS: the Reports page had no permission check at
+     all — any signed-in account could open payables, receivables, cash,
+     the trial balance and the company wage bill. The dashboard already
+     respects roleview.js (company-wide money = MONEY_ROLES only).
+     We apply that SAME existing rule here — nothing new is invented.
+
+     كل تقرير يُقاس على الشاشات التي يقرأ منها فعلاً.
+     Each report is gated by the screens its builder actually reads.
+     ═══════════════════════════════════════════════════════════════════ */
+  function seesCompanyMoney() {
+    return !!(global.RoleView && RoleView.seesCompanyMoney && RoleView.seesCompanyMoney());
+  }
+  function seesProjectMoney() {
+    return !!(global.RoleView && RoleView.seesProjectMoney && RoleView.seesProjectMoney());
+  }
+  var ACCESS = {
+    /* موازنة وتكلفة المشروعات: يقرأ الموازنات والتكاليف الفعلية */
+    bva:         function () { return Auth.canSee('budgets') && seesProjectMoney(); },
+    projCost:    function () { return Auth.canSee('budgets') && seesProjectMoney(); },
+    /* المخزون: نفس بيانات شاشة الأصناف التي يراها المخزن والمشتريات أصلاً */
+    stock:       function () { return Auth.canSee('items'); },
+    /* أرقام الشركة الإجمالية — قاعدة roleview.js كما هي دون تعديل */
+    ap:          function () { return seesCompanyMoney(); },
+    ar:          function () { return seesCompanyMoney(); },
+    cash:        function () { return seesCompanyMoney(); },
+    tb:          function () { return seesCompanyMoney() && Auth.canSee('journal'); },
+    /* مستخلصات الباطن: من يرى شاشتها ومعه صلاحية أموال مشروعات */
+    subcontract: function () { return Auth.canSee('subIPCs') && seesProjectMoney(); },
+    /* إجمالي مسير الرواتب: من يرى شاشة الرواتب نفسها */
+    payroll:     function () { return Auth.canSee('payroll'); },
+    attendance:  function () { return Auth.canSee('attendance'); }
+  };
+  function allowed(id) {
+    /* أي فشل في الفحص = منع. فشل صامت أفضل من تسريب صامت.
+       Any failure in the check means denied — fail closed, never open. */
+    try {
+      var u = global.Auth && Auth.current && Auth.current();
+      var f = ACCESS[id];
+      return !!(u && f && f());
+    } catch (e) { return false; }
+  }
+  function visibleReports() {
+    return REPORTS.filter(function (r) { return allowed(r.id); });
+  }
+
   function render(host) {
+    /* لا نرسم إلا التقارير المسموح بها لهذا الدور
+       Only the reports this role may see are drawn at all */
+    var visible = visibleReports();
+
+    if (!visible.length) {
+      /* دور بلا أي تقرير: رسالة واضحة، وبلا زرّي تصدير وطباعة إطلاقاً
+         A role with no reports: a clear message, and no export/print buttons */
+      host.innerHTML = '<div class="page-head"><div class="page-head-text">' +
+        '<h1 class="page-title">' + UI.icon('chart', 22) + ' ' + t('rep.title') + '</h1>' +
+        '<p class="page-sub">' + t('rep.sub') + '</p></div></div>' +
+        '<div class="card"><div class="card-body"><div class="empty-state">' + UI.icon('chart', 42) +
+        '<h4>' + UI.esc(L({ ar: 'لا توجد تقارير متاحة لدورك', en: 'No reports are available for your role' })) + '</h4>' +
+        '<p>' + UI.esc(L({
+          ar: 'التقارير المجمّعة تظهر للإدارة والمالية والأدوار المخوّلة فقط. شاشات عملك اليومية تعمل كما هي من القائمة الجانبية.',
+          en: 'Aggregate reports are visible to management, finance and authorised roles only. Your day-to-day screens are unchanged in the side menu.' })) + '</p>' +
+        '</div></div></div>';
+      return;
+    }
+
+    /* لو كان التبويب المحفوظ ممنوعاً على هذا الدور ننتقل لأول تبويب مسموح
+       If the remembered tab is not allowed for this role, fall to the first allowed one */
+    if (!allowed(current)) current = visible[0].id;
+
     var html = '<div class="page-head"><div class="page-head-text">' +
       '<h1 class="page-title">' + UI.icon('chart', 22) + ' ' + t('rep.title') + '</h1>' +
       '<p class="page-sub">' + t('rep.sub') + '</p></div>' +
@@ -33,7 +110,7 @@
       '</div></div>';
 
     html += '<div class="tabs">';
-    REPORTS.forEach(function (r) {
+    visible.forEach(function (r) {
       html += '<button class="tab' + (current === r.id ? ' active' : '') + '" data-rep="' + r.id + '">' + UI.icon(r.icon, 15) + ' ' + t(r.label) + '</button>';
     });
     html += '</div>';
@@ -79,6 +156,19 @@
   function draw() {
     var body = document.getElementById('repBody');
     if (!body) return;
+
+    /* حزام أمان ثانٍ: حتى لو وصل تبويب ممنوع بأي طريق، لا يُبنى الجدول
+       ولا يبقى في ذاكرة التصدير شيء — فزر التصدير يصدّر lastTable.
+       Second safety belt: even if a forbidden tab is reached somehow, no
+       table is built and the export buffer is cleared — the Export
+       button exports lastTable, so it can never carry forbidden data. */
+    lastTable = { headers: [], rows: [], title: '' };
+    if (!allowed(current)) {
+      body.innerHTML = '<div class="empty-state">' + UI.icon('chart', 42) + '<h4>' +
+        UI.esc(L({ ar: 'هذا التقرير غير متاح لدورك', en: 'This report is not available for your role' })) + '</h4></div>';
+      return;
+    }
+
     var fn = BUILDERS[current];
     var res = fn ? fn() : { headers: [], rows: [], title: '' };
     lastTable = res;
@@ -475,5 +565,11 @@
     }
   };
 
-  global.ReportsPage = { render: render };
+  global.ReportsPage = {
+    render: render,
+    /* يقرأها report-access.js لإخفاء زر القائمة، ويستعملها الفاحص للإثبات
+       Read by report-access.js to hide the menu button, and by testers as proof */
+    allowed: allowed,
+    allowedReports: function () { return visibleReports().map(function (r) { return r.id; }); }
+  };
 })(window);
