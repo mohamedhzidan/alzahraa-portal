@@ -30,6 +30,43 @@
   function approved(t) { return S(t).filter(function (r) { return r.status === 'approved'; }); }
   function live(t) { return S(t).filter(function (r) { return r.status !== 'reversed' && r.status !== 'void'; }); }
 
+  /* ٢٥ أغسطس ٢٠٢٦ — إصلاح: لا يوجد حقل اسمه collected على مستخلصات العميل.
+     التحصيل يُسجَّل كسند قبض منفصل يشير إلى المستخلص، لا كخانة عليه.
+     نفس حساب Dashboard.analytics.receivable في pages/dashboard.js.
+     25 August 2026 fix: there is no `collected` field on a client IPC.
+     Collection is recorded as a separate receipt voucher pointing back at
+     the IPC, not as a box on the IPC itself. Matches
+     Dashboard.analytics.receivable in pages/dashboard.js. */
+  function collectedOf(ipcId) {
+    var s = 0;
+    approved('receipts').forEach(function (r) { if (r.clientIPC === ipcId) s += n(r.amount); });
+    return s;
+  }
+
+  /* نفس الفكرة لفواتير الموردين: المسدَّد سند صرف منفصل يشير للفاتورة،
+     لا خانة «paid» على الفاتورة نفسها — لا يوجد حقل كهذا في schema.js.
+     Same idea for supplier invoices: what's paid is a separate payment
+     voucher pointing at the invoice, not a `paid` box on the invoice
+     itself — no such field exists in schema.js. */
+  function paidOf(invId) {
+    var s = 0;
+    approved('payments').forEach(function (p) { if (p.supplierInvoice === invId) s += n(p.amount); });
+    return s;
+  }
+
+  /* ٢٥ أغسطس ٢٠٢٦ — لكل شاشة حقل مبلغ مختلف؛ لا يوجد حقل موحّد اسمه
+     totalValue في أي مكان. المصدر: pages/dashboard.js وهي الحسبة
+     المعتمدة فعلاً على اللوحة الرئيسية.
+     25 August 2026 — each screen has its own amount field; there is no
+     shared `totalValue` field anywhere. Source: pages/dashboard.js,
+     which is the calculation already trusted on the main dashboard. */
+  var AMOUNT = {
+    supplierInvoices: 'subTotal',
+    stockIssues:      'subTotal',
+    subIPCs:          'currentWork',
+    journal:          'totalDebit'
+  };
+
   /* نتيجة مهمة واحدة */
   function R(title, lines, severity, numbers) {
     return { title: title, lines: lines || [], severity: severity || 'info', numbers: numbers || null };
@@ -71,7 +108,7 @@
         run: function () {
           var att = {}, out = [];
           S('attendance').forEach(function (a) { if (a.employee) att[a.employee] = (att[a.employee] || 0) + 1; });
-          var emps = S('employees').filter(function (e) { return e.status !== 'inactive'; });
+          var emps = S('employees').filter(function (e) { return e.status === 'active'; });
           emps.forEach(function (e) {
             if (att[e.id]) return;
             out.push('• ' + (e.name || e.id) + ' — لا يوجد أي سجل حضور');
@@ -132,8 +169,8 @@
         run: function () {
           var out = [];
           S('employees').forEach(function (e) {
-            if (e.status === 'inactive') return;
-            ['contractEnd', 'contractEndDate', 'idExpiry', 'permitExpiry'].forEach(function (f) {
+            if (e.status !== 'active') return;
+            ['contractEnd', 'nationalIdExpiry', 'drivingLicenceExpiry'].forEach(function (f) {
               if (!e[f]) return;
               var d = Math.round((new Date(e[f]) - Date.now()) / 86400000);
               if (d > 45) return;
@@ -192,8 +229,8 @@
             Object.keys(byKey).forEach(function (k) {
               var rows = byKey[k].sort(function (a, b) { return new Date(a.date) - new Date(b.date); });
               for (var i = 1; i < rows.length; i++) {
-                var prev = n(rows[i - 1].cumulativeValue || rows[i - 1].cumulative || rows[i - 1].totalValue);
-                var cur = n(rows[i].cumulativeValue || rows[i].cumulative || rows[i].totalValue);
+                var prev = n(rows[i - 1].cumulativeWork);
+                var cur = n(rows[i].cumulativeWork);
                 if (prev > 0 && cur > 0 && cur < prev) {
                   out.push('• ' + (rows[i].docNo || '') + ' — التراكمي ' + money(cur) +
                            ' بعد أن كان ' + money(prev) + ' (فرق ' + money(prev - cur) + ' ج)');
@@ -215,8 +252,8 @@
             var age = since(r.date);
             if (r.status === 'draft' && age > 10)
               lateSubmit.push('• ' + (r.docNo || '') + ' — مسودة منذ ' + age + ' يوماً');
-            if (r.status === 'approved' && !r.collected && age > 60) {
-              var v = n(r.netValue || r.totalValue);
+            if (r.status === 'approved' && collectedOf(r.id) < n(r.netDue) - 0.5 && age > 60) {
+              var v = n(r.netDue) - collectedOf(r.id);
               total += v;
               lateCollect.push('• ' + (r.docNo || '') + ' — ' + money(v) + ' ج — منذ ' + age + ' يوماً');
             }
@@ -237,14 +274,21 @@
             (b.lines || []).forEach(function (l) {
               if (!l.costItem) return;
               var k = (b.project || '') + '|' + l.costItem;
-              budget[k] = (budget[k] || 0) + n(l.amount || l.budgetAmount || l.value);
+              budget[k] = (budget[k] || 0) + n(l.lineTotal);
             });
           });
-          ['supplierInvoices', 'stockIssues', 'payments', 'journal'].forEach(function (t) {
+          /* ٢٥ أغسطس ٢٠٢٦ — السداد (payments) استُبعد عمداً: هو غالباً سداد
+             لفاتورة مورد محسوبة بالفعل ضمن supplierInvoices، وضمّه هنا
+             يحسب نفس المصروف مرتين. نفس استبعاد pages/dashboard.js.
+             25 August 2026 — payments deliberately excluded: it's usually
+             settling a supplier invoice already counted above, and
+             including it here double-counts the same cost. Matches the
+             same exclusion in pages/dashboard.js. */
+          Object.keys(AMOUNT).forEach(function (t) {
             approved(t).forEach(function (r) {
               if (!r.project || !r.costItem) return;
               var k = r.project + '|' + r.costItem;
-              spend[k] = (spend[k] || 0) + n(r.totalValue || r.total || r.amount || r.netValue);
+              spend[k] = (spend[k] || 0) + n(r[AMOUNT[t]]);
             });
           });
           Object.keys(spend).forEach(function (k) {
@@ -311,16 +355,35 @@
         label: { ar: 'موقف السيولة والالتزامات القادمة', en: 'Cash position and upcoming obligations' },
         run: function () {
           var cash = 0;
-          S('cashAccounts').forEach(function (a) { cash += n(a.balance || a.currentBalance || a.openingBalance); });
+          /* لا يوجد حقل balance على cashAccounts — فقط openingBalance.
+             الرصيد الحقيقي = الافتتاحي + القبض − الصرف، وهي حسبة
+             Dashboard.analytics.cashBalance المعتمدة فعلاً.
+             There is no `balance` field on cashAccounts — only
+             `openingBalance`. The real balance is opening + receipts −
+             payments, the same calculation Dashboard.analytics.cashBalance
+             already trusts. */
+          S('cashAccounts').forEach(function (a) {
+            try { cash += Dashboard.analytics.cashBalance(a.id); }
+            catch (e) { cash += n(a.openingBalance); }
+          });
           var payable = 0, unbilled = 0, receivable = 0;
           live('supplierInvoices').forEach(function (i) {
-            if (i.status === 'approved' && !i.paid) payable += n(i.totalValue || i.total || i.amount);
+            if (i.status === 'approved') payable += Math.max(0, n(i.grandTotal) - paidOf(i.id));
           });
+          /* الربط يسير عكس ما كان مفترَضاً: الفاتورة تشير لإذن الاستلام،
+             لا العكس — لا يوجد حقل invoiced أو supplierInvoice على
+             goodsReceipts نفسها.
+             The link runs the other way round from what was assumed: the
+             invoice points at the goods receipt, not the reverse — there
+             is no `invoiced`/`supplierInvoice` field on goodsReceipts
+             itself. */
+          var billedGRNs = {};
+          live('supplierInvoices').forEach(function (i) { if (i.goodsReceipt) billedGRNs[i.goodsReceipt] = 1; });
           approved('goodsReceipts').forEach(function (g) {
-            if (!g.invoiced && !g.supplierInvoice) unbilled += n(g.totalValue || g.total);
+            if (!billedGRNs[g.id]) unbilled += n(g.grandTotal);
           });
           live('clientIPCs').forEach(function (r) {
-            if (r.status === 'approved' && !r.collected) receivable += n(r.netValue || r.totalValue);
+            if (r.status === 'approved') receivable += Math.max(0, n(r.netDue) - collectedOf(r.id));
           });
           var net = cash + receivable - payable - unbilled;
           var lines = [
@@ -343,12 +406,12 @@
           var rev = {}, cost = {};
           live('clientIPCs').forEach(function (r) {
             if (r.status !== 'approved' || !r.project) return;
-            rev[r.project] = (rev[r.project] || 0) + n(r.totalValue || r.netValue);
+            rev[r.project] = (rev[r.project] || 0) + n(r.netDue);
           });
-          ['supplierInvoices', 'stockIssues', 'subIPCs', 'payments'].forEach(function (t) {
+          Object.keys(AMOUNT).forEach(function (t) {
             approved(t).forEach(function (r) {
               if (!r.project) return;
-              cost[r.project] = (cost[r.project] || 0) + n(r.totalValue || r.total || r.amount || r.netValue);
+              cost[r.project] = (cost[r.project] || 0) + n(r[AMOUNT[t]]);
             });
           });
           var keys = Object.keys(rev).concat(Object.keys(cost)).filter(function (v, i, a) { return a.indexOf(v) === i; });
@@ -399,8 +462,22 @@
         run: function () {
           var out = [], total = 0;
           live('clientIPCs').forEach(function (r) {
-            var ret = n(r.retention || r.retentionAmount);
-            if (!ret || r.retentionReleased) return;
+            var ret = n(r.retention);
+            /* ٢٥ أغسطس ٢٠٢٦ — لم يوجد أي حقل يسمح بتعليم الاحتجاز
+               «مُفرَج عنه» فكان يُبلَّغ عنه للأبد ولو سُدِّد فعلاً. أضيف
+               حقل تاريخ جديد retentionReleasedDate (انظر
+               retention-release-field.js) بدل صندوق اختيار — لأن التاريخ
+               أفيد من علامة صح/خطأ ولا يلتبس مع retentionYears أو
+               retentionUntil الموجودين بالفعل ويعنيان شيئاً آخر تماماً.
+               25 August 2026 — no field existed to mark a retention
+               "released," so it was reported forever even after it was
+               genuinely paid back. A new date field, `retentionReleasedDate`
+               (see retention-release-field.js), was added instead of a
+               checkbox — a date is more useful than a tick, and it avoids
+               colliding with `retentionYears`/`retentionUntil`, which
+               already exist and mean something else entirely (how long to
+               keep a document, not whether money was paid). */
+            if (!ret || r.retentionReleasedDate) return;
             var age = since(r.date);
             if (age < 365) return;
             total += ret;
@@ -443,8 +520,15 @@
       transfersInLimbo: {
         label: { ar: 'تحويلات خرجت ولم تصل', en: 'Transfers sent but never received' },
         run: function () {
+          /* stockTransfers لا تملك receivedBy/receivedDate — تلك حقول
+             handover() الخاصة بشاشات departments.js فقط. حقول التحويل
+             الحقيقية هي receivedByDest و arrivalDate.
+             stockTransfers does not carry receivedBy/receivedDate —
+             those belong to the handover() helper used only by
+             departments.js screens. The real fields here are
+             receivedByDest and arrivalDate. */
           var bad = approved('stockTransfers').filter(function (t) {
-            return !t.receivedBy && !t.receivedDate && since(t.date) > 3;
+            return !t.receivedByDest && !t.arrivalDate && since(t.date) > 3;
           });
           if (!bad.length) return R('كل التحويلات مُثبت استلامها.', [], 'ok');
           return R(bad.length + ' تحويل بلا إثبات استلام',
@@ -458,8 +542,15 @@
       priceDrift: {
         label: { ar: 'ارتفاع أسعار غير مبرر', en: 'Unexplained price increases' },
         run: function () {
+          /* استُبعدت supplierInvoices: لا تملك أي بنود (lines) في
+             schema.js — لا خطأ، لكن نصف الفحص كان يعمل على قائمة فارغة
+             دوماً. أسعار المشتريات المعتمدة وحدها كافية لرصد الاتجاه.
+             supplierInvoices excluded: it has no `lines` block at all in
+             schema.js — not a crash, but half this check was always
+             running against an empty list. Approved purchase prices
+             alone are enough to catch the trend. */
           var hist = {};
-          approved('purchaseApprovals').concat(live('supplierInvoices')).forEach(function (d) {
+          approved('purchaseApprovals').forEach(function (d) {
             (d.lines || []).forEach(function (l) {
               var key = String(l.item || '').trim(); if (!key) return;
               var price = n(l.unitPrice || l.price);
@@ -497,7 +588,7 @@
           Object.keys(byWeek).forEach(function (k) {
             var g = byWeek[k];
             if (g.length < 3) return;
-            var total = g.reduce(function (s, x) { return s + n(x.totalValue || x.total); }, 0);
+            var total = g.reduce(function (s, x) { return s + n(x.grandTotal); }, 0);
             out.push('• ' + nm('suppliers', k.split('|')[0]) + ' — ' + g.length +
                      ' اعتماد في أسبوع واحد بإجمالي ' + money(total) + ' ج');
           });
