@@ -22,6 +22,8 @@
     'assets/js/identity.js',
     'assets/js/workflow.js',
     'assets/js/workflow-policy.js',
+    /* يفكّ عَلَق مستندات التوقيع الواحد — بعد workflow-policy.js حتماً */
+    'assets/js/one-step-approval.js',
     'assets/js/ui.js',
     'assets/js/rules.js',
     'assets/js/print.js',
@@ -50,7 +52,12 @@
     'assets/js/save-guard.js',
     'assets/js/access-check.js',
     /* يحوّل الحذف إلى إلغاء موثّق ويسجّل كل تغيير على الخادم */
-    'assets/js/audit-trail.js'
+    'assets/js/audit-trail.js',
+    /* يخفي زر التقارير عمّن لا تقارير له — الحماية نفسها داخل pages/reports.js */
+    'assets/js/report-access.js',
+    /* يوصّل أحداث الأمان (تصدير · كلمات مرور · بيانات الشركة) للسجل الدائم
+       — بعد audit-trail.js حتماً لأنه يحتاج AuditTrail.write */
+    'assets/js/audit-security-events.js'
   ];
   var NEEDED = [
     ['ALZAHRAA_CONFIG','assets/js/config.js'],
