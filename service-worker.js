@@ -1,5 +1,56 @@
 /* Al Zahraa Portal PWA shell cache. Business records stay in encrypted IndexedDB.
    ---------------------------------------------------------------------------
+   v2.0.12 — 26 أغسطس ٢٠٢٦
+   ثمانية ملفات جديدة من ورقتَي الاكتشاف معاً:
+
+   من ورقة ضبط المستندات — أ. أحمد عبد الحي، ١٥ أغسطس:
+     · dc-alerts.js         ردود متأخرة، إخطارات تعاقدية، نسخة قديمة بالموقع
+     · dc-tuning.js         تعديلات شاشات ضبط المستندات من إجاباته الفعلية
+
+   من ورقة الموارد البشرية — أ. محمد عمارة، ١٥ أغسطس:
+     · calc-formulas.js     ثمانية حقول محسوبة كانت تعرض صفراً دائماً
+     · advance-balance.js   «المسدَّد» و«المتبقي» الحقيقيان على السلف
+     · employee-statement.js كشف حساب الموظف — أول ما طلبه في ورقته
+     · hr-alerts.js         الرقم القومي، رخصة القيادة، مصوغات التوظيف
+     · payroll-net.js       صافي الراتب يحسب البنود الثمانية على الشاشة
+
+   وبطلب محمد زيدان «أصلحها لكل الأقسام لا لشاشات أحمد الخمس فقط»:
+     · doc-numbering.js     أرقام مستندات حقيقية لكل الشاشات وكل الأقسام
+                            (نصفها الآخر: 1-SUPABASE/30-DOCUMENT-NUMBERING.sql)
+
+   ⚠️ نُقل الترقيم من dc-tuning.js إلى doc-numbering.js، فلا توجد نسختان
+      من منطق الترقيم.
+
+   رقم النسخة ارتفع من v2.0.11 (وهو مُستهلَك — يخدم الموقع الحيّ اليوم)
+   لإجبار المتصفح على حذف النسخة القديمة، وإلا استمر في تقديم الملفات
+   القديمة دون هذه الملفات حتى لو رُفع الجديد.
+
+   v2.0.12 — 26 August 2026
+   Eight new files, from both discovery sheets at once.
+
+   From the Document Control sheet (Ahmed Abdelhay, 15 August):
+   dc-alerts.js (overdue replies, contractual notice deadlines, superseded
+   copy still on site) and dc-tuning.js (the DC screens tuned to his actual
+   answers).
+
+   From the HR sheet (Mohamed Amara, 15 August): calc-formulas.js (eight
+   calculated fields that always showed zero), advance-balance.js (real
+   repaid/outstanding on advances), employee-statement.js (the account
+   statement, the first thing he asked for), hr-alerts.js (national ID,
+   driving licence, recruitment documents) and payroll-net.js (net pay
+   counts the eight items that are on the screen).
+
+   And from Mohamed Zidan's instruction to fix numbering for every
+   department rather than Ahmed's five screens only: doc-numbering.js,
+   whose other half is 1-SUPABASE/30-DOCUMENT-NUMBERING.sql.
+
+   ⚠️ Numbering MOVED out of dc-tuning.js into doc-numbering.js — there are
+      not two copies of the numbering logic.
+
+   Bumped from v2.0.11 — which is SPENT, it is what the live site runs
+   today — to force the browser to drop the old cache; otherwise it keeps
+   serving the old file set, missing all eight, even after the upload.
+   ---------------------------------------------------------------------------
    v2.0.11 — 26 أغسطس ٢٠٢٦
    لا ملف جديد — auth.js نفسه تغيّر (طلب فحص المواد صار يعتمده مدير
    المشروع والمكتب الفني معاً، لا المدير العام وحده). auth.js موجود
@@ -97,7 +148,7 @@
 
       بدون إضافتها لن يعمل الذكاء الاصطناعي ولا القسمان الجديدان بدون إنترنت.
    --------------------------------------------------------------------------- */
-var CACHE = 'alzahraa-shell-v2.0.11';
+var CACHE = 'alzahraa-shell-v2.0.13';
 
 var SHELL = [
   './', './index.html', './manifest.webmanifest', './robots.txt',
@@ -113,6 +164,45 @@ var SHELL = [
   './assets/js/frame-guard.js', './assets/js/loader.js', './assets/js/env.js',
   './assets/js/config.js', './assets/js/offline-db.js', './assets/js/i18n.js',
   './assets/js/store.js', './assets/js/schema.js',
+
+  /* ── جديد في v2.0.12 · NEW in v2.0.12 ──────────────────────────────── */
+  /* ردود متأخرة، إخطارات تعاقدية، نسخة قديمة على الموقع
+     overdue replies, contractual notice deadlines, superseded copy on site */
+  './assets/js/dc-alerts.js',
+  /* تعديلات شاشات ضبط المستندات على إجابات أ. أحمد عبد الحي
+     the document-control screens tuned to Ahmed Abdelhay answers */
+  './assets/js/dc-tuning.js',
+
+  /* الصيغ المكتوبة كدوالّ — ثمانية حقول في الموارد البشرية كانت صفراً
+     function-style formulas — eight HR fields were reading zero */
+  './assets/js/calc-formulas.js',
+  /* أرقام مستندات حقيقية لكل الشاشات وكل الأقسام
+     real document numbers, every screen, every department */
+  './assets/js/doc-numbering.js',
+  /* «المسدَّد» و«المتبقي» الحقيقيان على سلف الموظفين
+     the real repaid and outstanding figures on employee advances */
+  './assets/js/advance-balance.js',
+  /* كشف حساب الموظف — السلف وخصمها
+     the employee account statement — advances and their deduction */
+  './assets/js/employee-statement.js',
+  /* قراءة الملفات المرفقة — الملفات الخمسة صغيرة وتُخزَّن مسبقاً.
+     مكتبات vendor الكبيرة ليست هنا عمداً: يلتقطها التخزين أثناء الاستعمال
+     (السطور ٣٠٣-٣٢١) عند أول قراءة، فتعمل بلا إنترنت بعدها.
+     Reading attached files — these five are small and pre-cached. The big
+     vendor libraries are deliberately NOT here: the runtime cache picks
+     them up on first use (lines 303-321), so they work offline after that. */
+  './assets/js/arabic-text.js',
+  './assets/js/read-docx.js',
+  './assets/js/read-pdf.js',
+  './assets/js/read-dwg.js',
+  './assets/js/attachment-reader.js',
+  /* تنبيهات الرقم القومي ورخصة القيادة ومصوغات التوظيف والسلف المتعثّرة
+     national ID, driving licence, recruitment file and stuck-advance alerts */
+  './assets/js/hr-alerts.js',
+  /* صافي الراتب يحسب البنود الثمانية المكتوبة على الشاشة
+     net pay counts the eight items that are on the screen */
+  './assets/js/payroll-net.js',
+  /* ─────────────────────────────────────────────────────────────────── */
 
   /* ── جديد في v2.0.10 · NEW in v2.0.10 ──────────────────────────────── */
   /* خصم وتحصيل الضريبة على مستخلصات العميل
