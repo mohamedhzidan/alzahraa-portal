@@ -114,6 +114,12 @@
     'assets/js/read-dwg.js',
     'assets/js/attachment-reader.js',
     'assets/js/import.js',
+    /* استيراد PDF ووورد وأوتوكاد من نفس زر «استيراد» — بعد import.js حتماً،
+       لأنه يعيد ربط الزر الذي يُنشئه import.js نفسه، لا يستبدل دالته.
+       PDF/Word/AutoCAD import from the same Import button — necessarily
+       after import.js, because it rebinds the button import.js itself
+       creates, rather than replacing its function. */
+    'assets/js/import-documents.js',
     'assets/js/app.js',
     /* آخر ملف: يلفّ Store بعد أن يكتمل كل شيء */
     'assets/js/save-guard.js',
