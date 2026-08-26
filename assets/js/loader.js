@@ -17,8 +17,16 @@
     'assets/js/client-ipc-withholding.js',
     'assets/js/departments.js',
     'assets/js/hr-department.js',
+    /* صافي الراتب يحسب البنود الثمانية التي أضافها hr-department.js —
+       بعده مباشرة حتماً، لأنه يبني الصيغة من الحقول الموجودة فعلاً.
+       Net pay counts the eight items hr-department.js adds — immediately
+       after it, because it builds the formula from the fields that exist. */
+    'assets/js/payroll-net.js',
     /* dc-requests.js يضيف حقولاً لشاشات departments.js، فيجب أن يأتي بعده */
     'assets/js/dc-requests.js',
+    /* dc-tuning.js يوسّع نفس شاشات ضبط المستندات (أرقام حقيقية، بادئة SI،
+       خيارات الاعتماد) — بعد dc-requests.js مباشرة */
+    'assets/js/dc-tuning.js',
     'assets/js/sites.js',
     'assets/js/auth.js',
     'assets/js/identity.js',
@@ -27,6 +35,11 @@
     /* يفكّ عَلَق مستندات التوقيع الواحد — بعد workflow-policy.js حتماً */
     'assets/js/one-step-approval.js',
     'assets/js/ui.js',
+    /* يجعل الصيغ المكتوبة كدوالّ تُحسب فعلاً — ثمانية حقول في الموارد
+       البشرية كانت تعرض صفراً. بعد ui.js حتماً وقبل pages/entity.js.
+       Makes function-style formulas actually compute — eight HR fields were
+       reading zero. After ui.js, and before pages/entity.js. */
+    'assets/js/calc-formulas.js',
     'assets/js/rules.js',
     'assets/js/print.js',
     /* المبلغ المسدَّد/المحصَّل الحقيقي من سندات الصرف/القبض المعتمدة —
@@ -35,7 +48,22 @@
     /* تاريخ انتهاء العقد الحقيقي وعدد الحاضرين اليوم الحقيقي — قبل
        alerts.js لأنه يقرأهما */
     'assets/js/hr-signals.js',
+    /* «المسدَّد» و«المتبقي» الحقيقيان على سلف الموظفين، من خصومات المسير
+       المعتمد — قبل alerts.js/hr-alerts.js لأنهما يقرآنه */
+    'assets/js/advance-balance.js',
     'assets/js/alerts.js',
+    /* ⚠️ الترتيب الثلاثي هنا إلزامي ولا يجوز تبديله:
+           alerts.js → hr-alerts.js → dc-alerts.js
+       hr-alerts.js يلفّ Alerts.list وحدها، وdc-alerts.js هو الذي يُعيد بناء
+       الخمس دوالّ المُصدَّرة من القائمة المدمجة. فلو سبق dc-alerts.js
+       hr-alerts.js لاختفت تنبيهات الموارد البشرية من الشاشة بلا أي رسالة.
+
+       ⚠️ This three-way order is mandatory. hr-alerts.js wraps Alerts.list
+       only; dc-alerts.js is what rebuilds all five exported functions from
+       the merged list. If dc-alerts.js came first, the HR alerts would
+       vanish from the screen with no error at all. */
+    'assets/js/hr-alerts.js',
+    'assets/js/dc-alerts.js',
     'assets/js/roleview.js',
     /* ── المساعد المهني · the professional assistant ──
        الترتيب مهم: الخبرة، ثم المفتّش، ثم فحوصات الأقسام، ثم المساعد.
@@ -57,6 +85,34 @@
     'assets/js/pages/settings.js',
     'assets/js/save-modes.js',
     'assets/js/attachments.js',
+    /* كشف حساب الموظف — يلفّ EntityPage.openDetail مثل attachments.js
+       تماماً، فيأتي بعده ليظهر الكشف تحت المرفقات لا فوقها.
+       The employee statement wraps EntityPage.openDetail exactly as
+       attachments.js does, so it comes after it and lands below it. */
+    'assets/js/employee-statement.js',
+
+    /* ═══ قراءة الملفات المرفقة · READING ATTACHED FILES ═══
+       الترتيب مقصود: arabic-text.js أولاً لأن قارئ PDF ينادي عليه لإصلاح
+       الحروف العربية. القرّاء الثلاثة مستقلّون تماماً — حذف أيٍّ منهم يُلغي
+       صيغته وحدها ولا يكسر شيئاً آخر. وattachment-reader.js آخرهم لأنه
+       يبحث عنهم وقت الضغط على الزر، ويلفّ EntityPage.openDetail كما يفعل
+       attachments.js تماماً — فيأتي بعده.
+       ⚠️ لا يوجد ملف vendor في هذه القائمة عمداً: مكتبات القراءة تُنزَّل
+       عند أول استعمال فقط، فلا يدفع مهندس الموقع ثمنها وهو يفتح شاشة أخرى.
+
+       Order is deliberate: arabic-text.js first, because the PDF reader
+       calls it to put Arabic letters back in order. The three readers are
+       fully independent — deleting any one removes only its format.
+       attachment-reader.js is last because it looks them up at click time
+       and wraps EntityPage.openDetail the same way attachments.js does.
+       ⚠️ No vendor file is in this list on purpose: the reading libraries
+       download on first use only, so a site engineer never pays for them
+       while opening an unrelated screen. */
+    'assets/js/arabic-text.js',
+    'assets/js/read-docx.js',
+    'assets/js/read-pdf.js',
+    'assets/js/read-dwg.js',
+    'assets/js/attachment-reader.js',
     'assets/js/import.js',
     'assets/js/app.js',
     /* آخر ملف: يلفّ Store بعد أن يكتمل كل شيء */
@@ -68,6 +124,13 @@
     'assets/js/lookup-loader.js',
     /* يحوّل الحذف إلى إلغاء موثّق ويسجّل كل تغيير على الخادم */
     'assets/js/audit-trail.js',
+    /* أرقام المستندات الحقيقية لكل الأقسام — آخر ملف يلفّ Store.create،
+       بعد audit-trail.js حتماً، ويحتاج Auth.client() ليسأل الخادم عن
+       الرقم الذي أصدره فعلاً.
+       Real document numbers for every department — the last file to wrap
+       Store.create, necessarily after audit-trail.js, and it needs
+       Auth.client() to ask the server what number it issued. */
+    'assets/js/doc-numbering.js',
     /* يخفي زر التقارير عمّن لا تقارير له — الحماية نفسها داخل pages/reports.js */
     'assets/js/report-access.js',
     /* يوصّل أحداث الأمان (تصدير · كلمات مرور · بيانات الشركة) للسجل الدائم
