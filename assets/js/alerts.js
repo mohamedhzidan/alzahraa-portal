@@ -79,7 +79,12 @@
     /* ── فواتير موردين تستحق قريباً ────────────────────────────────── */
     if (can('supplierInvoices')) {
       approved('supplierInvoices').forEach(function (inv) {
-        var due = Number(inv.grandTotal || 0) - Number(inv.paidAmount || 0);
+        /* MoneyOwed إن كان محمَّلاً يستبدل الحقل readonly الميت بالمجموع
+           الحقيقي من سندات الصرف المعتمدة — بلا تحميله يبقى السلوك القديم
+           حرفياً. if MoneyOwed loaded, it replaces the dead readonly field
+           with the real sum of approved payment vouchers — without it,
+           the old behaviour is exact. */
+        var due = Number(inv.grandTotal || 0) - (global.MoneyOwed ? MoneyOwed.paidOf(inv.id) : Number(inv.paidAmount || 0));
         if (due <= 0.5 || !inv.dueDate) return;
         var d = daysUntil(inv.dueDate);
         var sup = Store.find('suppliers', inv.supplier);
@@ -144,7 +149,10 @@
     /* ── مستخلصات عملاء لم تُحصّل ─────────────────────────────────── */
     if (can('clientIPCs')) {
       approved('clientIPCs').forEach(function (ipc) {
-        var due = Number(ipc.netDue || 0) - Number(ipc.collectedAmount || 0);
+        /* نفس منطق فواتير الموردين أعلاه، لكن لسندات القبض المعتمدة
+           same logic as the supplier invoices above, but for approved
+           receipt vouchers */
+        var due = Number(ipc.netDue || 0) - (global.MoneyOwed ? MoneyOwed.collectedOf(ipc.id) : Number(ipc.collectedAmount || 0));
         if (due <= 0.5) return;
         var d = daysSince(ipc.date);
         if (d < SETTINGS.ipcUncollectedDays) return;
@@ -244,8 +252,13 @@
     /* ── عقود موظفين تنتهي ────────────────────────────────────────── */
     if (can('employees')) {
       Store.all('employees').forEach(function (e) {
-        if (e.status !== 'active' || !e.contractEnd) return;
-        var d = daysUntil(e.contractEnd);
+        /* HRSignals إن كان محمَّلاً يقرأ أيضاً عقود employmentContracts —
+           بلا تحميله يبقى السلوك القديم (قراءة الحقل القديم فقط) حرفياً.
+           if HRSignals loaded, it also reads employmentContracts —
+           without it, old behaviour (old field only) is exact. */
+        var contractEnd = global.HRSignals ? HRSignals.contractEndOf(e) : e.contractEnd;
+        if (e.status !== 'active' || !contractEnd) return;
+        var d = daysUntil(contractEnd);
         if (d > SETTINGS.contractEndingDays) return;
         mk(out, d < 0 ? 'danger' : 'warn', 'employees', 'user',
           'عقد «' + e.name + '» ' + (d < 0 ? 'منتهٍ منذ ' + Math.abs(d) + ' يوم' : 'ينتهي خلال ' + d + ' يوم'),
