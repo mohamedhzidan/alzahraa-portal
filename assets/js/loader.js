@@ -13,6 +13,8 @@
     'assets/js/schema.js',
     /* يضيف حقل تاريخ الإفراج عن الاحتجاز — يجب أن يسبق agents.js */
     'assets/js/retention-release-field.js',
+    /* يضيف خصم وتحصيل الضريبة على مستخلصات العميل — بعد retention-release-field.js مباشرة */
+    'assets/js/client-ipc-withholding.js',
     'assets/js/departments.js',
     'assets/js/hr-department.js',
     /* dc-requests.js يضيف حقولاً لشاشات departments.js، فيجب أن يأتي بعده */
@@ -27,6 +29,12 @@
     'assets/js/ui.js',
     'assets/js/rules.js',
     'assets/js/print.js',
+    /* المبلغ المسدَّد/المحصَّل الحقيقي من سندات الصرف/القبض المعتمدة —
+       قبل alerts.js لأنه يقرأها */
+    'assets/js/money-owed.js',
+    /* تاريخ انتهاء العقد الحقيقي وعدد الحاضرين اليوم الحقيقي — قبل
+       alerts.js لأنه يقرأهما */
+    'assets/js/hr-signals.js',
     'assets/js/alerts.js',
     'assets/js/roleview.js',
     /* ── المساعد المهني · the professional assistant ──
@@ -35,6 +43,9 @@
     'assets/js/knowledge.js',
     'assets/js/inspector.js',
     'assets/js/inspector-departments.js',
+    /* يوصّل مدير الموارد البشرية بخبرة وفحوصات ولوحة "hr" — بعد الفحوصات
+       الإضافية وقبل المساعد الذي يقرأها */
+    'assets/js/hr-manager-links.js',
     'assets/js/assistant.js',
     'assets/js/assistant-pro.js',
     'assets/js/agents.js',
@@ -51,13 +62,20 @@
     /* آخر ملف: يلفّ Store بعد أن يكتمل كل شيء */
     'assets/js/save-guard.js',
     'assets/js/access-check.js',
+    /* يملأ قوائم الاختيار لصلاحية lookup — بعد auth.js وstore.js وschema.js
+       حتماً، وبعد save-guard.js/access-check.js لأنهما يثبتان أن Store
+       متصل بدور موثوق قبل أن نقرأ صلاحياته */
+    'assets/js/lookup-loader.js',
     /* يحوّل الحذف إلى إلغاء موثّق ويسجّل كل تغيير على الخادم */
     'assets/js/audit-trail.js',
     /* يخفي زر التقارير عمّن لا تقارير له — الحماية نفسها داخل pages/reports.js */
     'assets/js/report-access.js',
     /* يوصّل أحداث الأمان (تصدير · كلمات مرور · بيانات الشركة) للسجل الدائم
        — بعد audit-trail.js حتماً لأنه يحتاج AuditTrail.write */
-    'assets/js/audit-security-events.js'
+    'assets/js/audit-security-events.js',
+    /* رقم النسخة في تذييل الصفحة من الذاكرة الفعلية — آخر ملف عمداً،
+       فحص رفعة محمد زيدان */
+    'assets/js/version-badge.js'
   ];
   var NEEDED = [
     ['ALZAHRAA_CONFIG','assets/js/config.js'],
