@@ -338,7 +338,13 @@
         costItems: ['view', 'create', 'edit'],
         surveyRecords: ['view'],
         asphaltRecords: ['view'],
-        wir: ['view'],
+        /* ٢٥ أغسطس ٢٠٢٦ · طلب من محمد زيدان: المكتب الفني يرفع طلب فحص
+           أعمال أو مواد بنفسه، لا يكتفي بالمراجعة والاعتماد.
+           25 August 2026, requested by Mohamed Zidan: the technical
+           office raises its own inspection requests — not just reviews
+           and approves what site engineers raise. */
+        wir: ['view', 'create', 'edit', 'delete'],
+        mir: ['view', 'create', 'edit', 'delete'],
         rfi: ['view', 'create', 'edit'],
         submittals: ['view', 'create', 'edit'],
         docRegister: ['view'],
