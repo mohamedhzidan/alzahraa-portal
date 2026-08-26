@@ -190,7 +190,11 @@
   CHECKS.overPayment = function () {
     var out = [];
     approved('supplierInvoices').forEach(function (inv) {
-      var paid = num(inv.paidAmount), total = num(inv.grandTotal);
+      /* MoneyOwed إن وُجد يستبدل الحقل الميت بالمجموع الحقيقي — بلا
+         تحميله السلوك القديم حرفياً.
+         if MoneyOwed exists it replaces the dead field with the real
+         sum — without it, old behaviour is exact. */
+      var paid = global.MoneyOwed ? MoneyOwed.paidOf(inv.id) : num(inv.paidAmount), total = num(inv.grandTotal);
       if (total > 0 && paid > total + 0.5) {
         out.push(F('critical', 'finance', 'supplierInvoices', inv.id,
           ar() ? 'المسدَّد أكبر من قيمة الفاتورة' : 'Paid more than the invoice value',
@@ -781,7 +785,9 @@
   CHECKS.ipcNotCollected = function () {
     var out = [];
     approved('clientIPCs').forEach(function (i) {
-      var due = num(i.netDue) - num(i.collectedAmount);
+      /* نفس المنطق أعلاه، لكن لسندات القبض المعتمدة
+         same logic as above, but for approved receipt vouchers */
+      var due = num(i.netDue) - (global.MoneyOwed ? MoneyOwed.collectedOf(i.id) : num(i.collectedAmount));
       if (due <= 0.5) return;
       var d = since(i.date);
       if (d < 60) return;
