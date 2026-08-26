@@ -1,5 +1,26 @@
 /* Al Zahraa Portal PWA shell cache. Business records stay in encrypted IndexedDB.
    ---------------------------------------------------------------------------
+   v2.0.8 — 26 أغسطس ٢٠٢٦
+   أُضيف ملف واحد جديد: retention-release-field.js (يضيف تاريخ الإفراج عن
+   الاحتجاز على شاشة مستخلصات العميل). رقم النسخة ارتفع لإجبار المتصفح
+   على حذف النسخة القديمة، وإلا استمر في تقديم الملفات القديمة دون هذا
+   الملف حتى لو رُفع الجديد.
+
+   ⚠️ خطأ صُحِّح في ٢٦ أغسطس: كُتبت هذه النسخة أولاً باسم v2.0.7 — وهو
+   رقم كان قد استُهلك بالفعل في نشر ٢٥ أغسطس. ولأن المتصفح لا يحذف إلا
+   ما اختلف اسمه، كان الرفع سيبدو ناجحاً ولا يصل الملف الجديد لأحد.
+
+   v2.0.8 — 26 August 2026
+   One new file added: retention-release-field.js (adds the retention
+   released-on date to the client-IPC screen). The cache name was bumped
+   to force the browser to drop the old cache — otherwise it keeps
+   serving the old file set, missing this one, even after the upload.
+
+   ⚠️ CORRECTED 26 August: this was first written as v2.0.7 — a number
+   already spent by the 25 August deploy. Since the browser only deletes
+   caches whose name DIFFERS, the upload would have looked successful
+   and the new file would never have reached anyone.
+   ---------------------------------------------------------------------------
    TWO CHANGES IN v2.0.2 — both matter:
 
    1) CACHE NAME BUMPED  v2.0.1 → v2.0.2
@@ -17,7 +38,7 @@
 
       بدون إضافتها لن يعمل الذكاء الاصطناعي ولا القسمان الجديدان بدون إنترنت.
    --------------------------------------------------------------------------- */
-var CACHE = 'alzahraa-shell-v2.0.7';
+var CACHE = 'alzahraa-shell-v2.0.8';
 
 var SHELL = [
   './', './index.html', './manifest.webmanifest', './robots.txt',
@@ -33,6 +54,10 @@ var SHELL = [
   './assets/js/frame-guard.js', './assets/js/loader.js', './assets/js/env.js',
   './assets/js/config.js', './assets/js/offline-db.js', './assets/js/i18n.js',
   './assets/js/store.js', './assets/js/schema.js',
+
+  /* ── جديد في v2.0.7 · NEW in v2.0.7 ──────────────────────────────── */
+  './assets/js/retention-release-field.js',
+  /* ─────────────────────────────────────────────────────────────────── */
 
   /* ── NEW in v2.0.2 · الجديد في هذه النسخة ────────────────────────────
      departments.js must be cached, or the Site Engineers and Document
