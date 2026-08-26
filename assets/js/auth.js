@@ -306,7 +306,18 @@
         stockIssues: ['view', 'review'], goodsReceipts: ['view'],
         /* شاشات الموقع — يعتمد ما يرفعه مهندسو الموقع */
         wir: ['view', 'review', 'approve'],
-        mir: ['view', 'review'],
+        /* ٢٦ أغسطس ٢٠٢٦ · قرار محمد زيدان: طلب فحص المواد يوقّعه مدير
+           المشروع والمكتب الفني معاً — كان مدير المشروع يملك «review»
+           فقط وبلا «approve»، فيبقى المستند معلقاً لأن شاشة mir بخطوة
+           واحدة (workflow-policy.js) لا تنتظر مراجعاً منفصلاً. الشكل هنا
+           مطابق تماماً لسطر wir أعلاه.
+           26 August 2026, decided by Mohamed Zidan: a Material Inspection
+           Request is signed by both the project manager and the
+           technical office. The project manager held only 'review', not
+           'approve', so the document sat stuck — mir is a one-step screen
+           (workflow-policy.js) and never reaches a separate reviewer.
+           Same shape as the wir line directly above. */
+        mir: ['view', 'review', 'approve'],
         pourCards: ['view', 'review', 'approve'],
         asphaltRecords: ['view', 'review'],
         surveyRecords: ['view'],
@@ -344,7 +355,18 @@
            office raises its own inspection requests — not just reviews
            and approves what site engineers raise. */
         wir: ['view', 'create', 'edit', 'delete'],
-        mir: ['view', 'create', 'edit', 'delete'],
+        /* ٢٦ أغسطس ٢٠٢٦ · نفس قرار محمد زيدان أعلاه — المكتب الفني يرفع
+           طلب فحص المواد (السطر أعلاه) ويوقّعه أيضاً هو ومدير المشروع
+           معاً. حارس منع اعتماد الشخص لعمله (workflow.js وone-step-
+           approval.js يتحققان من createdBy) يبقى كما هو: من أنشأ الطلب
+           لا يعتمده، فقط زميل آخر في المكتب الفني أو مدير المشروع.
+           26 August 2026: same decision as above — the technical office
+           both raises a material inspection request (line above) and now
+           signs it, alongside the project manager. The guard against
+           approving your own document (workflow.js and one-step-
+           approval.js both check createdBy) is untouched: the person who
+           created the MIR still cannot approve it — only a colleague. */
+        mir: ['view', 'create', 'edit', 'delete', 'approve'],
         rfi: ['view', 'create', 'edit'],
         submittals: ['view', 'create', 'edit'],
         docRegister: ['view'],
@@ -352,7 +374,15 @@
         projects: ['view'],
         clientContracts: ['view'], subContracts: ['view'],
         subcontractors: LOOKUP, items: LOOKUP, employees: LOOKUP,
-        customers: LOOKUP, suppliers: LOOKUP
+        customers: LOOKUP, suppliers: LOOKUP,
+        /* ٢٦ أغسطس ٢٠٢٦ · إذن الاستلام حقل ref في supplierInvoices وبنود
+           التكلفة، وكانت قائمته المنسدلة تظهر فارغة لأن الشاشة نفسها
+           محجوبة عن المكتب الفني. lookup تعطي الاسم فقط، لا تفتح الشاشة.
+           26 August 2026: `goodsReceipt` is a ref field elsewhere the
+           technical office fills in, and its dropdown was empty because
+           the goodsReceipts screen itself is hidden from this role.
+           lookup resolves the name only — the screen stays closed. */
+        goodsReceipts: LOOKUP
       }
     },
 
@@ -456,7 +486,15 @@
 
         /* هذه تبقى «بحث فقط» — يراها في القوائم المنسدلة ولا يفتح شاشتها.
            الأصناف والموردون شأن المشتريات والمخازن، لا ضبط المستندات. */
-        items: LOOKUP, suppliers: LOOKUP, employees: LOOKUP, costItems: LOOKUP
+        items: LOOKUP, suppliers: LOOKUP, employees: LOOKUP, costItems: LOOKUP,
+        /* ٢٦ أغسطس ٢٠٢٦ · نفس السبب أعلاه — إذن الاستلام يظهر في قوائم
+           منسدلة عدة مستندات يتابعها ضبط المستندات. الشاشة المالية تبقى
+           مغلقة كما وعد التعليق أعلاه — lookup لا تفتحها.
+           26 August 2026: same reason as above — goods receipts appear in
+           several dropdowns for documents this role tracks. The financial
+           screen stays closed exactly as the comment above promises —
+           lookup does not open it. */
+        goodsReceipts: LOOKUP
       }
     },
 
@@ -486,7 +524,17 @@
         safetyReports: ['view'],
         legalDocs: ['view'],
         projects: LOOKUP, itAssets: LOOKUP,
-        costItems: LOOKUP, equipment: LOOKUP
+        costItems: LOOKUP, equipment: LOOKUP,
+        /* ٢٦ أغسطس ٢٠٢٦ · السلف والرواتب تربط أحياناً بحساب صرف نقدي،
+           وكانت قائمته تظهر فارغة لأن شاشة الحسابات النقدية مالية بحتة
+           ومحجوبة عن الموارد البشرية عمداً. lookup تعطي الاسم فقط —
+           الشاشة المالية تبقى مغلقة تماماً كما كانت.
+           26 August 2026: advances and payroll sometimes link to a cash
+           account, and that dropdown was empty because cashAccounts is a
+           purely financial screen deliberately hidden from HR. lookup
+           resolves the name only — the financial screen stays exactly as
+           closed as before. */
+        cashAccounts: LOOKUP
       }
     },
 
@@ -542,7 +590,12 @@
         legalDocs:           ['view'],
         labourAllocation:    ['view'],
         safetyReports:       ['view'],
-        projects: LOOKUP, itAssets: LOOKUP, costItems: LOOKUP, equipment: LOOKUP
+        projects: LOOKUP, itAssets: LOOKUP, costItems: LOOKUP, equipment: LOOKUP,
+        /* ٢٦ أغسطس ٢٠٢٦ · نفس سبب دور hr أعلاه — lookup فقط، الشاشة
+           المالية تبقى مغلقة عن مدير الموارد البشرية أيضاً.
+           26 August 2026: same reason as the hr role above — lookup only,
+           the financial screen stays closed for the HR manager too. */
+        cashAccounts: LOOKUP
       }
     },
 
@@ -560,7 +613,17 @@
         siteInstructions: ['view'],
         projects: ['view'],
         customers: LOOKUP, suppliers: LOOKUP,
-        subcontractors: LOOKUP, employees: LOOKUP, costItems: LOOKUP
+        subcontractors: LOOKUP, employees: LOOKUP, costItems: LOOKUP,
+        /* ٢٦ أغسطس ٢٠٢٦ · الشكوى: القانونية لا تفتح سجل المراسلات
+           أصلاً. هنا view لا lookup عمداً — المحامي يحتاج قراءة السجل
+           كاملاً لا مجرد اسم في قائمة منسدلة. لا إنشاء ولا تعديل ولا
+           حذف: أ. أحمد يكتبه، القانونية تقرأه فقط.
+           26 August 2026: the complaint was that legal cannot open the
+           transmittals register at all. `view`, deliberately not
+           `lookup`, here — a lawyer needs to read the whole register, not
+           just resolve a name in a dropdown. No create/edit/delete:
+           Ahmed writes it, legal only reads it. */
+        transmittals: ['view']
       }
     },
 
