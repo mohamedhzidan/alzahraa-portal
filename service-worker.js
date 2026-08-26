@@ -1,5 +1,26 @@
 /* Al Zahraa Portal PWA shell cache. Business records stay in encrypted IndexedDB.
    ---------------------------------------------------------------------------
+   v2.0.14 — 26 أغسطس ٢٠٢٦
+   ملف جديد واحد: import-documents.js — يجعل زر «⬆ استيراد» الموجود يقرأ
+   PDF ووورد وأوتوكاد أيضاً، لا الإكسل فقط، ويميّز رسمة PDF عن مستند PDF
+   تلقائياً. لا يُعدَّل import.js ولا attachments.js ولا attachment-reader.js.
+
+   رقم النسخة ارتفع من v2.0.13 (وهو مُستهلَك — يخدم الموقع الحيّ اليوم،
+   تأكَّد بقراءة service-worker.js الحيّ فعلياً قبل الترقيم) لإجبار المتصفح
+   على حذف النسخة القديمة، وإلا استمر في تقديم الملفات القديمة بلا الملف
+   الجديد حتى لو رُفع.
+
+   v2.0.14 — 26 August 2026
+   One new file: import-documents.js — makes the existing «⬆ Import» button
+   read PDF, Word and AutoCAD too, not spreadsheets only, and tells a PDF
+   drawing apart from a PDF document automatically. import.js, attachments.js
+   and attachment-reader.js are all untouched.
+
+   Bumped from v2.0.13 — which is SPENT, it is what the live site runs today
+   (confirmed by actually reading the live service-worker.js before
+   numbering) — to force the browser to drop the old cache; otherwise it
+   keeps serving the old file set, missing the new file, even after upload.
+   ---------------------------------------------------------------------------
    v2.0.12 — 26 أغسطس ٢٠٢٦
    ثمانية ملفات جديدة من ورقتَي الاكتشاف معاً:
 
@@ -148,7 +169,7 @@
 
       بدون إضافتها لن يعمل الذكاء الاصطناعي ولا القسمان الجديدان بدون إنترنت.
    --------------------------------------------------------------------------- */
-var CACHE = 'alzahraa-shell-v2.0.13';
+var CACHE = 'alzahraa-shell-v2.0.14';
 
 var SHELL = [
   './', './index.html', './manifest.webmanifest', './robots.txt',
@@ -164,6 +185,13 @@ var SHELL = [
   './assets/js/frame-guard.js', './assets/js/loader.js', './assets/js/env.js',
   './assets/js/config.js', './assets/js/offline-db.js', './assets/js/i18n.js',
   './assets/js/store.js', './assets/js/schema.js',
+
+  /* ── جديد في v2.0.14 · NEW in v2.0.14 ──────────────────────────────── */
+  /* PDF ووورد وأوتوكاد من نفس زر «استيراد»، وتمييز رسمة PDF عن مستندها
+     PDF, Word and AutoCAD from the same Import button, and telling a PDF
+     drawing apart from a PDF document */
+  './assets/js/import-documents.js',
+  /* ─────────────────────────────────────────────────────────────────── */
 
   /* ── جديد في v2.0.12 · NEW in v2.0.12 ──────────────────────────────── */
   /* ردود متأخرة، إخطارات تعاقدية، نسخة قديمة على الموقع
