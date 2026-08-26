@@ -94,7 +94,11 @@
   K.invoicesToPay = function () {
     var n = 0, s = 0;
     A().approved('supplierInvoices').forEach(function (i) {
-      var d = (Number(i.grandTotal) || 0) - (Number(i.paidAmount) || 0);
+      /* MoneyOwed إن وُجد يستبدل الحقل الميت بالمجموع الحقيقي — بلا
+         تحميله السلوك القديم حرفياً.
+         if MoneyOwed exists it replaces the dead field with the real
+         sum — without it, old behaviour is exact. */
+      var d = (Number(i.grandTotal) || 0) - (global.MoneyOwed ? MoneyOwed.paidOf(i.id) : (Number(i.paidAmount) || 0));
       if (d > 0.5) { n++; s += d; }
     });
     return UI.kpi({ label: L({ ar: 'فواتير لم تُسدَّد', en: 'Unpaid invoices' }),
@@ -104,7 +108,11 @@
   K.overdueInvoices = function () {
     var n = 0;
     A().approved('supplierInvoices').forEach(function (i) {
-      var d = (Number(i.grandTotal) || 0) - (Number(i.paidAmount) || 0);
+      /* MoneyOwed إن وُجد يستبدل الحقل الميت بالمجموع الحقيقي — بلا
+         تحميله السلوك القديم حرفياً.
+         if MoneyOwed exists it replaces the dead field with the real
+         sum — without it, old behaviour is exact. */
+      var d = (Number(i.grandTotal) || 0) - (global.MoneyOwed ? MoneyOwed.paidOf(i.id) : (Number(i.paidAmount) || 0));
       if (d > 0.5 && i.dueDate && new Date(i.dueDate) < new Date()) n++;
     });
     return UI.kpi({ label: L({ ar: 'فواتير متأخرة', en: 'Overdue invoices' }),
@@ -215,7 +223,12 @@
       icon: 'users' });
   };
   K.presentToday = function () {
-    var n = Store.all('attendance').filter(function (a) { return a.date === todayStr() && a.attStatus === 'present'; }).length;
+    /* HRSignals إن وُجد يعدّ أيضاً من كشوف siteAttendance — بلا تحميله
+       السلوك القديم (جدول attendance فقط) حرفياً.
+       if HRSignals exists it also counts from siteAttendance sheets —
+       without it, old behaviour (attendance table only) is exact. */
+    var n = global.HRSignals ? HRSignals.presentTodayCount()
+      : Store.all('attendance').filter(function (a) { return a.date === todayStr() && a.attStatus === 'present'; }).length;
     return UI.kpi({ label: L({ ar: 'حضور اليوم', en: 'Present today' }),
       value: '<span class="num">' + n + '</span>', icon: 'clock' });
   };
@@ -226,8 +239,13 @@
   };
   K.contractsEnding = function () {
     var soon = new Date(); soon.setDate(soon.getDate() + 30);
+    /* HRSignals إن وُجد يقرأ أيضاً عقود employmentContracts — بلا تحميله
+       السلوك القديم حرفياً.
+       if HRSignals exists it also reads employmentContracts — without
+       it, old behaviour is exact. */
     var n = Store.all('employees').filter(function (e) {
-      return e.status === 'active' && e.contractEnd && new Date(e.contractEnd) <= soon;
+      var end = global.HRSignals ? HRSignals.contractEndOf(e) : e.contractEnd;
+      return e.status === 'active' && end && new Date(end) <= soon;
     }).length;
     return UI.kpi({ label: L({ ar: 'عقود تنتهي خلال شهر', en: 'Contracts ending in 30 days' }),
       value: '<span class="num">' + n + '</span>', icon: 'user', tone: n ? 'danger' : '' });
@@ -357,7 +375,11 @@
   P.dueInvoices = function () {
     var rows = [];
     A().approved('supplierInvoices').forEach(function (i) {
-      var d = (Number(i.grandTotal) || 0) - (Number(i.paidAmount) || 0);
+      /* MoneyOwed إن وُجد يستبدل الحقل الميت بالمجموع الحقيقي — بلا
+         تحميله السلوك القديم حرفياً.
+         if MoneyOwed exists it replaces the dead field with the real
+         sum — without it, old behaviour is exact. */
+      var d = (Number(i.grandTotal) || 0) - (global.MoneyOwed ? MoneyOwed.paidOf(i.id) : (Number(i.paidAmount) || 0));
       if (d > 0.5) rows.push({ inv: i, due: d });
     });
     rows.sort(function (a, b) { return new Date(a.inv.dueDate || '2099') - new Date(b.inv.dueDate || '2099'); });
