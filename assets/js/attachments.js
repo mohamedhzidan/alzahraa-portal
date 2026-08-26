@@ -89,19 +89,48 @@
   /* ═══════════════════════════════════════════════════════════════════
      ١ · القراءة والكتابة في Storage
      ═══════════════════════════════════════════════════════════════════ */
+  /* ─────────────────────────────────────────────────────────────────
+     لماذا نقرأ من الخادم مباشرة ولا نمرّ بذاكرة Store؟
+     Store لا يجلب من الخادم إلا جداول الشاشات المسجّلة، وجدول
+     attachments ليس شاشة — فكانت القائمة تعود فارغة بعد كل تحديث
+     للصفحة رغم أن الملف محفوظ على الخادم إلى الأبد. (AUDIT-17)
+     WHY read the server directly instead of Store's cache?
+     Store only fetches tables that belong to a registered screen, and
+     attachments is not a screen — so the panel showed "no files" after
+     every refresh while the file sat safely in storage. (AUDIT-17)
+     ───────────────────────────────────────────────────────────────── */
   async function list(moduleId, recordId) {
-    if (!global.Store) return [];
-    try {
-      return (Store.all('attachments') || []).filter(function (a) {
-        return a.module === moduleId && a.recordId === recordId && !a.deleted;
-      }).sort(function (a, b) { return new Date(b.uploadedAt) - new Date(a.uploadedAt); });
-    } catch (e) { return []; }
+    var c = client();
+    if (c && navigator.onLine !== false) {
+      try {
+        var r = await c.from('attachments').select('*')
+          .eq('module', moduleId)
+          .eq('recordId', recordId)
+          .not('deleted', 'is', true)   /* null-safe: صفوف قديمة بلا قيمة تُحسب غير محذوفة */
+          .order('uploadedAt', { ascending: false });
+        if (!r.error) return r.data || [];
+        console.error('[attachments] list refused', r.error);
+      } catch (e) { console.error('[attachments] list failed', e); }
+    }
+    /* بلا إنترنت لا يمكن فتح الملفات أصلاً (الروابط موقّعة ٦٠ ثانية)،
+       فنعرض قائمة فارغة مع رسالة صريحة بدل قائمة قديمة مضلّلة.
+       Offline the signed links cannot open anyway, so we show an honest
+       empty list plus a notice — never a stale, misleading one. */
+    return [];
   }
 
   async function upload(moduleId, recordId, file, siteId) {
     var c = client();
     if (!c) return { ok: false, error: L({ ar: 'لا يوجد اتصال بالخادم.', en: 'No server connection.' }) };
     if (!file) return { ok: false, error: 'no-file' };
+
+    /* الرفع بلا إنترنت مستحيل — نقولها بوضوح بدل نجاح كاذب
+       uploading offline is impossible — say so instead of a false success */
+    if (navigator.onLine === false || (global.Store && Store.isOnline && !Store.isOnline())) {
+      return { ok: false, error: L({
+        ar: 'رفع الملفات يحتاج اتصالاً بالإنترنت. أعد المحاولة بعد عودة الاتصال.',
+        en: 'Uploading files requires internet. Try again when the connection returns.' }) };
+    }
 
     if (file.size > MAX_MB * 1048576) {
       return { ok: false, error: L({
@@ -126,6 +155,7 @@
 
     var u = me();
     var rec = {
+      id: (global.Store && Store.uid) ? Store.uid('att') : 'att_' + safeName('x'),
       module: moduleId, recordId: recordId,
       path: path,
       fileName: file.name,          /* الاسم الأصلي كما كتبه المستخدم */
@@ -134,14 +164,32 @@
       site: siteId || (u && u.site) || null,
       uploadedBy: u ? u.id : null,
       uploadedAt: new Date().toISOString(),
-      deleted: false
+      deleted: false,
+      createdBy: u ? u.id : null
     };
-    try { Store.create('attachments', rec); }
-    catch (e) {
-      /* the file is in storage but the record failed — remove the orphan
-         so the bucket never fills with files nothing points at */
+    /* ⭐ لا نثق في «تم الحفظ» قبل أن يردّ الخادم.
+       Store.create كانت تعود قبل ردّ الخادم، بل وتعيد null بلا خطأ إذا
+       مُنعت الكتابة (بلا إنترنت مثلاً) — فكانت الشاشة تقول «مرفوع»
+       ولا شيء سُجّل. الآن ننتظر جواب قاعدة البيانات نفسها برقم الصف.
+       ⭐ Never trust "saved" before the server answers. Store.create
+       returned before the server replied — and returned null WITHOUT
+       throwing when blocked (offline) — so the toast said uploaded
+       while nothing was recorded. Now we await the database's own
+       answer, row id included. */
+    var ins = await c.from('attachments').insert(rec).select('id').single();
+    if (ins.error || !ins.data || !ins.data.id) {
+      /* الملف وصل للتخزين لكن السجل رُفض — نحذف الملف اليتيم
+         the file reached storage but the register refused — remove the orphan */
       try { await c.storage.from(BUCKET).remove([path]); } catch (e2) {}
-      return { ok: false, error: L({ ar: 'تعذّر تسجيل المرفق.', en: 'Could not record the attachment.' }) };
+      console.error('[attachments] record insert refused', ins.error);
+      return { ok: false, error: L({
+        ar: 'رفض الخادم تسجيل المرفق: ' + ((ins.error && ins.error.message) || ''),
+        en: 'The server refused to record the attachment: ' + ((ins.error && ins.error.message) || '') }) };
+    }
+    /* سجلّ التدقيق على الخادم — كان يُكتب عبر Store.create سابقاً
+       server audit line — previously written via the Store.create wrap */
+    if (global.AuditTrail && AuditTrail.write) {
+      AuditTrail.write('create', 'attachments', rec.id, file.name, moduleId + '/' + recordId);
     }
     return { ok: true, record: rec };
   }
@@ -166,14 +214,34 @@
   /* الحذف: نعلّم السجل محذوفاً ونزيل الملف. المستندات المعتمدة لا تُحذف
      مرفقاتها — نفس قاعدة المستندات نفسها. */
   async function remove(attachmentId) {
-    var a = Store.find('attachments', attachmentId);
-    if (!a) return { ok: false };
     var c = client();
-    try { if (c) await c.storage.from(BUCKET).remove([a.path]); } catch (e) {}
-    Store.save('attachments', attachmentId, Object.assign({}, a, {
-      deleted: true, deletedAt: new Date().toISOString(),
-      deletedBy: (me() || {}).id || null
-    }));
+    if (!c || navigator.onLine === false) {
+      return { ok: false, error: L({ ar: 'حذف المرفق يحتاج اتصالاً بالإنترنت.',
+                                     en: 'Deleting an attachment requires internet.' }) };
+    }
+    /* السجل يُقرأ من الخادم لا من الذاكرة — الذاكرة تفرغ بعد كل تحديث
+       read the row from the server, not the cache — the cache is empty
+       after every refresh, which is the very bug this file fixes */
+    var got = await c.from('attachments').select('id, path').eq('id', attachmentId).maybeSingle();
+    if (got.error || !got.data) {
+      return { ok: false, error: (got.error && got.error.message) ||
+        L({ ar: 'المرفق غير موجود.', en: 'Attachment not found.' }) };
+    }
+    var u = me();
+    /* نعلّم السجل محذوفاً أولاً — السجل هو المرجع، والملف يتبعه.
+       mark the register first — the register is the authority. */
+    var upd = await c.from('attachments').update({
+      deleted: true, deletedAt: new Date().toISOString(), deletedBy: u ? u.id : null,
+      updatedAt: new Date().toISOString(), updatedBy: u ? u.id : null
+    }).eq('id', attachmentId).select('id');
+    if (upd.error || !(upd.data || []).length) {
+      return { ok: false, error: (upd.error && upd.error.message) ||
+        L({ ar: 'رفض الخادم الحذف.', en: 'The server refused the delete.' }) };
+    }
+    try { await c.storage.from(BUCKET).remove([got.data.path]); } catch (e) {}
+    if (global.AuditTrail && AuditTrail.write) {
+      AuditTrail.write('delete', 'attachments', attachmentId, got.data.path, '');
+    }
     return { ok: true };
   }
 
@@ -196,7 +264,10 @@
       '<div class="form-section-title">' +
         esc(L({ ar: 'المرفقات', en: 'Attachments' })) +
         ' <span class="muted small">(' + files.length + ')</span>';
-    if (canEdit) {
+    /* المرفقات كلها تحتاج إنترنت: القائمة من الخادم والروابط موقّعة.
+       attachments are online-only: the list is server-read, links are signed */
+    var canNet = !!client() && navigator.onLine !== false;
+    if (canEdit && canNet) {
       h += '<label class="btn btn-outline btn-sm" style="margin-inline-start:auto;cursor:pointer">' +
              esc(L({ ar: '＋ إضافة ملف', en: '＋ Add file' })) +
              '<input type="file" id="azAttachInput" multiple hidden>' +
@@ -204,7 +275,11 @@
     }
     h += '</div>';
 
-    if (!files.length) {
+    if (!canNet) {
+      h += '<p class="muted small">' + esc(L({
+        ar: 'عرض المرفقات ورفعها يحتاج اتصالاً بالإنترنت. ملفاتك محفوظة على الخادم وستظهر عند عودة الاتصال.',
+        en: 'Viewing and uploading attachments requires internet. Your files are safe on the server and will appear when the connection returns.' })) + '</p>';
+    } else if (!files.length) {
       h += '<p class="muted small">' + esc(L({
         ar: 'لا توجد ملفات مرفقة. الحد الأقصى ' + MAX_MB + ' ميجابايت للملف.',
         en: 'No files attached. Maximum ' + MAX_MB + ' MB per file.' })) + '</p>';
@@ -251,8 +326,11 @@
           danger: true,
           okLabel: L({ ar: 'حذف', en: 'Delete' }),
           onOk: function () {
-            remove(b.getAttribute('data-az-del')).then(function () {
-              UI.toast(L({ ar: 'حُذف الملف.', en: 'File deleted.' }));
+            remove(b.getAttribute('data-az-del')).then(function (r) {
+              /* لا نقول «حُذف» إلا إذا أكّد الخادم — نفس درس الرفع
+                 only say "deleted" when the server confirmed it */
+              if (r && r.ok) UI.toast(L({ ar: 'حُذف الملف.', en: 'File deleted.' }));
+              else UI.toast((r && r.error) || L({ ar: 'تعذّر الحذف.', en: 'Could not delete.' }), 'error', 6000);
               if (onChange) onChange();
             });
           }
