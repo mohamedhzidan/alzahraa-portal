@@ -11,6 +11,8 @@
     'assets/js/i18n.js',
     'assets/js/store.js',
     'assets/js/schema.js',
+    /* يضيف حقل تاريخ الإفراج عن الاحتجاز — يجب أن يسبق agents.js */
+    'assets/js/retention-release-field.js',
     'assets/js/departments.js',
     'assets/js/hr-department.js',
     /* dc-requests.js يضيف حقولاً لشاشات departments.js، فيجب أن يأتي بعده */
