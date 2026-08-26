@@ -115,15 +115,51 @@
      onProgress(done, total) تُنادى بعد كل صفحة حتى لا تبدو الشاشة معلّقة.
      ــــــــــــــــــــــــــــــــــــــــــــــــــــــــــــــــــــــــ */
   function read(blob, fileName, onProgress) {
+    /* ⚠️ مهمة التحميل، لا المستند · THE LOADING TASK, not the document
+       الإفراج عن ذاكرة ملف PDF يتم على «مهمة التحميل» وليس على المستند.
+       كان هذا السطر يستدعي doc.destroy() — وهي دالة **غير موجودة أصلاً** في
+       هذه النسخة. الاستدعاء كان داخل try/catch فلم يظهر أي خطأ، لكن الملف لم
+       يكن يُفرَج عنه أبداً: كل ملف يُقرأ يترك عامله في الذاكرة. مهندس موقع
+       يفتح عدة رسومات على هاتف رخيص كان سيبطؤ ثم ينهار، بلا سبب ظاهر.
+       اكتُشف بتجربة حقيقية على محرّك pdf.js الحيّ، لا بقراءة الكود.
+
+       A PDF is released through its LOADING TASK, not through the document.
+       This used to call doc.destroy() — a function that **does not exist** in
+       this version. It sat inside a try/catch, so nothing ever complained,
+       but the file was never freed: every PDF read left its worker in memory.
+       A site engineer opening several drawings on a cheap phone would have
+       slowed down and then crashed, for no visible reason.
+       Found by running a real trial against the live pdf.js engine, never by
+       reading the code. */
+    var task = null;
+
     return ensureLibrary().then(function (pdfjs) {
       return bytesOf(blob).then(function (buf) {
-        return pdfjs.getDocument({
+        task = pdfjs.getDocument({
           data: new Uint8Array(buf),
           useWasm: false,                      /* ← هذا السطر يُغني عن تغيير إعداد الأمان */
           wasmUrl: absolute(WASMD),
+          /* الخطوط القياسية · the standard fonts
+             كثير من ملفات PDF لا تُضمِّن خطوطها، فتطلبها من القارئ. بدون هذا
+             السطر تظهر صورة الصفحة بخطوط بديلة والتخطيط يختلّ قليلاً. النص
+             المستخرج لا يتأثر — أُثبت ذلك بالاختبار — لكن صورة الصفحة هي
+             نصف الفائدة، لأنها ما يقارن به الإنسان النص العربي.
+             ⚠️ حُذفت هذه الخطوط أول مرة لتوفير ١٦ ملفاً من الرفع اليدوي، ثم
+             كشف الاختبار تحذير pdf.js عنها في كل تشغيل. أُعيدت لأن الرفع
+             سيتكرّر على أي حال لإصلاح مكان المجلد، فلا تكلّف شيئاً إضافياً.
+             Many PDFs do not embed their fonts and ask the reader for them.
+             Without this line the page picture falls back to substitutes and
+             the layout shifts. Extracted text is unaffected — proven by test —
+             but the page picture is half the value, because it is what a human
+             checks the Arabic against. These 16 files were dropped at first to
+             save manual uploads; the harness then caught pdf.js warning about
+             them on every single run. Restored, because the vendor folder is
+             being re-uploaded anyway to fix its location, so they cost nothing. */
+          standardFontDataUrl: absolute(BASE + 'standard_fonts/'),
           isEvalSupported: false,              /* الإعداد الأمني يمنع eval على أي حال */
           disableNormalization: false
-        }).promise;
+        });
+        return task.promise;
       });
     }).then(function (doc) {
       var total = doc.numPages;
@@ -171,7 +207,8 @@
           }
         };
       }).then(function (out) {
-        try { doc.destroy(); } catch (e) {}
+        /* الإفراج الحقيقي — على المهمة لا على المستند · the real release */
+        try { if (task && task.destroy) task.destroy(); } catch (e) {}
         return out;
       });
     });
