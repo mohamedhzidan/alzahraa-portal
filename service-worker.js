@@ -1,20 +1,26 @@
 /* Al Zahraa Portal PWA shell cache. Business records stay in encrypted IndexedDB.
    ---------------------------------------------------------------------------
    v2.0.8 — 26 أغسطس ٢٠٢٦
-   أُضيف ملف واحد جديد: retention-release-field.js (يضيف تاريخ الإفراج عن
-   الاحتجاز على شاشة مستخلصات العميل). رقم النسخة ارتفع لإجبار المتصفح
-   على حذف النسخة القديمة، وإلا استمر في تقديم الملفات القديمة دون هذا
-   الملف حتى لو رُفع الجديد.
+   أُضيفت أربعة ملفات جديدة:
+     · retention-release-field.js  (تاريخ الإفراج عن الاحتجاز)
+     · one-step-approval.js        (فكّ عَلَق مستندات التوقيع الواحد)
+     · report-access.js            (إخفاء التقارير عمّن لا تقارير له)
+     · audit-security-events.js    (أحداث الأمان للسجل الدائم)
+   رقم النسخة ارتفع لإجبار المتصفح على حذف النسخة القديمة، وإلا استمر
+   في تقديم الملفات القديمة دون هذه الملفات حتى لو رُفع الجديد.
 
    ⚠️ خطأ صُحِّح في ٢٦ أغسطس: كُتبت هذه النسخة أولاً باسم v2.0.7 — وهو
    رقم كان قد استُهلك بالفعل في نشر ٢٥ أغسطس. ولأن المتصفح لا يحذف إلا
    ما اختلف اسمه، كان الرفع سيبدو ناجحاً ولا يصل الملف الجديد لأحد.
 
    v2.0.8 — 26 August 2026
-   One new file added: retention-release-field.js (adds the retention
-   released-on date to the client-IPC screen). The cache name was bumped
-   to force the browser to drop the old cache — otherwise it keeps
-   serving the old file set, missing this one, even after the upload.
+   Four new files added: retention-release-field.js (retention released-on
+   date), one-step-approval.js (unsticks the thirteen one-signature
+   screens), report-access.js (hides Reports from roles with none), and
+   audit-security-events.js (security events to the permanent log). The
+   cache name was bumped to force the browser to drop the old cache —
+   otherwise it keeps serving the old file set, missing all four, even
+   after the upload.
 
    ⚠️ CORRECTED 26 August: this was first written as v2.0.7 — a number
    already spent by the 25 August deploy. Since the browser only deletes
@@ -55,8 +61,14 @@ var SHELL = [
   './assets/js/config.js', './assets/js/offline-db.js', './assets/js/i18n.js',
   './assets/js/store.js', './assets/js/schema.js',
 
-  /* ── جديد في v2.0.7 · NEW in v2.0.7 ──────────────────────────────── */
+  /* ── جديد في v2.0.8 · NEW in v2.0.8 ──────────────────────────────── */
   './assets/js/retention-release-field.js',
+  /* يفكّ عَلَق مستندات التوقيع الواحد · unsticks one-step documents */
+  './assets/js/one-step-approval.js',
+  /* يخفي زر التقارير عمّن لا تقارير له · hides Reports where empty */
+  './assets/js/report-access.js',
+  /* أحداث الأمان للسجل الدائم · security events to the permanent log */
+  './assets/js/audit-security-events.js',
   /* ─────────────────────────────────────────────────────────────────── */
 
   /* ── NEW in v2.0.2 · الجديد في هذه النسخة ────────────────────────────
