@@ -62,8 +62,12 @@
     });
 
     if (Auth.canSee('supplierInvoices')) {
+      /* MoneyOwed إن وُجد يستبدل الحقل الميت بالمجموع الحقيقي من سندات
+         الصرف المعتمدة — بلا تحميله السلوك القديم حرفياً.
+         if MoneyOwed exists it replaces the dead field with the real
+         approved-payments sum — without it, old behaviour is exact. */
       f.dueInvoices = approved('supplierInvoices').map(function (i) {
-        return { inv: i, due: (Number(i.grandTotal) || 0) - (Number(i.paidAmount) || 0) };
+        return { inv: i, due: (Number(i.grandTotal) || 0) - (global.MoneyOwed ? MoneyOwed.paidOf(i.id) : (Number(i.paidAmount) || 0)) };
       }).filter(function (x) { return x.due > 0.5; });
       f.overdue = f.dueInvoices.filter(function (x) {
         return x.inv.dueDate && new Date(x.inv.dueDate) < new Date();
@@ -71,8 +75,10 @@
     } else { f.dueInvoices = []; f.overdue = []; }
 
     if (Auth.canSee('clientIPCs')) {
+      /* نفس المنطق أعلاه، لكن لسندات القبض المعتمدة
+         same logic as above, but for approved receipt vouchers */
       f.uncollected = approved('clientIPCs').map(function (i) {
-        return { ipc: i, due: (Number(i.netDue) || 0) - (Number(i.collectedAmount) || 0) };
+        return { ipc: i, due: (Number(i.netDue) || 0) - (global.MoneyOwed ? MoneyOwed.collectedOf(i.id) : (Number(i.collectedAmount) || 0)) };
       }).filter(function (x) { return x.due > 0.5; });
     } else f.uncollected = [];
 
@@ -84,8 +90,13 @@
     if (Auth.canSee('employees')) {
       f.headcount = Store.all('employees').filter(function (e) { return e.status === 'active'; }).length;
       var soon = new Date(); soon.setDate(soon.getDate() + 30);
+      /* HRSignals إن وُجد يقرأ أيضاً عقود employmentContracts — بلا
+         تحميله السلوك القديم حرفياً.
+         if HRSignals exists it also reads employmentContracts —
+         without it, old behaviour is exact. */
       f.contractsEnding = Store.all('employees').filter(function (e) {
-        return e.status === 'active' && e.contractEnd && new Date(e.contractEnd) <= soon;
+        var end = global.HRSignals ? HRSignals.contractEndOf(e) : e.contractEnd;
+        return e.status === 'active' && end && new Date(end) <= soon;
       });
     } else { f.headcount = 0; f.contractsEnding = []; }
 
