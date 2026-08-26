@@ -326,26 +326,114 @@
       .replace(/^(ال)/, '');                 /* «التاريخ» = «تاريخ» */
   }
 
-  /* مرادفات شائعة في ملفات الشركة الحقيقية.
-     Synonyms that turn up in the company's real spreadsheets. */
-  var ALIAS = {
-    'اسم': 'name', 'الاسم': 'name', 'اسمالموظف': 'employee', 'الموظف': 'employee',
-    'كود': 'code', 'الكود': 'code', 'رقم': 'docNo', 'رقمالمستند': 'docNo',
+  /* مرادفات شائعة في ملفات الشركة الحقيقية — تُكتب هنا كما يكتبها إنسان
+     فعلاً: بـ«ال» وبالتاء المربوطة وبالمسافات، لا كسلسلة مُصفّاة مسبقاً.
+     -------------------------------------------------------------------
+     الجدول القديم كان يكتب مفاتيحه مُطبَّعة جزئياً بخط اليد («الرقمالقومي»
+     بلا مسافة، «البطاقهالضريبيه» بالهاء بدل التاء المربوطة) بينما norm()
+     الحقيقية تُطبّع أيضاً «ال» في أول الكلمة وتفصل الكلمات المتعددة. أي
+     اختلاف بسيط بين ما كتبه المبرمج يدوياً وما تُنتجه norm() فعلياً يجعل
+     المفتاح ميتاً — لا يطابق أبداً مهما كان العمود في الملف مطابقاً منطقياً.
+     كانت النتيجة أن تاريخ انتهاء البطاقة الضريبية يهبط بصمت في حقل رقم
+     البطاقة الضريبية (taxId) لأن مفتاح «تاريخ الانتهاء» لم يكن موجوداً
+     أصلاً وحقل التاريخ لم يُطابَق فسقط، بينما عمود الرقم نفسه أحياناً كان
+     يُخطئ الحقل لعدم تطابق الشكل. الحل: تُكتب المفاتيح هنا بالشكل الطبيعي
+     فقط، وتُطبَّع تلقائياً بالأسفل بنفس norm() الحقيقية — فلا يمكن أن يتكرر
+     هذا الصنف من الخطأ لأن أي مفتاح جديد يُطبَّع بنفس الدالة التي تُطبّع
+     بها عناوين الملف.
+
+     Synonyms that turn up in the company's real spreadsheets, written here
+     exactly as a person would type them — with "ال", with ة, with spaces —
+     not pre-squashed by hand.
+
+     The old table's keys were normalized *by hand and inconsistently*
+     ("الرقمالقومي" with no space, "البطاقهالضريبيه" spelled with ه instead
+     of ة) while the real norm() also strips a leading "ال" and collapses
+     multi-word phrases. Any mismatch between what a person typed by hand
+     and what norm() actually produces leaves that key permanently
+     unreachable — it can never match, no matter how sensible the column
+     heading is. That is exactly how a tax-card expiry date used to land
+     silently in the tax-card number field: no "expiry date" key existed at
+     all, so the date column matched nothing and fell through, while the
+     number column sometimes matched the wrong field because its shape
+     never lined up. The fix: keys are written here in natural form only,
+     and normalized automatically below through the same real norm() used
+     on file headers — so this exact bug class cannot recur, because a new
+     key is now normalized by the identical function that normalizes what
+     it is being compared against. */
+  var ALIAS_RAW = {
+    'اسم': 'name', 'الاسم': 'name', 'اسم الموظف': 'employee', 'الموظف': 'employee',
+    'كود': 'code', 'الكود': 'code', 'رقم': 'docNo', 'رقم المستند': 'docNo',
     'مسلسل': 'docNo', 'تاريخ': 'date', 'المشروع': 'project', 'الموقع': 'site',
     'ملاحظات': 'notes', 'بيان': 'notes', 'الوصف': 'notes', 'وصف': 'notes',
     'المبلغ': 'amount', 'قيمة': 'amount', 'القيمة': 'amount', 'اجمالي': 'amount',
-    'الكميه': 'quantity', 'كميه': 'quantity', 'الوحده': 'unit',
+    'الكمية': 'quantity', 'كمية': 'quantity', 'الوحدة': 'unit',
     'تليفون': 'phone', 'موبايل': 'phone', 'الهاتف': 'phone',
-    'العنوان': 'address', 'الحاله': 'status', 'الوظيفه': 'jobTitle',
-    'الرقمالقومي': 'nationalIdNo', 'بطاقه': 'nationalIdNo',
-    /* كل حقول النماذج تستخدم الاسم taxId — لا يوجد taxCardNo في أي مكان
-       (تأكدنا بالبحث في الشجرة كلها). العمود كان يستورد بيانات لحقل غير
-       موجود فتُفقد صامتة.
-       Every form field uses taxId — taxCardNo exists nowhere else (grepped
-       the whole tree). The column was importing into a field that does not
-       exist, so the data silently vanished. */
-    'البطاقهالضريبيه': 'taxId', 'سجلتجاري': 'commercialReg'
+    'العنوان': 'address', 'الحالة': 'status', 'الوظيفة': 'jobTitle',
+
+    /* البطاقة الضريبية — رقمها فقط. كل حقول النماذج تستخدم الاسم taxId
+       (تأكدنا بالبحث في الشجرة كلها) ولا يوجد taxCardNo في أي مكان.
+       Tax card number only. Every form field uses taxId — grepped the
+       whole tree, taxCardNo exists nowhere. */
+    'البطاقة الضريبية': 'taxId', 'بطاقة ضريبية': 'taxId',
+    'الرقم الضريبي': 'taxId', 'رقم ضريبي': 'taxId', 'ت.ض': 'taxId',
+    'رقم البطاقة الضريبية': 'taxId', 'الملف الضريبي': 'taxId',
+    'tax card': 'taxId', 'tax card no': 'taxId',
+
+    /* تاريخ انتهاء البطاقة الضريبية — حقل منفصل تماماً عن رقمها، وهذا هو
+       بالضبط الحقل الذي كان بلا مفتاح فيسقط صامتاً في العمود المجاور.
+       Tax card *expiry date* — a wholly separate field from the number,
+       and exactly the one that had no key at all and silently fell
+       through into whatever column sat next to it. */
+    'انتهاء البطاقة الضريبية': 'taxCardExpiry',
+    'تاريخ انتهاء البطاقة الضريبية': 'taxCardExpiry',
+    'تاريخ انتهاء البطاقة': 'taxCardExpiry', 'tax card expiry': 'taxCardExpiry',
+
+    /* السجل التجاري — رقمه، منفصل عن تاريخ انتهائه أدناه.
+       Commercial register *number*, separate from its expiry below. */
+    'سجل تجاري': 'commercialReg', 'السجل التجاري': 'commercialReg',
+    'س.ت': 'commercialReg', 'رقم السجل التجاري': 'commercialReg',
+    'commercial register': 'commercialReg',
+
+    'انتهاء السجل التجاري': 'commercialRegExpiry',
+    'تاريخ انتهاء السجل التجاري': 'commercialRegExpiry',
+    'commercial register expiry': 'commercialRegExpiry',
+
+    /* الرقم القومي (بطاقة الأفراد) — «رقم البطاقة» المجرّد بلا كلمة
+       «ضريبية» يعني الرقم القومي، لا البطاقة الضريبية. قرار محمد زيدان
+       بالنص: «رقم البطاقة is national id, رقم البطاقة الضريبة is tax
+       card» — مسجّل في DECISIONS.md. لا تُضاف «ر.ق» هنا (رُفضت صراحة).
+       National ID (individuals' card). The *bare* phrase "رقم البطاقة"
+       with no "ضريبية" qualifier means the national ID, not the tax card.
+       Mohamed Zidan's exact words, recorded in DECISIONS.md: "رقم البطاقة
+       is national id, رقم البطاقة الضريبة is tax card." "ر.ق" is
+       deliberately not added here — explicitly declined. */
+    'الرقم القومي': 'nationalIdNo', 'رقم قومي': 'nationalIdNo',
+    'بطاقة': 'nationalIdNo', 'رقم البطاقة': 'nationalIdNo'
   };
+
+  /* كل مفتاح يُطبَّع بنفس norm() التي تُطبَّع بها عناوين الملف — فيستحيل
+     أن يوجد مفتاح "منسي" لم يُطبَّع، لأن التطبيع هنا وهناك دالة واحدة.
+     لو تصادف مفتاحان مختلفان بعد التطبيع على نفس النص لكن يشيران لحقلين
+     مختلفين، هذا خطأ تأليف حقيقي يجب أن يظهر لا أن يختفي بصمت.
+     Every key runs through the same norm() used on file headers, so no
+     key can silently stay unnormalized. If two different raw keys collapse
+     to the same normalized string but point at two different fields, that
+     is a real authoring mistake and must be visible, not silent. */
+  var ALIAS = {};
+  (function buildAlias() {
+    var seenBy = {};
+    Object.keys(ALIAS_RAW).forEach(function (raw) {
+      var n = norm(raw), target = ALIAS_RAW[raw];
+      if (seenBy[n] && seenBy[n].target !== target) {
+        console.warn('[import] ALIAS collision: "' + seenBy[n].raw + '" -> ' +
+          seenBy[n].target + '  vs  "' + raw + '" -> ' + target +
+          '  (both normalize to "' + n + '")');
+      }
+      seenBy[n] = { raw: raw, target: target };
+      ALIAS[n] = target;
+    });
+  })();
 
   /* ═══════════════════════════════════════════════════════════════════
      المطابقة على أربع مراحل بدل مرحلة واحدة
@@ -711,7 +799,20 @@
         if (mod.workflow) { rec.status = 'draft'; rec.trail = []; }
         if (mod.docPrefix && !rec.docNo && Store.nextDocNo) rec.docNo = Store.nextDocNo(mod.docPrefix);
         if (!rec.site && u && u.site) rec.site = u.site;
-        rec.importedAt = new Date().toISOString();
+        /* ٢٦ أغسطس ٢٠٢٦ — إصلاح: كان الاسم importedAt بلا شرطة سفلية،
+           فكان store.js يرسله إلى قاعدة البيانات ضمن بقية الحقول. ولا
+           يوجد عمود بهذا الاسم في أي جدول، فترفض قاعدة البيانات الصف
+           كاملاً — بينما تعدّه هذه الدالة ناجحاً وتقول «تم الاستيراد».
+           الشرطة السفلية تجعل clean() في store.js يحذفه قبل الإرسال،
+           ولا شيء في المنظومة كلها يقرأ هذه القيمة أصلاً.
+
+           26 August 2026 fix: this was `importedAt` with no underscore,
+           so store.js sent it to the database with everything else. No
+           table has a column by that name, so the database rejected the
+           WHOLE row — while this function counted it as imported and
+           reported success. The underscore makes store.js's clean()
+           strip it before sending, and nothing anywhere reads it. */
+        rec._importedAt = new Date().toISOString();
         Store.create(mod.table, rec);
         done++;
       } catch (e) { failed++; console.error('[import] row failed', e); }
