@@ -168,7 +168,15 @@
           op: j.kind === 'update' ? 'update' : 'insert',
           row: row, id: row.id, baseUpdatedAt: null, payload: row
         });
-        await OfflineDB.queueRemove(j.queueId);
+        /* ⚠️ لا نحذف قبل الإضافة. upgraded يحمل نفس queueId فيكتب queueAdd
+           فوق المهمة القديمة مباشرة (put بنفس المفتاح — offline-db.js:114-117،
+           keyPath queueId)، فهي عملية واحدة ذرّية: إن فشلت الإضافة تبقى
+           المسودة القديمة سليمة تماماً بدل أن تكون قد حُذفت بالفعل.
+           We do not delete before adding. upgraded carries the same
+           queueId, so queueAdd overwrites the old job directly (a put on
+           the same key — offline-db.js:114-117, keyPath queueId): one
+           atomic operation. If the add throws, the old draft survives
+           untouched instead of having already been deleted. */
         await OfflineDB.queueAdd(user, upgraded);
         fixed++;
       }
@@ -251,31 +259,107 @@
 
         for (var k = 0; k < attempted.length; k++) {
           var a = attempted[k];
-          var landed = false;
-          if (client && a.id) {
-            try {
-              var res = await client.from(a.table).select('id').eq('id', a.id).maybeSingle();
-              landed = !!(res && !res.error && res.data && res.data.id);
-            } catch (e) { landed = false; }
-          }
+          /* ⚠️ خطأ وجده الفاحص — استثناء غير متوقع هنا (مساحة التخزين
+             ممتلئة أثناء إعادة المحاولة، مثلاً) كان يهرب من flushQueue
+             كله دون التقاطه، فلا تُشغَّل صناديق toast أدناه (326-339)،
+             ولا أحد يستدعي flushQueue() بـ .catch()، فيصير رفضاً غير
+             معالَج بصمت. المسودة نفسها كانت تبقى بأمان في الطابور — لم
+             نحذفها قبل هذه اللحظة — لكن الموظف لا يرى أي تحذير إطلاقاً.
+             هذا الحاجز الخارجي يضمن أن أي فشل غير متوقع لأي صف يُحسب
+             فاشلاً ويُسجَّل، ولا يُسقِط الدورة كلها.
 
-          if (landed) {
-            await OfflineDB.queueRemove(a.job.queueId);
-            sent++;
-          } else {
-            /* لم يصل — تبقى المسودة في الطابور ولا تضيع.
-               بعد خمس محاولات نتوقف ونسجّلها تعارضاً ليقرأها إنسان،
-               بدل إعادة المحاولة إلى الأبد بصمت. */
-            var tries = (a.job.tries || 0) + 1;
-            if (tries >= 5) {
-              await OfflineDB.conflictAdd(user, a.job, isAr()
-                ? 'حاول النظام رفع هذه المسودة خمس مرات ورفضها الخادم في كل مرة.'
-                : 'The portal tried to upload this draft five times and the server refused each time.');
-              await OfflineDB.queueRemove(a.job.queueId);
-            } else {
-              await OfflineDB.queueRemove(a.job.queueId);
-              await OfflineDB.queueAdd(user, Object.assign({}, a.job, { tries: tries }));
+             THE BUG THE VERIFIER FOUND — an unexpected exception here
+             (storage full during a retry, for example) used to escape
+             flushQueue() entirely uncaught, so the toast blocks below
+             (326-339) never ran, and no call site attaches .catch() to
+             flushQueue(), turning it into a silent unhandled rejection.
+             The draft itself stayed safely in the queue — we never
+             removed it before this point — but the employee saw no
+             warning at all. This outer barrier makes sure any
+             unexpected failure for one row counts as failed and is
+             logged, without dropping the whole cycle. */
+          try {
+            var landed = false;
+            if (client && a.id) {
+              try {
+                var res = await client.from(a.table).select('id').eq('id', a.id).maybeSingle();
+                landed = !!(res && !res.error && res.data && res.data.id);
+              } catch (e) { landed = false; }
             }
+
+            if (landed) {
+              await OfflineDB.queueRemove(a.job.queueId);
+              sent++;
+            } else {
+              /* لم يصل — تبقى المسودة في الطابور ولا تضيع.
+
+                 ⚠️ أولاً: هل رفضها الخادم رفضاً نهائياً بالفعل؟ إن كان
+                 store.js قد سجّل تعارضاً لنفس الصف من مساره الخاص (وهو ما
+                 يحدث فوراً عند رفض حقيقي)، فإعادة المحاولة هنا عبث — الخادم
+                 رفض بيقين، والتعارض محفوظ بالفعل بكل ما كتبه الموظف. نزيل
+                 مهمتنا دون تسجيل تعارض ثانٍ، حتى لا تتكرّر نفس المسودة مرة
+                 عند كل محاولة زائد مرة أخرى عند المحاولة الخامسة.
+
+                 First: did the server already give a definitive refusal? If
+                 store.js's own path already filed a conflict for this same
+                 row (which happens immediately on a real refusal), retrying
+                 here is pointless — the server has refused for certain, and
+                 the conflict already preserves everything the employee typed.
+                 Remove our job WITHOUT filing a second conflict, so one
+                 refused save produces exactly one preserved copy — not one
+                 per retry plus one more at the fifth try. */
+              var already = (global.Store && Store.conflicts) ? Store.conflicts() : [];
+              var isTerminal = already.some(function (c) {
+                var j = c.job || {};
+                var jid = j.id || (j.row && j.row.id);
+                return jid && a.id && jid === a.id;
+              });
+
+              if (isTerminal) {
+                await OfflineDB.queueRemove(a.job.queueId);
+              } else {
+                /* لم يُرفض نهائياً بعد — قد تكون هفوة شبكة عابرة، أو الحالة
+                   الصامتة (أُدرج لكن مُنعت القراءة). نُبقي على منطق «خمس
+                   محاولات» كما هو، لكن الآن — بعد إصلاح (ب) أعلاه — إعادة
+                   الإدراج لا تحذف المهمة القديمة قبل التأكد من نجاح الإضافة. */
+                var tries = (a.job.tries || 0) + 1;
+                if (tries >= 5) {
+                  await OfflineDB.conflictAdd(user, a.job, isAr()
+                    ? 'حاول النظام رفع هذه المسودة خمس مرات ورفضها الخادم في كل مرة.'
+                    : 'The portal tried to upload this draft five times and the server refused each time.');
+                  await OfflineDB.queueRemove(a.job.queueId);
+                } else {
+                  /* ⚠️ إصلاح مباشر للعطل الذي وجده الفاحص — queueAdd هنا
+                     بلا شبكة أمان كان استثناؤه (تخزين ممتلئ مثلاً) يهرب من
+                     الحلقة كلها. الآن نلتقطه محلياً: المهمة القديمة لم
+                     تُحذف بعد (بفضل إصلاح 1b أعلاه)، فلا شيء يضيع، ونكتفي
+                     بتسجيل تحذير — failed++ يعمل كالمعتاد بعد هذا الفرع.
+
+                     THE EXACT FIX FOR THE FAULT THE VERIFIER FOUND —
+                     queueAdd here had no safety net, so its exception
+                     (storage full, for example) used to escape the whole
+                     loop. Now it is caught locally: the old job was never
+                     removed first (thanks to fix 1b above), so nothing is
+                     lost, and we just log a warning — failed++ still runs
+                     as normal right after this branch. */
+                  try {
+                    await OfflineDB.queueAdd(user, Object.assign({}, a.job, { tries: tries }));
+                  } catch (e) {
+                    console.warn('[save-modes] could not re-queue after a failed attempt; ' +
+                      'the previous copy of this job is still safely in the queue', a.job.queueId, e);
+                  }
+                }
+              }
+              failed++;
+            }
+          } catch (e) {
+            /* حاجز أخير لهذا الصف تحديداً — أي خطأ لم نتوقعه في الخطوات
+               أعلاه لا يجوز أن يُسقِط بقية الصفوف ولا صناديق toast تحتها.
+               A last barrier for this one row specifically — any error we
+               did not anticipate in the steps above must not take down the
+               remaining rows or the toast blocks below it. */
+            console.warn('[save-modes] confirmation step failed unexpectedly for a queued job',
+              a && a.job && a.job.queueId, e);
             failed++;
           }
         }
@@ -450,10 +534,33 @@
               label: isAr() ? 'مسودة حتى الاتصال' : 'Draft until connected',
               cls: 'btn-gold', keepOpen: true,
               onClick: function () {
-                /* If there IS internet, queueing makes no sense — it would
-                   leave the document sitting on the device pretending to
-                   wait. Save it properly instead and say so. */
-                if (navigator.onLine !== false) {
+                /* ⚠️ الخطأ الذي كان هنا — الزر الذهبي يتجاهل نفسه إذا كان
+                   هناك اتصال، فيحفظ مسودة عادية بدل أن يمر بالطابور أبداً.
+                   فأي موظف على شبكة موقع ضعيفة، متقطّعة، لكنها «متصلة»
+                   تقنياً وقت الضغط، كان يُحرم من الحماية المحلية بالكامل —
+                   وهي أهم وقت يحتاجها.
+
+                   THE BUG THAT WAS HERE. The gold button skipped itself
+                   whenever there was any connection, saving a plain draft
+                   and never touching the queue at all. Any site worker on
+                   a weak, intermittent network that was technically
+                   "online" the instant the button was pressed lost the
+                   local protection entirely — exactly when it mattered most.
+
+                   الإصلاح: الزر الذهبي يُقيّد دائماً محلياً أولاً، ثم يرفع
+                   فوراً إن كان الاتصال متاحاً — بدل أن يقرر تجاهل الطابور.
+                   THE FIX: the gold button always queues locally first,
+                   then uploads immediately if a connection is available —
+                   instead of deciding to skip the queue altogether. */
+                if (!global.OfflineDB || !uid()) {
+                  /* الطابور المحلي غير متاح على هذا المتصفح (OfflineDB معطّل
+                     أو لا يوجد مستخدم). لا معنى للانتظار — نحفظ كمسودة على
+                     الخادم فوراً حتى يبقى الزر يعمل بدل أن يفشل بصمت.
+                     The local queue is unavailable on this browser
+                     (OfflineDB is broken, or there is no signed-in user).
+                     Waiting makes no sense — save as a draft on the server
+                     immediately instead, so the button still works rather
+                     than failing silently. */
                   MODE = 'draft';
                   var m0 = currentModule(opts);
                   var r0;
@@ -461,12 +568,13 @@
                   finally { MODE = 'normal'; }
                   if (r0 !== false && global.UI && UI.toast) {
                     UI.toast(isAr()
-                      ? 'الإنترنت متاح، فحُفظ على الخادم مباشرة كمسودة — لا داعي للانتظار.'
-                      : 'You are online, so it was saved to the server as a draft — no waiting needed.',
-                      'success', 5000);
+                      ? 'تعذّر الحفظ المحلي على هذا الجهاز، فحُفظ على الخادم مباشرة كمسودة.'
+                      : 'Local saving is unavailable on this device, so it was saved to the server directly as a draft.',
+                      'warn', 6000);
                   }
                   return r0;
                 }
+
                 MODE = 'queue';
                 queuedThisSave = null;
                 var mod = currentModule(opts);
@@ -484,17 +592,59 @@
                 queueRecord(captured.table, captured.id, captured.payload,
                             mod ? L(mod.label) : captured.table)
                   .then(function (r) {
-                    if (!global.UI || !UI.toast) return;
                     if (r.ok) {
-                      UI.toast(isAr()
-                        ? 'حُفظ على هذا الجهاز مشفّراً. سيُرفع تلقائياً عند عودة الإنترنت.'
-                        : 'Saved on this device, encrypted. It will upload itself when the connection returns.',
-                        'success', 6000);
                       updateBadge();
+                      /* الاتصال متاح فعلاً وقت الحفظ — لا داعي لجعل الموظف
+                         ينتظر حتى يمر الفحص الدوري كل دقيقتين. نرفع الآن
+                         مباشرة ونؤكّد مع الخادم.
+                         A connection is actually available right now — no
+                         reason to make the employee wait for the periodic
+                         two-minute check. Upload immediately and confirm
+                         with the server. */
+                      if (navigator.onLine !== false) {
+                        if (global.UI && UI.toast) {
+                          UI.toast(isAr()
+                            ? 'حُفظ على جهازك مشفّراً — جارٍ الرفع والتأكد من الخادم الآن…'
+                            : 'Saved on your device, encrypted — uploading and confirming with the server now…',
+                            'success', 6000);
+                        }
+                        flushQueue(false);
+                      } else if (global.UI && UI.toast) {
+                        UI.toast(isAr()
+                          ? 'حُفظ على هذا الجهاز مشفّراً. سيُرفع تلقائياً عند عودة الإنترنت.'
+                          : 'Saved on this device, encrypted. It will upload itself when the connection returns.',
+                          'success', 6000);
+                      }
                     } else {
-                      UI.toast(isAr()
-                        ? 'تعذّر الحفظ على الجهاز. احفظ عادي بدلاً من ذلك.'
-                        : 'Could not save on the device. Use normal Save instead.', 'error', 7000);
+                      /* فشل الطابور نفسه — والنموذج قد أُغلق بالفعل لأن
+                         Store.save/create المُقنَّع أعاد قيمة صحيحة. البيانات
+                         موجودة هنا في captured.payload ولن تختفي: نرسلها
+                         للخادم مباشرة بدل تركها تتبخر بصمت.
+                         The queue itself failed — and the form has already
+                         closed because the wrapped Store.save/create
+                         returned a truthy value. The data is still here in
+                         captured.payload and must not evaporate: send it to
+                         the server directly instead of letting it vanish
+                         silently. */
+                      var fallback = Object.assign({}, captured.payload);
+                      delete fallback[QUEUE_FLAG];
+                      try {
+                        if (captured.id) Store.save(captured.table, captured.id, fallback);
+                        else Store.create(captured.table, fallback);
+                        if (global.UI && UI.toast) {
+                          UI.toast(isAr()
+                            ? 'تعذّر الحفظ على الجهاز، فأُرسلت البيانات إلى الخادم مباشرة بدلاً من ذلك.'
+                            : 'Could not save on the device, so the data was sent straight to the server instead.',
+                            'warn', 7000);
+                        }
+                      } catch (e) {
+                        if (global.UI && UI.toast) {
+                          UI.toast(isAr()
+                            ? 'تعذّر الحفظ على الجهاز وعلى الخادم معاً. انسخ بياناتك الآن قبل إغلاق الصفحة.'
+                            : 'Could not save on the device or the server. Copy your data now before closing the page.',
+                            'error', 9000);
+                        }
+                      }
                     }
                   });
                 return result;
@@ -544,9 +694,18 @@
         el.onclick = function () { flushQueue(false); };
         document.body.appendChild(el);
       }
-      el.textContent = (isAr()
-        ? n + ' مستند في انتظار الاتصال — اضغط للرفع الآن'
-        : n + ' document(s) waiting for a connection — tap to upload now');
+      /* «في انتظار الاتصال» غير صحيحة إن كان الاتصال متاحاً بالفعل — هذه
+         الحالة الآن تعني رفعاً وتأكيداً جاريَيْن، لا انتظاراً لشيء غائب.
+         "Waiting for a connection" is wrong wording when a connection is
+         already available — this state now means an upload and a
+         confirmation are in progress, not a wait for something absent. */
+      el.textContent = navigator.onLine !== false
+        ? (isAr()
+            ? n + ' مستند قيد الرفع والتأكد — اضغط للمحاولة الآن'
+            : n + ' document(s) uploading and confirming — tap to retry now')
+        : (isAr()
+            ? n + ' مستند في انتظار الاتصال — اضغط للرفع الآن'
+            : n + ' document(s) waiting for a connection — tap to upload now');
     });
   }
 
