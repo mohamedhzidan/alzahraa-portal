@@ -215,6 +215,58 @@
   function money(v) { return '<span class="money">' + I18N.money(v) + '</span>'; }
   function num(v, d) { return '<span class="num">' + I18N.num(v, d || 0) + '</span>'; }
 
+  /* ⚠️ الإجمالي والخصومات هنا كانا يعدّان ثلاثة بنود فقط (الأساسي، البدلات،
+     الإضافي) وبندين للخصم (خصومات عامة، تأمينات) — وهي بالضبط الصيغة
+     القديمة التي عفا عليها الزمن يوم أضاف hr-department.js ثمانية بنود
+     أخرى (انتقال، سكن، بدل موقع، حوافز، تأمينات الشركة، ضريبة كسب العمل،
+     خصم سلف، جزاءات) وصحّح payroll-net.js صيغة lineTotal لتشملها كلها.
+     هذا التقرير وحده ظل يقرأ الصيغة القديمة، فيُظهر إجمالياً وخصماً أقل
+     من الحقيقة لأي مسير رواتب يستعمل أياً من البنود الثمانية — أدق مثال:
+     خصم السلف لا يظهر في عمود «الخصومات» هنا رغم خصمه فعلاً من الصافي.
+
+     نشتق الآن الإضافة والخصم من نفس صيغة payroll-net.js الحيّة
+     (lineTotal.formula، شكلها "a+b+c-d-e-f") بدل تكرارها هنا كنص ثابت —
+     فلو عُدِّلت الصيغة هناك يتبعها هذا التقرير تلقائياً، ولن يفترق
+     الاثنان مرة أخرى كما افترقا هذه المرة. غياب payroll-net.js (حُذف
+     الملف، أو لم يُحمَّل) يُعيدنا فوراً للصيغة القديمة بالحرف — لا يتحوّل
+     الإجمالي أبداً إلى صفر.
+
+     THE BUG. Gross and deductions here only ever counted three items
+     (basic, allowances, overtime) and two deductions (general
+     deductions, insurance) — exactly the stale formula from before
+     hr-department.js added eight more items (transport, housing, site
+     allowance, incentive, employer insurance, income tax, advance
+     deduction, penalty) and payroll-net.js corrected the real lineTotal
+     formula to include them. This report alone kept reading the old
+     formula, so it understates gross and deductions for any payroll run
+     using any of the eight items — the sharpest example: an advance
+     deduction never shows in the "Deductions" column here even though it
+     really was deducted from net pay.
+
+     We now derive ADD/SUBTRACT from payroll-net.js's own live formula
+     (lineTotal.formula, shaped "a+b+c-d-e-f") instead of repeating it
+     here as a fixed string — if the formula there ever changes, this
+     report follows automatically, and the two can never drift apart
+     again the way they just did. payroll-net.js being absent (file
+     deleted, or not loaded) falls straight back to the exact old
+     formula — the total never silently becomes zero. */
+  function payrollLineParts() {
+    var FALLBACK = { add: ['basic', 'allowances', 'overtime'], sub: ['deductions', 'insurance'] };
+    try {
+      var pay = Schema.get('payroll');
+      var lf = pay && pay.lines && pay.lines.fields;
+      var net = lf && lf.filter(function (f) { return f.name === 'lineTotal'; })[0];
+      var formula = net && typeof net.formula === 'string' ? net.formula : '';
+      if (!formula) return FALLBACK;
+      var cut = formula.indexOf('-');
+      var addPart = cut === -1 ? formula : formula.slice(0, cut);
+      var subPart = cut === -1 ? '' : formula.slice(cut + 1);
+      var add = addPart.split('+').filter(Boolean);
+      var sub = subPart ? subPart.split('-').filter(Boolean) : [];
+      return add.length ? { add: add, sub: sub } : FALLBACK;
+    } catch (e) { return FALLBACK; }
+  }
+
   /* ======================================================================
      REPORT BUILDERS
      ==================================================================== */
@@ -232,10 +284,16 @@
         tB += b; tA += a; tC += c;
         var avail = b - a - c;
         var pct = b ? (a / b * 100) : 0;
+        /* شارة تجاوز موازنة حقيقية بدل __cls الميتة التي كانت تكتب '' في
+           الحالتين دائماً — لا فرق يظهر على الشاشة إطلاقاً في أي حال.
+           A real over-budget badge instead of the dead __cls that always
+           wrote '' either way — no visible difference ever appeared. */
+        var overBudget = a > b && b > 0;
         rows.push({
-          __cls: a > b && b > 0 ? '' : '',
           cells: [
-            '<strong>' + UI.esc(p.name) + '</strong>',
+            '<strong>' + UI.esc(p.name) + '</strong>' +
+              (overBudget ? ' <span class="badge b-rejected">' +
+                UI.esc(L({ ar: 'تجاوز الموازنة', en: 'Over budget' })) + '</span>' : ''),
             money(p.contractValue), money(b), money(a), money(c),
             '<span class="' + (avail < 0 ? 'neg' : 'pos') + '">' + I18N.money(avail) + '</span>',
             UI.progress(pct) + '<small class="num muted">' + I18N.pct(pct, 1) + '</small>'
@@ -280,6 +338,11 @@
         tB += v.budget; tA += v.actual;
         var typeLabel = ci ? Schema.optionLabel({ options: Schema.COST_TYPES }, ci.type) : '—';
         rows.push({
+          /* يُستهلَك أدناه فقط للترتيب — draw() لا يقرأ خصائص غير cells/__cls
+             فلا يظهر في الجدول المطبوع أو المُصدَّر.
+             Consumed below for sorting only — draw() reads only cells/__cls,
+             so it never appears in the printed or exported table. */
+          __sort: v.actual,
           cells: [
             '<strong>' + UI.esc(ci ? ci.name : '—') + '</strong>',
             UI.esc(typeLabel),
@@ -289,7 +352,11 @@
           ]
         });
       });
-      rows.sort(function (a, b) { return 0; });
+      /* كانت دائماً return 0 — بلا أي ترتيب فعلي. الأعلى تكلفة فعلية أولاً،
+         الأكثر فائدة لمن يراجع أين ذهب المال.
+         This always returned 0 — no real ordering at all. Highest actual
+         cost first — most useful to whoever is reviewing where the money went. */
+      rows.sort(function (a, b) { return (b.__sort || 0) - (a.__sort || 0); });
 
       return {
         title: t('rep.projCost'),
@@ -509,14 +576,15 @@
 
     /* Payroll summary */
     payroll: function () {
+      var parts = payrollLineParts();
       var rows = [], tot = 0;
       an().approved('payroll').forEach(function (p) {
         if (!inRange(p.date) || !projOk(p.project)) return;
         var count = (p.lines || []).length;
         var gross = 0, ded = 0;
         (p.lines || []).forEach(function (l) {
-          gross += (Number(l.basic) || 0) + (Number(l.allowances) || 0) + (Number(l.overtime) || 0);
-          ded += (Number(l.deductions) || 0) + (Number(l.insurance) || 0);
+          parts.add.forEach(function (k) { gross += Number(l[k]) || 0; });
+          parts.sub.forEach(function (k) { ded += Number(l[k]) || 0; });
         });
         tot += Number(p.netTotal) || 0;
         rows.push({ cells: [
