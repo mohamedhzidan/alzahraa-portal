@@ -1,5 +1,34 @@
 /* Al Zahraa Portal PWA shell cache. Business records stay in encrypted IndexedDB.
    ---------------------------------------------------------------------------
+   v2.0.15 — 27 أغسطس ٢٠٢٦
+   لا ملف جديد — عُدِّل ملفان موجودان في مكانهما: save-modes.js وsave-guard.js.
+   إصلاح أربعة أعطاب في «مسودة حتى الاتصال» ونافذة عمليات الحفظ المرفوضة:
+   الزر الذهبي كان يتجاهل الطابور المحلي إن وُجد اتصال فيحرم الموظف من
+   الحماية بالضبط حين يحتاجها؛ إعادة محاولة الرفع كانت تحذف المسودة القديمة
+   قبل التأكد من نجاح الإضافة الجديدة؛ نافذة المراجعة كانت تعرض نص الخطأ
+   الخام فقط دون القيم المكتوبة وكان زر «امسح» هو الافتراضي الخطير؛ وشارة
+   الأسفل كانت تكتب «تعارضات» لرفض عادي لم يشترك فيه أحد آخر.
+
+   بلا رفع هذا الملف، سيستمر متصفح كل موظف في تقديم النسختين القديمتين من
+   save-modes.js وsave-guard.js إلى الأبد — رغم رفع الملفين الجديدين —
+   لأن رقم النسخة هو ما يجبر المتصفح على حذف الذاكرة القديمة والتحديث.
+
+   v2.0.15 — 27 August 2026
+   No new file — two existing files changed in place: save-modes.js and
+   save-guard.js. Fixed four faults in "Draft until connected" and the
+   refused-saves review window: the gold button used to skip the local
+   queue whenever a connection existed, denying the employee protection at
+   exactly the moment it was needed; a retry used to delete the old draft
+   before confirming the new one had actually been added; the review
+   window showed only the raw error text, not the typed values, and
+   "Clear" was the dangerous default button; and the footer badge said
+   "Conflicts" for an ordinary refusal nobody else was involved in.
+
+   Without uploading this file, every employee's browser keeps serving the
+   two OLD copies of save-modes.js and save-guard.js forever — even after
+   the two changed files are uploaded — because the version number is
+   what forces the browser to drop the old cache and refresh.
+   ---------------------------------------------------------------------------
    v2.0.14 — 26 أغسطس ٢٠٢٦
    ملف جديد واحد: import-documents.js — يجعل زر «⬆ استيراد» الموجود يقرأ
    PDF ووورد وأوتوكاد أيضاً، لا الإكسل فقط، ويميّز رسمة PDF عن مستند PDF
@@ -169,7 +198,7 @@
 
       بدون إضافتها لن يعمل الذكاء الاصطناعي ولا القسمان الجديدان بدون إنترنت.
    --------------------------------------------------------------------------- */
-var CACHE = 'alzahraa-shell-v2.0.14';
+var CACHE = 'alzahraa-shell-v2.0.15';
 
 var SHELL = [
   './', './index.html', './manifest.webmanifest', './robots.txt',
