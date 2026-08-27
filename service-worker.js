@@ -1,5 +1,74 @@
 /* Al Zahraa Portal PWA shell cache. Business records stay in encrypted IndexedDB.
    ---------------------------------------------------------------------------
+   v2.0.17 — 27 أغسطس ٢٠٢٦ — دفعة الأعطال الثمانية المُثبَتة
+   تسعة ملفات جديدة، بلا تعديل في أي ملف قديم عدا pages/reports.js (تعديل
+   مكانه، نسخته السابقة محفوظة في _old-copies-do-not-upload/reports.js.v2016):
+
+     ١) تسريب «مشروع سوهاج» في قوائم «المشروع» المنسدلة على شاشات الروبيكي —
+        project-site-field.js يضيف حقل «الموقع» لشاشة المشروعات نفسها،
+        وref-dropdown-scope.js يقيّد كل قائمة اختيار ref في كل شاشة بنفس
+        نطاق الاطّلاع المعمول به في قوائم السجلات (يحتاج SQL 38).
+     ٢) حاجز المواقع لم يُركَّب قط على الإنتاج الحيّ (Auth.__sitesInstalled
+        كان undefined) — site-fence-retry.js يُثبِّته من جديد بحزام محاولات.
+     ٣) حفظ عادي بلا «كود المستند» في سجل المستندات كان يُرفض رغم أن
+        الإدارة قالت لا نظام ترقيم رسمي (SQL 39 جزء أ).
+     ٤) «صادر للتنفيذ» كان يُرفض دائماً — doc-status-field.js يُعيد تسمية
+        الحقل المتصادم إلى العمود الحقيقي غير المُستخدَم (SQL 39 جزء ب).
+     ٥) ١٧٤+ عمود إجباري في القاعدة كانت أزرار «مسودة» تسمح بتخطّيها —
+        db-hard-columns.js (مُولَّد من SQL الإنتاج) وdraft-guard.js يمنعان
+        الوعد الكاذب قبل أن يصل للخادم، وrefusal-explain.js يشرح أي رفض
+        متبقٍّ بصدق بدل «سيُحاول النظام مرة أخرى» الكاذبة.
+     ٦) تقرير الرواتب كان يحسب صافياً وخصماً من خمسة بنود قديمة فقط، متجاهلاً
+        الثمانية التي صحَّحها payroll-net.js — pages/reports.js يشتقّها الآن
+        من نفس الصيغة الحيّة، مع شارة تجاوز موازنة حقيقية وترتيب حقيقي
+        كتحسينين إضافيَّين على نفس الشاشة.
+     ٧) لا تحذير إطلاقاً على تاريخ بعيد (2011 مكتوب في 2026) — date-sanity.js
+        تحذير فقط، لا يلمس الحفظ.
+     ٨) صفّ بيانات أول بلا عناوين كان يُحذف صامتاً من كل استيراد —
+        import-headerless.js يسأل بدل أن يخمّن.
+
+   أمر تشغيل قاعدة البيانات إلزامي قبل الرفع: SQL 38 ثم 39 في Supabase أولاً
+   — بعدها فقط يُرفع كود المتصفح، وإلا رُفض كل حفظ لمشروع لأن عمود site لن
+   يكون موجوداً بعد.
+
+   v2.0.17 — 27 August 2026 — the eight-proven-bugs batch
+   Nine new files, no old file edited except pages/reports.js (edited in
+   place; its previous copy is preserved at
+   _old-copies-do-not-upload/reports.js.v2016):
+
+     1) The "Sohag project" leak in every "Project" dropdown on Elrobaki's
+        screens — project-site-field.js adds a "Site" field to the
+        Projects screen itself, and ref-dropdown-scope.js scopes every ref
+        dropdown on every screen to the same visibility rule the record
+        lists already use (needs SQL 38).
+     2) The site fence was never installed on live production
+        (Auth.__sitesInstalled was undefined) — site-fence-retry.js
+        installs it with a retry ladder.
+     3) A plain save with no "document code" on the master document
+        register was refused even though management said there is no
+        official numbering system (SQL 39 part A).
+     4) "Issued for construction" was always refused — doc-status-field.js
+        renames the colliding screen field to the real, unused column
+        (SQL 39 part B).
+     5) 174+ database-mandatory columns could be skipped by the "Draft"
+        buttons — db-hard-columns.js (generated from the real production
+        SQL) and draft-guard.js stop the false promise before it ever
+        reaches the server, and refusal-explain.js explains any remaining
+        refusal honestly instead of the false "the portal will try again."
+     6) The payroll report computed gross pay and deductions from five
+        stale items only, ignoring the eight payroll-net.js already
+        corrected — pages/reports.js now derives them from that same live
+        formula, plus a real over-budget badge and a real sort as two
+        small extra fixes on the same screen.
+     7) No warning at all on a far-off date (2011 typed in 2026) —
+        date-sanity.js warns only, never touches saving.
+     8) A headerless data file's first row was silently dropped from every
+        import — import-headerless.js asks instead of guessing.
+
+   Database order is mandatory before uploading: run SQL 38 then 39 in
+   Supabase FIRST — only then upload the browser code, or every project
+   save is refused because the site column will not exist yet.
+   ---------------------------------------------------------------------------
    v2.0.16 — 27 أغسطس ٢٠٢٦ (حُدِّثت هذه الدفعة نفسها لاحقاً — انظر البند ٥)
    عند كتابتها أولاً كانت «لا ملف جديد» فعلاً. لم تُنشر هذه النسخة بعد على
    الموقع الحيّ (تحقّقنا بقراءة service-worker.js الحيّ فعلياً: لا يزال على
@@ -284,7 +353,7 @@
 
       بدون إضافتها لن يعمل الذكاء الاصطناعي ولا القسمان الجديدان بدون إنترنت.
    --------------------------------------------------------------------------- */
-var CACHE = 'alzahraa-shell-v2.0.16';
+var CACHE = 'alzahraa-shell-v2.0.17';
 
 var SHELL = [
   './', './index.html', './manifest.webmanifest', './robots.txt',
@@ -308,6 +377,20 @@ var SHELL = [
      IPCs, then the "Cash forecast" tab inside the Reports page. */
   './assets/js/expected-collection-field.js',
   './assets/js/cash-forecast.js',
+  /* ─────────────────────────────────────────────────────────────────── */
+
+  /* ── جديد في v2.0.17 · NEW in v2.0.17 ──────────────────────────────── */
+  /* دفعة الأعطال الثمانية المُثبَتة — انظر رأس الملف للتفصيل الكامل
+     the eight-proven-bugs batch — see the file header for the full detail */
+  './assets/js/project-site-field.js',
+  './assets/js/ref-dropdown-scope.js',
+  './assets/js/site-fence-retry.js',
+  './assets/js/doc-status-field.js',
+  './assets/js/db-hard-columns.js',
+  './assets/js/draft-guard.js',
+  './assets/js/refusal-explain.js',
+  './assets/js/date-sanity.js',
+  './assets/js/import-headerless.js',
   /* ─────────────────────────────────────────────────────────────────── */
 
   /* ── جديد في v2.0.14 · NEW in v2.0.14 ──────────────────────────────── */
