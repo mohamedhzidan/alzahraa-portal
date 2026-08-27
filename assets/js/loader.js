@@ -31,7 +31,25 @@
        خيارات الاعتماد) — بعد dc-requests.js مباشرة */
     'assets/js/dc-tuning.js',
     'assets/js/sites.js',
+    /* «الموقع» على شاشة المشروعات — تسريب اسم مشروع سوهاج لقوائم الروبيكي
+       المنسدلة (السطر لم يكن يملك حقل site إطلاقاً). يحتاج SITE_FIELD/
+       scopeBySite من sites.js، فيأتي بعده مباشرة.
+       A "site" field on the Projects screen — the leak of Sohag project's
+       name into Elrobaki's dropdowns (the row never had a site field at
+       all). Needs sites.js's SITE_FIELD/scopeBySite, so it comes right
+       after it. */
+    'assets/js/project-site-field.js',
     'assets/js/auth.js',
+    /* يُثبِّت حاجز المواقع الذي فشل sites.js نفسه في تثبيته وقته —
+       Auth.__sitesInstalled أُثبت undefined على الإنتاج الحيّ. يعيد بناء
+       نفس اللفّة من Sites.* المُصدَّرة، محروسة بنفس العلم، فلا لفّ مزدوج
+       ممكناً. بعد auth.js حتماً — هو ما تنتظره لتوجد.
+       Installs the site fence that sites.js's own attempt missed —
+       Auth.__sitesInstalled was proven undefined on live production.
+       Rebuilds the identical wrap from Sites.*'s exports, guarded by the
+       same flag, so double-wrapping is impossible. Necessarily after
+       auth.js — the very thing it is waiting to exist. */
+    'assets/js/site-fence-retry.js',
     /* أجر الاشتراك التأميني وحساب التأمينات — بعد auth.js حتماً، لأن دفع
        الحقل في Auth.SENSITIVE.employees يحتاج Auth موجوداً أولاً.
        Insurance wage and its arithmetic — necessarily after auth.js,
@@ -81,6 +99,21 @@
        vanish from the screen with no error at all. */
     'assets/js/hr-alerts.js',
     'assets/js/dc-alerts.js',
+    /* «صادر للتنفيذ» كان يُرفض دائماً — حقل شاشة اسمه status (draft/issued/
+       review/superseded/void) كان يكتب في عمود دورة الاعتماد نفسه، المقيَّد
+       بقائمة CHECK مختلفة تماماً. يُعاد تسميته هنا إلى documentStatus —
+       العمود الحقيقي غير المُستخدَم قط. بعد dc-alerts.js عمداً: أي محاولة
+       لاحقة للفّ Alerts هنا تقع بعد أن تجمَّدت دواله الخمسة (انظر تعليق
+       الملف نفسه لماذا لم نبنِ ذلك الجزء الليلة).
+       "Issued for construction" was always refused — a screen field named
+       status (draft/issued/review/superseded/void) wrote into the very
+       workflow status column, constrained by a completely different CHECK
+       list. Renamed here to documentStatus — the real column that was
+       never used. Deliberately after dc-alerts.js: any later attempt to
+       wrap Alerts here would run after its five functions are already
+       frozen (see the file's own comment for why that part was not built
+       tonight). */
+    'assets/js/doc-status-field.js',
     'assets/js/roleview.js',
     /* ── المساعد المهني · the professional assistant ──
        الترتيب مهم: الخبرة، ثم المفتّش، ثم فحوصات الأقسام، ثم المساعد.
@@ -100,7 +133,48 @@
     'assets/js/pages/approvals.js',
     'assets/js/pages/reports.js',
     'assets/js/pages/settings.js',
+    /* الحقيقة النيّة عن أعمدة القاعدة الإجبارية — مُولَّدة من SQL الإنتاج
+       الحقيقي (TESTS/generate-db-hard-columns.js)، لا مكتوبة يدوياً أبداً.
+       draft-guard.js وحده يقرأها، فيسبقه مباشرة.
+       The raw fact about mandatory database columns — generated from the
+       real production SQL (TESTS/generate-db-hard-columns.js), never
+       hand-written. Only draft-guard.js reads it, so it comes right
+       before it. */
+    'assets/js/db-hard-columns.js',
+    /* ⚠️ ترتيب إلزامي — يجب أن يسبق save-modes.js حتماً: كلاهما يلفّ
+       UI.modal، وبتحميل هذا الملف أولاً يصبح لفّه الداخلي — فحين يلفّ
+       save-modes.js (الأحدث تحميلاً) ويُدرِج زرّي «مسودة» في opts.buttons
+       (save-modes.js:655) قبل مناداة الأصلية، يصل الاستدعاء إلى هذا الملف
+       وopts.buttons يحمل الزرّين بالفعل، فيستطيع لفّ onClick كل منهما.
+       عكس الترتيب يعني أن هذا الملف يرى opts.buttons قبل أن تُضاف
+       الأزرار إطلاقاً — لا شيء يُلفّ، والعطل يعود كاملاً.
+       ⚠️ MANDATORY ORDER — must precede save-modes.js: both wrap
+       UI.modal, and loading this file first makes its wrap the inner
+       one — when save-modes.js (loaded later) wraps and splices the two
+       "Draft" buttons into opts.buttons (save-modes.js:655) before
+       calling the original, the call reaches this file with those
+       buttons already present, so it can wrap each one's onClick.
+       Reversing the order means this file would see opts.buttons before
+       the buttons are ever added — nothing gets wrapped, and the bug
+       returns in full. */
+    'assets/js/draft-guard.js',
     'assets/js/save-modes.js',
+    /* كل قائمة اختيار ref تحترم الآن نطاق الاطّلاع (مشروعات/مواقع/إلخ) —
+       بعد save-modes.js: كلاهما يلفّ UI.modal، والترتيب بينهما غير مهم
+       (كل واحد يقرأ opts.buttons أو الـDOM، لا يتصادمان أبداً).
+       Every ref dropdown now respects visibility scope (projects/sites/
+       etc.) — after save-modes.js: both wrap UI.modal, and the order
+       between the two does not matter (each reads either opts.buttons or
+       the DOM, they never collide). */
+    'assets/js/ref-dropdown-scope.js',
+    /* رفض القاعدة يُشرح بصدق بدل وعد كاذب بإعادة المحاولة — يستمع لحدث
+       store.js ويلفّ UI.toast؛ لا يحتاج ترتيباً محدداً مع ما سبقه هنا،
+       وُضع بجوار الملفات الأخرى التي تلمس الحفظ لسهولة القراءة.
+       A database refusal is explained honestly instead of a false
+       "will retry" promise — listens to store.js's own event and wraps
+       UI.toast; needs no specific order relative to what precedes it
+       here, placed near the other save-related files for readability. */
+    'assets/js/refusal-explain.js',
     'assets/js/attachments.js',
     /* كشف حساب الموظف — يلفّ EntityPage.openDetail مثل attachments.js
        تماماً، فيأتي بعده ليظهر الكشف تحت المرفقات لا فوقها.
@@ -172,6 +246,14 @@
        markers — necessarily after both files, because it wraps
        DataImport.preview and reads the manual mapping dialog either can open. */
     'assets/js/import-mapping-plus.js',
+    /* الصف الأول لا يضيع بعد الآن إن كان بيانات رقمية لا عناوين أعمدة —
+       يلفّ DataImport.preview فوق كل ما سبق، بعد import-mapping-plus.js
+       حتماً ليصبح لفّنا الأخارجي ويستدعي كل الإضافات السابقة كما هي.
+       The first row no longer disappears when it is numeric data, not
+       column headers — wraps DataImport.preview on top of everything
+       above, necessarily after import-mapping-plus.js so our wrap is the
+       outermost and still calls every earlier addition unchanged. */
+    'assets/js/import-headerless.js',
     'assets/js/app.js',
     /* آخر ملف: يلفّ Store بعد أن يكتمل كل شيء */
     'assets/js/save-guard.js',
@@ -219,6 +301,15 @@
        strip, and Quick Actions reordered so site screens lead — necessarily
        after dashboard-render.js because it replaces PANELS.quickActions. */
     'assets/js/mobile-field.js',
+    /* تحذير فقط — «السنة بعيدة عن اليوم؟» على أي حقل تاريخ في #entForm.
+       لا يلمس الحفظ ولا Rules إطلاقاً (انظر تعليق الملف عن سبب ذلك
+       تحديداً). قبل version-badge.js عمداً — لا علاقة وظيفية، فقط لضمان
+       مكان ثابت قرب نهاية القائمة.
+       Warn-only — "That year is far from today?" on any date field in
+       #entForm. Never touches saving or Rules at all (see the file's own
+       comment for exactly why). Deliberately before version-badge.js —
+       no functional link, just a fixed place near the end of the list. */
+    'assets/js/date-sanity.js',
     /* رقم النسخة في تذييل الصفحة من الذاكرة الفعلية — آخر ملف عمداً،
        فحص رفعة محمد زيدان */
     'assets/js/version-badge.js'
