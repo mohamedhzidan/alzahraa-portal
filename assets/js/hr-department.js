@@ -291,6 +291,49 @@
                   en: 'So labour cost appears in project profitability' } }),
       F('workerCount', 'عدد العمال', 'Number of workers', 'calc',
         { formula: function (r) { return (r.lines || []).length; }, section: SEC.main }),
+      /* عطلان هنا، لا واحد · TWO bugs found here, not one
+         ------------------------------------------------------------------
+         ١. عطل العرض الأصلي: 'totalAmount' يظهر في m.columns لكن لا حقل
+            علوي باسمه، فـ entity.js (للقراءة فقط) لا يجد له عنواناً
+            عربياً ولا تنسيقاً نقدياً — يظهر المفتاح الإنجليزي الخام.
+         ٢. عطل كاد يُشحَن أثناء إصلاح (١): تسمية العمود مجدداً إلى أحد
+            أسماء VIRTUAL_COLS الجاهزة (مثل grandTotal) كانت ستُصلح
+            العرض في المتصفح فقط — لكن عمود قاعدة البيانات الحقيقي
+            لعمود dailyLabour اسمه "totalAmount" رقمياً (٠٦-HR-DEPARTMENT
+            .sql:143) ولا يوجد به عمود grandTotal إطلاقاً. store.js
+            (للقراءة فقط) يرسل كل مفاتيح المسودة كما هي لقاعدة البيانات،
+            فكل حفظ كان سيُرفض بعطل "عمود غير معروف" — نفس عطل
+            _importedAt القديم بالضبط. اختبارات المتصفح الآلية لم تكشفه
+            لأن الخادم الوهمي يقبل أي مفتاح، بعكس القاعدة الحقيقية.
+            الإصلاح الصحيح: حقل علوي حقيقي باسم "totalAmount" نفسه —
+            نفس فكرة "repaid" أعلاه: قيمة نقدية للقراءة فقط تُحدَّث من
+            آلية أخرى (هنا: محرك جمع بنود lines.totals) لا من كتابة
+            المستخدم ولا من صيغة داخل هذا النموذج.
+
+         1. THE ORIGINAL bug: 'totalAmount' appears in m.columns but no
+            top-level field carries that name, so entity.js (read-only)
+            has no Arabic label or money format for it — the raw English
+            key showed instead.
+         2. A bug almost SHIPPED while fixing (1): renaming the column to
+            one of the ready-made VIRTUAL_COLS names (e.g. grandTotal)
+            would have fixed the browser display only — but dailyLabour's
+            real database column is a numeric column literally named
+            "totalAmount" (06-HR-DEPARTMENT.sql:143), and there is no
+            grandTotal column at all. store.js (read-only) forwards every
+            draft key to the database untouched, so every save would have
+            been refused for an unknown column — exactly the old
+            _importedAt failure. The automated browser checks missed it
+            because their fake server accepts any key; the real database
+            does not.
+            The correct fix: a real top-level field literally named
+            "totalAmount" — the same idea as "repaid" above: a read-only
+            money value updated by another mechanism (here, the
+            lines.totals summing engine below), never typed by a user or
+            computed by a formula inside this form. */
+      F('totalAmount', 'إجمالي الكشف', 'Sheet total', 'money',
+        { readonly: true, section: SEC.money,
+          help: { ar: 'يُحدَّث تلقائياً من إجمالي بنود العمال أدناه',
+                  en: 'Updated automatically from the worker lines below' } }),
       F('payMethod', 'طريقة الصرف', 'Paid by', 'select',
         { options: S.PAY_METHOD, default: 'cash', section: SEC.money }),
       F('paidDate', 'تاريخ الصرف', 'Date paid', 'date', { section: SEC.money }),

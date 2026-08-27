@@ -64,7 +64,44 @@
   var MAX_PAGES_PREVIEW = 10;   /* الصور أثقل من النص */
   var PREVIEW_WIDTH     = 900;
 
+  /* ⚠️ عطل مثبَت — علامة CamScanner المائية تخدع كاشف الورق الممسوح، هنا أيضاً
+     KNOWN-RED BUG FIXED HERE TOO — the CamScanner watermark defeats scan
+     detection here as well.
+     نفس العطل المُصلَح في import-documents.js (انظر stripKnownWatermarks هناك):
+     ورقة حقيقية ممسوحة بتطبيق CamScanner لا تحمل أي نص إطلاقاً إلا العلامة
+     المائية «CamScanner» (١٠ أحرف) التي يضيفها التطبيق على كل صفحة. قبل هذا
+     الإصلاح كان hasText يتحقق من وجود أي حرف غير فراغ، فتُحسب هذه العلامة
+     نصاً حقيقياً ويظهر looksScanned=false — فتفتح شاشة القراءة على لوحة نص
+     تحتوي كلمة «CamScanner» فقط، بدل رسالة «هذه ورقة ممسوحة، لا يوجد نص»
+     الصادقة. نفس الثوابت وبنفس الاسم هنا عمداً حتى لا يفترق الملفان — قاعدة
+     واحدة، درسها التاريخ رقم ٩ (حقيقتان متعارضتان بسبب نسخ منفصلة).
+     Same bug already fixed in import-documents.js (see stripKnownWatermarks
+     there): a real paper scanned with CamScanner carries no text at all
+     except the literal "CamScanner" watermark (10 chars) stamped on every
+     page. Before this fix, hasText only checked for any non-space
+     character, so the watermark counted as real text and looksScanned came
+     out false — the reader opened a text panel showing just "CamScanner"
+     instead of the honest "this is a scanned paper, no text" message. Same
+     constant names here on purpose so the two files never drift apart —
+     one rule, kept in step deliberately (the HISTORY #9 two-truths lesson). */
+  var MIN_REAL_TEXT_CHARS = 15;
+  var KNOWN_SCAN_WATERMARKS = ['CamScanner'];
+
   var loading = null;
+
+  /* يُشطَب كل نص علامة مائية معروفة (بلا حساسية لحالة الأحرف) قبل الحكم على
+     وجود نص حقيقي — مطابق لدالة import-documents.js بنفس الاسم والمنطق.
+     Strips every known watermark's text (case-insensitive) before judging
+     whether real text exists — mirrors import-documents.js's function of
+     the same name and logic. */
+  function stripKnownWatermarks(text) {
+    var out = String(text || '');
+    KNOWN_SCAN_WATERMARKS.forEach(function (w) {
+      var re = new RegExp(w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
+      out = out.replace(re, '');
+    });
+    return out;
+  }
 
   function absolute(rel) {
     /* المسارات نسبية لجذر الموقع، لا للصفحة الحالية
@@ -185,7 +222,11 @@
                                        : { text: raw, confidence: 'none', alternativeText: null,
                                            reversedRuns: 0, arabicRuns: 0 };
 
-        var hasText = raw.replace(/\s/g, '').length > 0;
+        /* العتبة المُسمّاة بدل «صفر»، بعد شطب العلامات المائية المعروفة —
+           انظر التعليق أعلى الملف عند MIN_REAL_TEXT_CHARS لسبب هذا التغيير.
+           The named threshold instead of "zero", after stripping known
+           watermarks — see the comment above MIN_REAL_TEXT_CHARS for why. */
+        var hasText = stripKnownWatermarks(raw).replace(/\s/g, '').length >= MIN_REAL_TEXT_CHARS;
 
         return {
           text: repair.text,

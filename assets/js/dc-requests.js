@@ -755,7 +755,14 @@
      ═══════════════════════════════════════════════════════════════════ */
   function addAttachShortcut() {
     if (!global.Attachments) return;
-    var host = document.querySelector('.modal .modal-footer, .form-actions, .detail-actions');
+    /* نفس عطل audit-trail.js: لا يوجد class="modal-footer" في الموقع أبداً —
+       الفوتر الحقيقي هو .modal-foot (index.html:195). بسببه لم يظهر زر
+       «📎 مرفقات» الذي طُلب خصيصاً لأن أ. أحمد لم يجد لوحة المرفقات.
+       Same fault as audit-trail.js: class="modal-footer" never exists on
+       the site — the real footer is .modal-foot (index.html:195). Because
+       of it the «📎 Attachments» shortcut — built precisely because
+       أ. أحمد could not find the attachments panel — never rendered. */
+    var host = document.querySelector('.modal .modal-foot, .form-actions, .detail-actions');
     if (!host || host.querySelector('#azAttachJump')) return;
     var b = document.createElement('button');
     b.id = 'azAttachJump';

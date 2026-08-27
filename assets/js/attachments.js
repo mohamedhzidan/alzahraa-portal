@@ -144,6 +144,72 @@
         en: 'File type not allowed. Allowed: ' + ALLOWED_EXT.join(' · ') }) };
     }
 
+    /* ⭐ عطل موقع المرفق — الإصلاح
+       كانت الأسطر تحت تكتب موقع *مَن رفع الملف* (u.site) إذا لم يمرَّر
+       موقع صراحة، لا موقع *المستند نفسه*. موظف من المكتب يرفع ملفاً على
+       مستند تابع للروبيكي فيُختم الملف بموقع المكتب — فيختفي من شاشة
+       أ. أحمد عبد الحي في الروبيكي رغم أن المستند أمامه بالضبط. والعكس
+       أخطر: رافع بلا موقع (u.site فارغ) كان يُنتج مرفقاً بلا موقع حتى
+       لو كان المستند نفسه مقيّداً بموقع — أي يُسرَّب لكل المواقع.
+       الحل: نحلّ موقع *السجل الأب* دائماً، ونتجاهل موقع الرافع تماماً.
+       لو الوحدة (moduleId) ليس فيها حقل site أصلاً (وحدة على مستوى
+       الشركة كلها مثل الموردين) فموقع المرفق يبقى null عمداً — هذا ليس
+       تسريباً، لأن السجل الأب نفسه غير مقيّد بموقع.
+       ⭐ THE ATTACHMENT SITE BUG — the fix
+       The old code stamped the file with the UPLOADER's site (u.site)
+       whenever no site was passed explicitly — never the site of the
+       document itself. An HQ staff member uploading onto a الروبيكي
+       document stamped it HQ, so it silently vanished from أ. أحمد عبد
+       الحي's site screen even though the document sat right in front of
+       him. Worse: an uploader with no site produced an attachment with
+       no site even when the parent document WAS site-scoped — leaking it
+       to every site. Fix: always resolve the PARENT record's own site,
+       and drop the uploader's site fallback entirely. When the module
+       has no 'site' field at all (a company-wide module, e.g. suppliers)
+       the resolved site stays null on purpose — that is not a leak,
+       because the parent record itself is not site-fenced either.
+
+       تفويض داخل wirePanel لا يصلح هذا: الدالة upload المستدعاة هناك
+       (داخل input.onchange، قسم ٢ من الملف) محلية داخل هذه الإغلاق
+       (closure) ولا يمكن لملف خارجي لفّها دون إعادة كتابة اللوحة كلها —
+       بالضبط فخّ trade/trades الذي كلّف ست ساعات من قبل. الإصلاح هنا
+       وحده يكفي. (لا نكتب رقم السطر هنا عمداً — أي تعديل لاحق في هذا
+       الملف يزيحه ويحوّل الرقم إلى فخّ قديم، انظر القاعدة رقم ١٦.)
+       Wrapping from outside cannot fix this: the upload() called inside
+       wirePanel (inside input.onchange, section 2 of this file) is a
+       closure-local reference, not something an external file can
+       intercept without rewriting the whole panel — exactly the
+       trade/trades trap. Fixing it here, in place, is the only place it
+       can be fixed. (Deliberately no line number here — any later edit
+       to this file shifts it into a stale trap, see rule 16.) */
+    var resolvedSite = siteId;
+    if (resolvedSite === null || resolvedSite === undefined) {
+      var mod = global.Schema && Schema.get ? Schema.get(moduleId) : null;
+      var table = (mod && mod.table) || moduleId;
+      var hasSiteField = !!(mod && mod.fields && mod.fields.some(function (f) { return f.name === 'site'; }));
+      if (!hasSiteField) {
+        resolvedSite = null;   /* وحدة على مستوى الشركة كلها — لا تُقيَّد بموقع أصلاً */
+      } else {
+        var parent = (global.Store && Store.find) ? Store.find(table, recordId) : null;
+        if (parent) {
+          resolvedSite = parent.site || null;
+        } else {
+          /* السجل الأب ليس في الذاكرة — نقرأ عمود الموقع فقط من الخادم
+             the parent is not cached — read just the site column from the server */
+          var got = await c.from(table).select('site').eq('id', recordId).maybeSingle();
+          if (got && got.data) {
+            resolvedSite = got.data.site || null;
+          } else {
+            /* لا نخمّن أبداً موقع الرافع كبديل — نرفض الرفع بوضوح
+               never fall back to the uploader's site — refuse plainly instead */
+            return { ok: false, error: L({
+              ar: 'تعذّر تحديد موقع المستند — لم يُرفع الملف.',
+              en: 'Could not determine the document\'s site — the file was NOT uploaded.' }) };
+          }
+        }
+      }
+    }
+
     var path = moduleId + '/' + recordId + '/' + safeName(file.name);
     var up = await c.storage.from(BUCKET).upload(path, file, {
       cacheControl: '3600', upsert: false, contentType: file.type || undefined
@@ -161,7 +227,7 @@
       fileName: file.name,          /* الاسم الأصلي كما كتبه المستخدم */
       size: file.size,
       mime: file.type || '',
-      site: siteId || (u && u.site) || null,
+      site: resolvedSite,
       uploadedBy: u ? u.id : null,
       uploadedAt: new Date().toISOString(),
       deleted: false,

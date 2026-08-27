@@ -413,7 +413,16 @@
     if (!mod) return;
     var row = Store.find(mod.table, id);
     if (!row) return;
-    var host = document.querySelector('#modalHost .modal-footer, .modal-footer');
+    /* الفوتر الحقيقي لكل نافذة هو .modal-foot (index.html:195، id="modalFoot") —
+       class="modal-footer" لا وجود لها في الموقع كله. بسبب هذا الاسم الخطأ لم
+       يكن زر «⊘ إلغاء المستند / ↩ استعادة» يظهر أبداً: الاستعادة مستحيلة، وكل
+       إلغاء يُسجَّل بسبب فارغ لأن نافذة السبب الإلزامية لا تُفتح أصلاً.
+       The real footer for every modal is .modal-foot (index.html:195,
+       id="modalFoot") — class="modal-footer" does not exist anywhere on the
+       site. This wrong name is why «⊘ Cancel / ↩ Restore» never rendered:
+       restores were impossible and every cancellation recorded an empty
+       reason because the mandatory-reason dialog never opened. */
+    var host = document.querySelector('#modalHost .modal-foot');
     if (!host || host.querySelector('#azCancelBtn')) return;
 
     var b = document.createElement('button');

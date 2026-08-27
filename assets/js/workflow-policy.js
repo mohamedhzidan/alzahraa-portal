@@ -116,6 +116,48 @@
     if (level === RECORD) {
       m.workflow = false;
       m.skipReview = false;
+
+      /* عمود "status" بلا حقل status حقيقي = شاشة فارغة عند أول سجل.
+         عندما تُخفَّض شاشة إلى RECORD (لا قرار، لا اعتماد)، قد يبقى اسم
+         "status" في m.columns من أيام كان لها سير عمل — لكن لا حقل status
+         حقيقي يفسّر قيمته (لا في m.fields ولا في m.lines.fields، مثل
+         siteAttendance التي تستخدم "attStatus" داخل السطور بدلاً منه).
+         النتيجة: colField(mod, 'status') يرجع null، ثم
+         Schema.optionLabel(null, ...) في schema.js:1258 ينفّذ "f.options"
+         على null فينهار — شاشة بيضاء عند أول سجل محفوظ، وانهيار مطابق عند
+         تصدير CSV في entity.js:279. نحذف اسم العمود هنا بدلاً من إضافة حقل
+         status وهمي، لأن شاشة تسجيل واقعة لا تملك "حالة اعتماد" أصلاً —
+         وإعادة قائمة اختيار لحالة تُحدَّث يدوياً تُعيد فتح خلل السجل رقم ٨
+         في تاريخ المشروع (تعارض بين حالة معروضة وحالة حقيقية).
+         هذا يسري تلقائياً على أي شاشة تُخفَّض مستقبلاً، لا على siteAttendance
+         باسمها — docRegister وemploymentContracts تملكان حقل status حقيقياً
+         فتُستثنيان بحكم الشرط نفسه.
+
+         A "status" column with no real status field crashes on the first
+         record. When a screen is demoted to RECORD (no decision, no
+         approval), the name "status" can survive in m.columns from a time
+         it had a workflow — but no real status field explains its value
+         (not in m.fields, not in m.lines.fields; siteAttendance uses
+         "attStatus" inside its lines instead). Result: colField(mod,
+         'status') returns null, then Schema.optionLabel(null, ...) at
+         schema.js:1258 runs "f.options" on null and throws — a blank
+         screen on the first saved record, and the same crash exporting
+         CSV at entity.js:279. We remove the column name here instead of
+         adding a dummy status field, because a record-of-fact screen has
+         no approval state to show — re-adding a manually-set dropdown
+         would reopen history bug #8 (a displayed status disagreeing with
+         the real one). This is generic for any future demotion, not
+         siteAttendance by name — docRegister and employmentContracts keep
+         a real status field, so this same condition leaves them alone. */
+      if (m.columns && m.columns.indexOf('status') !== -1) {
+        var hasStatusField =
+          (m.fields || []).some(function (f) { return f.name === 'status'; }) ||
+          (m.lines && m.lines.fields || []).some(function (f) { return f.name === 'status'; });
+        if (!hasStatusField) {
+          m.columns = m.columns.filter(function (c) { return c !== 'status'; });
+        }
+      }
+
       applied.record.push(m.id);
     } else if (level === APPROVE) {
       m.workflow = true;

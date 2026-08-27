@@ -213,6 +213,13 @@
         payroll: ['view', 'review', 'approve'],
         employeeAdvances: ['view', 'review', 'approve'],
         dailyLabour: ['view', 'review', 'approve'],
+        /* ٢٧ أغسطس ٢٠٢٦ · شيتات المكتب الفني الجديدة — المدير المالي يرى
+           إذن الفحص الداخلي فقط (قد يحمل تكلفة فحص خارجي)، ولا يفتح
+           شيتات المناسيب ولا طلبات الخرسانة فهما ليستا شأناً مالياً.
+           27 August 2026: the new technical-office sheets — the finance
+           manager sees only the inspection permit (it may carry an
+           external-lab cost), not the levels sheet or concrete request. */
+        inspectionPermits: ['view'],
         /* إلغاء عقد قرار تجاري ومالي — يشترك فيه المدير المالي مع
            المدير العام. والإلغاء موثّق بسبب إجباري وقابل للاستعادة.
            Cancelling a contract is a commercial and financial decision,
@@ -244,6 +251,12 @@
         employeeAdvances: ['view'],
         purchaseApprovals: ['view'], goodsReceipts: ['view'],
         clientIPCs: ['view'], subIPCs: ['view'],
+        /* ٢٧ أغسطس ٢٠٢٦ · إذن الفحص الداخلي قد يحمل تكلفة فحص خارجي —
+           المحاسب يراه، لا يعتمده ولا يفتح شيتات المناسيب أو الخرسانة.
+           27 August 2026: the inspection permit may carry an external-lab
+           cost — the accountant sees it, does not approve it, and has no
+           access to the levels sheet or concrete request screens. */
+        inspectionPermits: ['view'],
         /* أسماء فقط للترميز والربط */
         projects: LOOKUP, employees: LOOKUP, items: LOOKUP,
         subcontractors: LOOKUP, warehouses: LOOKUP, budgets: LOOKUP,
@@ -319,6 +332,17 @@
            Same shape as the wir line directly above. */
         mir: ['view', 'review', 'approve'],
         pourCards: ['view', 'review', 'approve'],
+        /* ٢٧ أغسطس ٢٠٢٦ · شيتات المكتب الفني الجديدة — طلب الخرسانة وإذن
+           الفحص يوقّعهما مدير المشروع مع المكتب الفني معاً، نفس شكل mir
+           أعلاه بالضبط. شيت المناسيب تسجيل واقعة بلا اعتماد فيكفي «view».
+           27 August 2026: the new technical-office sheets — the concrete
+           request and inspection permit are signed by the project manager
+           together with the technical office, the exact shape of mir
+           above. The levels sheet is a record of fact with no approval,
+           so 'view' is enough. */
+        levelsSheets: ['view'],
+        concreteRequests: ['view', 'review', 'approve'],
+        inspectionPermits: ['view', 'review', 'approve'],
         asphaltRecords: ['view', 'review'],
         surveyRecords: ['view'],
         labourAllocation: ['view', 'review', 'approve'],
@@ -367,6 +391,20 @@
            approval.js both check createdBy) is untouched: the person who
            created the MIR still cannot approve it — only a colleague. */
         mir: ['view', 'create', 'edit', 'delete', 'approve'],
+        /* ٢٧ أغسطس ٢٠٢٦ · شيتات المكتب الفني الجديدة — نفس شكل mir أعلاه
+           بالضبط: المكتب الفني يرفع طلب الخرسانة وإذن الفحص ويعتمدهما مع
+           مدير المشروع. حذف يدوي هنا لازم لأن «technical» ليس ضمن قائمة
+           الإلغاء التلقائي (create⇒cancel) في auth.js — انظر أسفل الملف.
+           شيت المناسيب تسجيل واقعة يقرأها المكتب الفني فقط.
+           27 August 2026: the new technical-office sheets — exactly mir's
+           shape: technical raises the concrete request and inspection
+           permit and approves them alongside the project manager. Delete
+           is added by hand here because 'technical' is NOT in the
+           create⇒cancel auto-append list further down this file. The
+           levels sheet is a record of fact — technical only reads it. */
+        levelsSheets: ['view'],
+        concreteRequests: ['view', 'create', 'edit', 'delete', 'approve'],
+        inspectionPermits: ['view', 'create', 'edit', 'delete', 'approve'],
         rfi: ['view', 'create', 'edit'],
         submittals: ['view', 'create', 'edit'],
         docRegister: ['view'],
@@ -396,6 +434,18 @@
         sites: LOOKUP,
         wir: ['view', 'create', 'edit', 'delete'],
         mir: ['view', 'create', 'edit', 'delete'],
+        /* ٢٧ أغسطس ٢٠٢٦ · شيتات المكتب الفني الجديدة تفتح لمهندس الموقع
+           أيضاً — هو من يملأ شيت المناسيب ويطلب الخرسانة وإذن الفحص
+           يومياً في الميدان. «حذف» تضيفه تلقائياً حلقة create⇒cancel
+           أسفل هذا الملف، فلا تُكتب هنا يدوياً.
+           27 August 2026: the new technical-office sheets open to the
+           site engineer too — he fills the levels sheet and raises the
+           concrete request and inspection permit daily on site. 'delete'
+           is added automatically by the create⇒cancel loop further down
+           this file, so it is not written here by hand. */
+        levelsSheets: ['view', 'create', 'edit'],
+        concreteRequests: ['view', 'create', 'edit'],
+        inspectionPermits: ['view', 'create', 'edit'],
         pourCards: ['view', 'create', 'edit', 'delete'],
         asphaltRecords: ['view', 'create', 'edit', 'delete'],
         surveyRecords: ['view', 'create', 'edit'],
@@ -462,6 +512,18 @@
            was not in his menu at all. */
         wir:             ['view', 'create', 'edit'],
         mir:             ['view', 'create', 'edit'],
+        /* ٢٧ أغسطس ٢٠٢٦ · شيتات المكتب الفني الجديدة — ضابط المستندات
+           يسجّلها ويتابعها مثل wir وmir بالضبط، ولا يعتمد شيئاً بنفسه
+           (نفس القاعدة المكتوبة أعلاه في هذا الدور). «حذف» تضيفه تلقائياً
+           حلقة create⇒cancel أسفل هذا الملف.
+           27 August 2026: the new technical-office sheets — document
+           control registers and tracks them exactly like wir and mir, and
+           still approves nothing himself (the same rule written above for
+           this role). 'delete' is added automatically by the create⇒cancel
+           loop further down this file. */
+        levelsSheets:    ['view', 'create', 'edit'],
+        concreteRequests: ['view', 'create', 'edit'],
+        inspectionPermits: ['view', 'create', 'edit'],
         pourCards:       ['view'],
 
         drawings:        ['view', 'create', 'edit'],

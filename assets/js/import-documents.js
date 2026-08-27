@@ -201,6 +201,53 @@
   /* أقل عدد أصوات متفقة لنحسم القرار؛ أقل من هذا = 'unsure' ولا تخمين */
   var CLASSIFY_MIN_VOTES = 2;
 
+  /* ⚠️ عطل مثبَت — علامة CamScanner المائية تخدع كاشف الورق الممسوح
+     KNOWN-RED BUG FIXED HERE — the CamScanner watermark defeats scan
+     detection.
+     ورقة حقيقية ممسوحة ضوئياً بتطبيق CamScanner لا تحمل أي نص إطلاقاً إلا
+     العلامة المائية «CamScanner» نفسها (١٠ أحرف فقط) التي يضيفها التطبيق
+     على كل صفحة. قبل هذا الإصلاح كانت totalChars=10 (وليست صفراً)، فيتخطى
+     المُصنِّف تحقق «لا نص = scan» ويصوّت بالحجم وعدد الصفحات بدلاً من ذلك،
+     فتظهر ورقة ممسوحة حقيقية على أنها «رسمة»، ولا تظهر رسالة «هذه ورقة
+     ممسوحة» الصادقة أبداً. الإصلاح هنا خطوتان: (أ) عتبة مُسمّاة — أي نص
+     إجمالي أقل من MIN_REAL_TEXT_CHARS يُعامَل معاملة «لا نص» تماماً مثل
+     الصفر، حماية عامة تشمل أي علامة مائية قصيرة أخرى لم تُدرَج بعد؛ (ب)
+     قائمة علامات مائية معروفة قابلة للتوسعة — يُشطَب نصّها فعلياً من كل
+     صفحة قبل عدّ الأحرف (انظر stripKnownWatermarks وموضع استعمالها في
+     analyzePdf) حتى لا تُحتسَب كنص حقيقي إطلاقاً.
+     A real scanned paper photographed with the CamScanner app carries no
+     text at all except the literal watermark "CamScanner" (10 chars) the
+     app stamps on every page. Before this fix totalChars was 10, not zero,
+     so the classifier skipped its "no text = scan" check and voted on size
+     and page count instead — a real scanned paper came out "drawing", and
+     the honest "this is a scanned paper" message never appeared. The fix
+     is two-part: (a) a named threshold — any total text under
+     MIN_REAL_TEXT_CHARS is treated exactly like zero, a general guard that
+     also covers any other short watermark not yet listed; (b) an
+     extensible list of known watermarks, whose text is actually stripped
+     from every page BEFORE characters are counted (see
+     stripKnownWatermarks and where it is used in analyzePdf), so it is
+     never counted as real text at all. */
+  var MIN_REAL_TEXT_CHARS = 15;
+  var KNOWN_SCAN_WATERMARKS = ['CamScanner'];
+
+  /* يُشطَب كل نص علامة مائية معروفة (بلا حساسية لحالة الأحرف) من النص قبل
+     عدّه — يُستدعى من analyzePdf حيث يوجد النص الخام فعلياً؛ classifyPdf
+     نفسها تبقى دالة نقية تستقبل أرقاماً فقط، بلا نص خام، كما يوضّح تعليق
+     الملف أعلاه («بيانات عادية داخل»).
+     Strips every known watermark's text (case-insensitive) before it is
+     counted — called from analyzePdf, where the raw text actually exists;
+     classifyPdf itself stays a pure function that receives only numbers,
+     never raw text, exactly as the file header promises ("plain data in"). */
+  function stripKnownWatermarks(text) {
+    var out = String(text || '');
+    KNOWN_SCAN_WATERMARKS.forEach(function (w) {
+      var re = new RegExp(w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
+      out = out.replace(re, '');
+    });
+    return out;
+  }
+
   /* info = { pageCount: عدد كل صفحات الملف, pages: [{ widthPt, heightPt, charCount }, ...] }
      لعيّنة الصفحات فقط. يُرجع واحدة من: document · drawing · scan · unsure. */
   function classifyPdf(info) {
@@ -219,10 +266,13 @@
       normSum += area > 0 ? chars * (A4_AREA_PT2 / area) : 0;
     });
 
-    /* لا نص إطلاقاً في العيّنة كلها = ورق ممسوح ضوئياً، لا مستند ولا رسمة.
-       No text anywhere in the sample = scanned paper, neither a document
-       nor a drawing. */
-    if (totalChars === 0) return 'scan';
+    /* لا نص حقيقي في العيّنة كلها (صفر، أو أقل من العتبة المُسمّاة أعلاه —
+       أثر علامة مائية لم تُشطَب أو لم تُدرَج بعد) = ورق ممسوح ضوئياً، لا
+       مستند ولا رسمة.
+       No REAL text anywhere in the sample (zero, or under the named
+       threshold above — the residue of a watermark not stripped or not
+       yet listed) = scanned paper, neither a document nor a drawing. */
+    if (totalChars < MIN_REAL_TEXT_CHARS) return 'scan';
 
     var avgNorm = normSum / n;
     var largeFormatFraction = largeFormatVotes / n;
@@ -249,6 +299,27 @@
     if (votesDocument >= CLASSIFY_MIN_VOTES && votesDocument > votesDrawing) return 'document';
     return 'unsure';
   }
+
+  /* ⚠️ حدّ معروف ومقبول — لا إصلاح هنا، توثيق فقط · A KNOWN, ACCEPTED
+     LIMIT — documentation only, no behaviour change.
+     ملفات AutoCAD الحقيقية كثيراً ما تُصدَّر بمقاس ورقة A4 حتى لو كانت
+     اللوحة نفسها A0 — مُثبَت بملف حقيقي A0-12-drawing.pdf: لوحة A0 حقيقية
+     صُدِّرت كصفحة PDF مقاسها 842×595pt (أي A4) بنص خانة عنوان كثيف نسبياً،
+     فيصوّت كل من الحجم والكثافة «مستند» ويصنَّف الملف «document» رغم أنه
+     رسمة. لا حل عام لهذا داخل هذا المُصنِّف — حجم الصفحة المُصدَّرة ليس
+     دليلاً موثوقاً دائماً على حجم اللوحة الحقيقية. العرض الحالي (النص أولاً
+     ثم الصورة) يبقى مقبولاً لهذه الحالة لأن خانة العنوان نفسها غالباً نص
+     مقروء مفيد، وليست فراغاً.
+     Real CAD exports routinely come out A4-paper-sized even when the sheet
+     itself is A0 — proven by the real file A0-12-drawing.pdf: a genuine A0
+     sheet exported as an 842×595pt (A4) PDF page with relatively dense
+     title-block text, so both size and density vote "document" and the
+     file classifies as a document even though it is a drawing. There is no
+     general fix for this inside the classifier — exported page size is not
+     always a reliable proxy for the real sheet size. The current layout
+     (text first, then the picture) remains an accepted outcome for this
+     case, because the title block itself is usually genuinely readable
+     text, not empty space. */
 
   /* ═══════════════════════════════════════════════════════════════════
      ٢ · تحليل PDF فعلياً في المتصفح — يستقل تماماً عن read-pdf.js
@@ -342,19 +413,47 @@
     }).catch(function () { return null; });
   }
 
+  /* ⚠️ الميلاد الثاني لعطل الإفراج عن ذاكرة PDF · THE SECOND BIRTH OF THE
+     pdf-release BUG (راجع HISTORY) — كان هذا الملف يستدعي doc.destroy()،
+     وهي دالة **غير موجودة إطلاقاً** في pdf.js 6.2.108 (typeof doc.destroy
+     === 'undefined')؛ النداء كان داخل try/catch فلا يظهر أي خطأ أبداً، لكن
+     «مهمة التحميل» (loading task) التي تُعيدها getDocument تبقى في الذاكرة
+     كل مرة — نفس العطل الذي أُصلح في read-pdf.js قبل هذا الملف بالضبط، وُلد
+     من جديد هنا لأن analyzePdf يحمّل pdf.js باستقلال عن read-pdf.js (انظر
+     شرح ٢ أعلاه). أ. أحمد يعاين عدة رسومات PDF على هاتف رخيص فيتباطأ ثم
+     ينهار بلا سبب ظاهر. الإصلاح: نحتفظ بـ«المهمة» نفسها (task) لا بالمستند
+     (doc)، ونُفرِج عنها بـ task.destroy() — بنفس النمط الحرفي المستعمل في
+     read-pdf.js:118-134،209-211.
+     This file used to call doc.destroy() — a function that DOES NOT EXIST
+     at all in pdf.js 6.2.108 (typeof doc.destroy === 'undefined'). The call
+     sat inside try/catch so nothing ever complained, but the loading TASK
+     returned by getDocument was never released, every single time — the
+     exact same bug already fixed once in read-pdf.js, reborn here because
+     analyzePdf loads pdf.js independently of read-pdf.js (see explanation 2
+     above). Ahmed previewing several drawing PDFs on a cheap phone would
+     slow down and then crash, for no visible reason. Fix: keep the loading
+     TASK itself, not the document, and release it with task.destroy() —
+     mirroring read-pdf.js:118-134,209-211's exact pattern. `task` هنا محلية
+     لكل نداء لا على مستوى الملف، حتى لا يتشارك تحليلان مختلفان (لو تداخلا)
+     نفس مهمة التحميل بالخطأ.
+     `task` is declared local to each call, not at module level, so two
+     analyses (if they ever overlap) never share one another's loading task
+     by mistake. */
   /* يُرجع { kind, pageCount, page1: { image, text } } */
   function analyzePdf(file) {
     var p = pdfjsPaths();
+    var task = null;
     return ensurePdfjs().then(function (pdfjs) {
       return bytesOf(file).then(function (buf) {
-        return pdfjs.getDocument({
+        task = pdfjs.getDocument({
           data: new Uint8Array(buf),
           useWasm: false,
           wasmUrl: absolute(p.wasm),
           standardFontDataUrl: absolute(p.fonts),
           isEvalSupported: false,
           disableNormalization: false
-        }).promise;
+        });
+        return task.promise;
       });
     }).then(function (doc) {
       var pageCount = doc.numPages;
@@ -371,8 +470,12 @@
               var raw = (tc.items || []).map(function (it) {
                 return it.str + (it.hasEOL ? '\n' : '');
               }).join('');
+              /* نشطب علامات المسح المائية المعروفة قبل عدّ الأحرف — راجع
+                 شرح CamScanner أعلى المُصنِّف. Strip known scan watermarks
+                 before counting — see the CamScanner explanation above the
+                 classifier. */
               pages.push({ widthPt: vp0.width, heightPt: vp0.height,
-                           charCount: raw.replace(/\s/g, '').length });
+                           charCount: stripKnownWatermarks(raw).replace(/\s/g, '').length });
               if (n === 1) {
                 page1Text = raw;
                 return renderPageImage(page).then(function (url) { page1Image = url; });
@@ -384,13 +487,18 @@
       for (var i = 1; i <= sampleN; i++) _loop(i);
 
       return chain.then(function () {
-        try { doc.destroy(); } catch (e) {}
         var kind = classifyPdf({ pageCount: pageCount, pages: pages });
         var repaired = page1Text;
         if (global.ArabicText) {
           try { repaired = ArabicText.repair(page1Text).text; } catch (e) {}
         }
         return { kind: kind, pageCount: pageCount, page1: { image: page1Image, text: repaired } };
+      }).then(function (out) {
+        /* الإفراج الحقيقي — على المهمة لا على المستند، بعد بناء النتيجة
+           the real release — on the task, never the document, after the
+           result is built (mirrors read-pdf.js:209-211). */
+        try { if (task && task.destroy) task.destroy(); } catch (e) {}
+        return out;
       });
     });
   }
@@ -780,6 +888,32 @@
         UI.toast(L({ ar: 'نوع الملف غير مدعوم هنا.', en: 'This file type is not supported here.' }), 'error');
         return;
       }
+
+      /* ⚠️ سجل يتيم — بوابة الحجم كانت غائبة هنا · ORPHAN RECORD — the size
+         gate was missing here. قبل هذا الإصلاح كان ملف ٢٦ ميجابايت يمرّ
+         مباشرة إلى نافذة «استيراد مستند» ثم إلى نموذج سجل جديد، والرفض
+         الوحيد (attachments.js:135-138) لا يحدث إلا بعد أن يُحفَظ السجل
+         فعلاً — فيبقى سجل بلا ملف مرفق، ورفض مفاجئ متأخر بدل رفض فوري
+         صادق. نتحقق هنا بنفس الحد MAX_MB من attachments.js (وبنفس أسلوب
+         رسالتها العربية) قبل فتح أي نافذة إطلاقاً.
+         Before this fix a 26MB file sailed straight into the "استيراد
+         مستند" confirm modal and then a new record form, and the only
+         refusal (attachments.js:135-138) fired only AFTER the record was
+         already saved — leaving an orphan record with no file attached,
+         and a late, surprising refusal instead of an honest immediate one.
+         We check here against the same MAX_MB limit from attachments.js
+         (reusing its Arabic wording style) before opening any window at
+         all. */
+      var maxMB = (global.Attachments && Attachments.MAX_MB) || 25;
+      if (file.size > maxMB * 1048576) {
+        var sizeMB = (file.size / 1048576).toFixed(1);
+        UI.toast(L({
+          ar: 'الملف أكبر من ' + maxMB + ' ميجابايت (حجمه ' + sizeMB + ' ميجابايت). اضغطه أو قسّمه.',
+          en: 'The file is larger than ' + maxMB + ' MB (it is ' + sizeMB + ' MB). Compress or split it.'
+        }), 'error', 9000);
+        return;
+      }
+
       confirmAndCreate(moduleId, file, ext);
     };
     input.click();

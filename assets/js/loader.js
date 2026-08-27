@@ -15,6 +15,9 @@
     'assets/js/retention-release-field.js',
     /* يضيف خصم وتحصيل الضريبة على مستخلصات العميل — بعد retention-release-field.js مباشرة */
     'assets/js/client-ipc-withholding.js',
+    /* يضيف «متوقع تحصيله في» لمستخلصات العميل — يقرأه cash-forecast.js لاحقاً؛
+       نفس فتحة retention-release-field.js وclient-ipc-withholding.js تماماً */
+    'assets/js/expected-collection-field.js',
     'assets/js/departments.js',
     'assets/js/hr-department.js',
     /* صافي الراتب يحسب البنود الثمانية التي أضافها hr-department.js —
@@ -29,12 +32,26 @@
     'assets/js/dc-tuning.js',
     'assets/js/sites.js',
     'assets/js/auth.js',
+    /* أجر الاشتراك التأميني وحساب التأمينات — بعد auth.js حتماً، لأن دفع
+       الحقل في Auth.SENSITIVE.employees يحتاج Auth موجوداً أولاً.
+       Insurance wage and its arithmetic — necessarily after auth.js,
+       because pushing the field into Auth.SENSITIVE.employees needs Auth
+       to already exist. */
+    'assets/js/payroll-insurance.js',
     'assets/js/identity.js',
     'assets/js/workflow.js',
     'assets/js/workflow-policy.js',
     /* يفكّ عَلَق مستندات التوقيع الواحد — بعد workflow-policy.js حتماً */
     'assets/js/one-step-approval.js',
     'assets/js/ui.js',
+    /* يمنع تقريب الأرقام العشرية (منسوب 98.76، حجم 7.5) إلى صحيح عند
+       العرض والطباعة — يلفّ UI.displayValue فيحتاج ui.js محمَّلاً أولاً،
+       ويجب أن يسبق print.js وpages/entity.js لأنهما يستهلكانه.
+       Stops decimal fields (a level of 98.76, a volume of 7.5) rounding to
+       a whole number on screen and on the printed page — wraps
+       UI.displayValue so needs ui.js loaded first, and must precede
+       print.js and pages/entity.js, which consume it. */
+    'assets/js/number-decimals.js',
     /* يجعل الصيغ المكتوبة كدوالّ تُحسب فعلاً — ثمانية حقول في الموارد
        البشرية كانت تعرض صفراً. بعد ui.js حتماً وقبل pages/entity.js.
        Makes function-style formulas actually compute — eight HR fields were
@@ -91,6 +108,34 @@
        attachments.js does, so it comes after it and lands below it. */
     'assets/js/employee-statement.js',
 
+    /* ثلاث شاشات مكتب فني جديدة (شيت مناسيب · طلب خرسانة · إذن فحص داخلي) —
+       بعد employee-statement.js وقبل app.js حتماً، وقبل doc-numbering.js
+       تحديداً: doc-numbering.js:229 يلتقط numberedTables() مرة واحدة عند
+       تحميله من Schema.MODULES في تلك اللحظة — فلو سُجِّلت هذه الوحدات بعده
+       لَما راقبت بادئاتها الثلاث (LVL/CR/IPT) أبداً.
+       Three new technical-office screens (levels sheet, concrete request,
+       internal inspection permit) — necessarily after employee-statement.js
+       and before app.js, and specifically before doc-numbering.js:
+       doc-numbering.js:229 snapshots numberedTables() once, from
+       Schema.MODULES at that moment — registering these modules after it
+       would mean their three prefixes (LVL/CR/IPT) are never watched. */
+    'assets/js/sheets-templates.js',
+
+    /* ملاحظات ما قبل اعتماد الرواتب — سبع فحوص قراءة فقط قبل «مراجعة/اعتماد».
+       تحتاج pages/entity.js وui.js+calc-formulas.js وpayroll-insurance.js
+       وhr-department.js محمَّلة سلفاً (كلها قبلها في هذه القائمة). بعد
+       sheets-templates.js عمداً — لا علاقة بينهما، الترتيب بين الاثنين لا
+       يهم (وحدتان مختلفتان)، لكن يجب أن تأتي بعد employee-statement.js حتى
+       يبقى ترتيب اللفّ على EntityPage.openDetail ثابتاً ومتوقَّعاً.
+       Payroll pre-approval notes — seven read-only checks before
+       "review/approve". Needs pages/entity.js, ui.js+calc-formulas.js,
+       payroll-insurance.js and hr-department.js already loaded (all earlier
+       in this list). Deliberately after sheets-templates.js — unrelated to
+       it, the order between the two does not matter (different modules) —
+       but must come after employee-statement.js so the EntityPage.openDetail
+       wrap order stays deterministic. */
+    'assets/js/payroll-review-flags.js',
+
     /* ═══ قراءة الملفات المرفقة · READING ATTACHED FILES ═══
        الترتيب مقصود: arabic-text.js أولاً لأن قارئ PDF ينادي عليه لإصلاح
        الحروف العربية. القرّاء الثلاثة مستقلّون تماماً — حذف أيٍّ منهم يُلغي
@@ -120,6 +165,13 @@
        after import.js, because it rebinds the button import.js itself
        creates, rather than replacing its function. */
     'assets/js/import-documents.js',
+    /* ذاكرة الربط، عيّنات إضافية، تحذير الحقول المطلوبة وعلامات الثقة —
+       بعد الملفّين معاً حتماً، لأنها تلفّ DataImport.preview وتقرأ نافذة
+       الربط اليدوي التي قد يفتحها أيّ منهما.
+       Mapping memory, extra samples, required-field warning and confidence
+       markers — necessarily after both files, because it wraps
+       DataImport.preview and reads the manual mapping dialog either can open. */
+    'assets/js/import-mapping-plus.js',
     'assets/js/app.js',
     /* آخر ملف: يلفّ Store بعد أن يكتمل كل شيء */
     'assets/js/save-guard.js',
@@ -128,6 +180,14 @@
        حتماً، وبعد save-guard.js/access-check.js لأنهما يثبتان أن Store
        متصل بدور موثوق قبل أن نقرأ صلاحياته */
     'assets/js/lookup-loader.js',
+    /* يصحّح قائمة اختيار «الموقع» (تسريب سوهاج للروبيكي) ويحل عطلاً كامناً
+       في اطّلاع القرين/المكتب — يجب أن يأتي مباشرة بعد lookup-loader.js
+       ليُثبَّت تغليفه لـ Store.all/Store.find فوق تغليف lookup-loader نفسه.
+       Fixes the "site" dropdown leak (Sohag reaching Elrobaki) and a latent
+       Elqurien/HQ visibility bug — must load directly after lookup-loader.js
+       so its Store.all/Store.find wrap installs outermost, above
+       lookup-loader's own wrap. */
+    'assets/js/site-options.js',
     /* يحوّل الحذف إلى إلغاء موثّق ويسجّل كل تغيير على الخادم */
     'assets/js/audit-trail.js',
     /* أرقام المستندات الحقيقية لكل الأقسام — آخر ملف يلفّ Store.create،
@@ -139,9 +199,26 @@
     'assets/js/doc-numbering.js',
     /* يخفي زر التقارير عمّن لا تقارير له — الحماية نفسها داخل pages/reports.js */
     'assets/js/report-access.js',
+    /* تقويم النقدية لاثني عشر أسبوعاً داخل صفحة التقارير — يلفّ
+       ReportsPage.render (بعد pages/reports.js) ويستعمل
+       RoleView.seesCompanyMoney (بعد roleview.js) وأسلوب مراقبة الـ DOM
+       نفسه الذي يثبته report-access.js:56-62 (بعده مباشرة، آخر الثلاثة
+       في ترتيب التحميل). Twelve-week cash calendar inside the Reports
+       page — wraps ReportsPage.render (after pages/reports.js), uses
+       RoleView.seesCompanyMoney (after roleview.js), and the exact
+       DOM-watching technique report-access.js:56-62 already proves
+       (loaded right after it, the last of the three in load order). */
+    'assets/js/cash-forecast.js',
     /* يوصّل أحداث الأمان (تصدير · كلمات مرور · بيانات الشركة) للسجل الدائم
        — بعد audit-trail.js حتماً لأنه يحتاج AuditTrail.write */
     'assets/js/audit-security-events.js',
+    /* هاتف المهندس بالموقع: تكبير مساحات اللمس، شريط حالة اتصال ثابت أعلى
+       الشاشة، وترتيب أزرار «إجراءات سريعة» بحيث تتصدّرها شاشات الموقع —
+       بعد dashboard-render.js حتماً لأنه يستبدل PANELS.quickActions.
+       The site engineer's phone: bigger touch targets, a fixed connectivity
+       strip, and Quick Actions reordered so site screens lead — necessarily
+       after dashboard-render.js because it replaces PANELS.quickActions. */
+    'assets/js/mobile-field.js',
     /* رقم النسخة في تذييل الصفحة من الذاكرة الفعلية — آخر ملف عمداً،
        فحص رفعة محمد زيدان */
     'assets/js/version-badge.js'
@@ -153,6 +230,7 @@
     ['Store','assets/js/store.js'],
     ['Schema','assets/js/schema.js'],
     ['Auth','assets/js/auth.js'],
+    ['PayrollInsurance','assets/js/payroll-insurance.js'],
     ['Workflow','assets/js/workflow.js'],
     ['UI','assets/js/ui.js'],
     ['Dashboard','assets/js/pages/dashboard.js'],
