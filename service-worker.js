@@ -1,5 +1,91 @@
 /* Al Zahraa Portal PWA shell cache. Business records stay in encrypted IndexedDB.
    ---------------------------------------------------------------------------
+   v2.0.16 — 27 أغسطس ٢٠٢٦ (حُدِّثت هذه الدفعة نفسها لاحقاً — انظر البند ٥)
+   عند كتابتها أولاً كانت «لا ملف جديد» فعلاً. لم تُنشر هذه النسخة بعد على
+   الموقع الحيّ (تحقّقنا بقراءة service-worker.js الحيّ فعلياً: لا يزال على
+   v2.0.15) فأُلحِق بها بعد ذلك ملفان جديدان (البند ٥) بلا حاجة لرقم نسخة
+   آخر — لأن اسم الذاكرة v2.0.16 نفسه لم يُنشر لأي متصفح موظف بعد، فأي رفع
+   له سيكون تنزيلاً كاملاً جديداً يشمل كل شيء تلقائياً، لا فرقاً جزئياً.
+   هذه النسخة تجمع خمسة أشياء الآن:
+
+     ١) إصلاح موقع المرفقات: attachments.js يحمل الآن ختم الموقع الصحيح
+        على كل ملف مرفوع (كان الأمر ٩.١ في السجل).
+     ٢) تأمينات الرواتب: payroll-insurance.js يحسب أجر الاشتراك التأميني
+        والخصم آلياً (٣٣٠ عن الموظف، ٥٦٢٫٥ عن الشركة عند حد أدنى ٣٠٠٠ جنيه)
+        بدل الصفر الذي كان يظهر دائماً.
+     ٣) الزرّان الميتان: audit-trail.js وdc-requests.js كانا يبحثان عن
+        class="modal-footer" غير الموجودة في الموقع أبداً؛ الاسم الصحيح
+        .modal-foot. بسبب هذا لم يكن زر «⊘ إلغاء المستند / ↩ استعادة» يظهر
+        قط (فالاستعادة مستحيلة وكل إلغاء يُسجَّل بسبب فارغ)، ولا زر
+        «📎 مرفقات» الذي طلبه أ. أحمد عبد الحي بالاسم.
+     ٤) كشف حضور الموقع (قيد العمل بالتوازي مع هذه الدفعة): إصلاح عطل
+        يمنع القائمة من الرسم إطلاقاً بمجرد وجود سجل واحد.
+     ٥) تقويم النقدية لاثني عشر أسبوعاً — ملفان جديدان:
+        · expected-collection-field.js يضيف «متوقع تحصيله في» لمستخلصات
+          العميل (تقدير فريقنا، لا وعد العميل).
+        · cash-forecast.js يبني تبويب «توقعات النقدية» داخل صفحة التقارير:
+          كل ما سيخرج مؤكداً (فواتير موردين · مستخلصات باطن · رواتب · سلف
+          · عمالة يومية) مقابل كل ما يُتوقَّع دخوله تقديرياً، أسبوعاً
+          بأسبوع، مع تحذير واضح أول أسبوع تنكشف فيه الخزينة.
+        قاصر على من يرى أموال الشركة كاملة (admin · gm · finance_manager)
+        فقط — نفس قاعدة roleview.js الموجودة، لا بوابة جديدة.
+     ٦) الأرقام العشرية لم تعد تُقرَّب: منسوب مساحي 98.76 كان يظهر ويُطبَع
+        99 (فرق 24 سم على شيت مناسيب موقَّع)، وحجم خرسانة 7.5 م³ كان يظهر
+        8 — ملف واحد جديد: number-decimals.js. money/percent/calc غير
+        متأثرة، لها تنسيقها الخاص أصلاً.
+
+   بلا هذا الرقم، يستمر متصفح كل موظف في خدمة الملفات القديمة إلى الأبد —
+   رغم رفع كل الملفات أعلاه فعلاً — لأن اسم الذاكرة نفسه لم يتغيّر فلا
+   يعرف المتصفح أن هناك جديداً ليحذف القديم من أجله.
+
+   v2.0.16 — 27 August 2026 (this same batch was extended later — see item 5)
+   When first written this really was "no new file." This version has
+   never been published to the live site (confirmed by actually reading
+   the live service-worker.js: it is still on v2.0.15), so two new files
+   (item 5) were added to it afterwards with no need for a further version
+   number — because the name v2.0.16 itself has never reached any
+   employee's browser yet, so uploading it will be a full fresh install
+   that picks up everything automatically, not a partial diff. This
+   version now bundles five things:
+
+     1) Attachments site fix: attachments.js now stamps the correct site
+        on every uploaded file (roadmap item 9.1).
+     2) Payroll insurance: payroll-insurance.js now computes the
+        registered insurance wage and its deduction automatically (330
+        from the employee, 562.5 from the company at the 3000 EGP
+        minimum) instead of the zero that always showed before.
+     3) The two dead buttons: audit-trail.js and dc-requests.js were both
+        looking for class="modal-footer", which never exists anywhere on
+        the site — the real class is .modal-foot. Because of this, «⊘
+        Cancel document / ↩ Restore» never rendered at all (restores were
+        impossible and every cancellation recorded an empty reason), and
+        neither did the «📎 Attachments» button أ. أحمد عبد الحي asked
+        for by name.
+     4) Site attendance (being built in parallel with this batch): a fix
+        for the fault that stops the list from rendering at all as soon
+        as one record exists.
+     5) The 12-week cash calendar — two new files:
+        · expected-collection-field.js adds "expected collection date" to
+          client IPCs (our team's estimate, never a client promise).
+        · cash-forecast.js builds a "Cash forecast" tab inside the
+          Reports page: everything firm going out (supplier invoices,
+          subcontractor certificates, payroll, advances, daily labour)
+          against everything estimated coming in, week by week, with a
+          clear warning at the first week the cash box runs short.
+        Restricted to whoever sees the company's full money (admin, gm,
+        finance_manager) only — the same existing roleview.js rule, no
+        new gate invented.
+     6) Decimal numbers no longer round away: a survey level of 98.76 used
+        to display AND print as 99 (a 24cm gap on a signed levels sheet),
+        and a concrete volume of 7.5 m³ showed as 8 — one new file:
+        number-decimals.js. money/percent/calc are unaffected; they already
+        have their own formatting.
+
+   Without this new number, every employee's browser keeps serving the
+   old files forever — even though everything above is already
+   uploaded — because the cache's own name never changed, so the browser
+   never learns there is anything new to replace the old with.
+   ---------------------------------------------------------------------------
    v2.0.15 — 27 أغسطس ٢٠٢٦
    لا ملف جديد — عُدِّل ملفان موجودان في مكانهما: save-modes.js وsave-guard.js.
    إصلاح أربعة أعطاب في «مسودة حتى الاتصال» ونافذة عمليات الحفظ المرفوضة:
@@ -198,7 +284,7 @@
 
       بدون إضافتها لن يعمل الذكاء الاصطناعي ولا القسمان الجديدان بدون إنترنت.
    --------------------------------------------------------------------------- */
-var CACHE = 'alzahraa-shell-v2.0.15';
+var CACHE = 'alzahraa-shell-v2.0.16';
 
 var SHELL = [
   './', './index.html', './manifest.webmanifest', './robots.txt',
@@ -215,11 +301,27 @@ var SHELL = [
   './assets/js/config.js', './assets/js/offline-db.js', './assets/js/i18n.js',
   './assets/js/store.js', './assets/js/schema.js',
 
+  /* ── جديد في v2.0.16 · NEW in v2.0.16 ──────────────────────────────── */
+  /* تقويم النقدية لاثني عشر أسبوعاً — «متوقع تحصيله في» على مستخلصات
+     العميل، ثم تبويب «توقعات النقدية» في صفحة التقارير.
+     The 12-week cash calendar — "expected collection date" on client
+     IPCs, then the "Cash forecast" tab inside the Reports page. */
+  './assets/js/expected-collection-field.js',
+  './assets/js/cash-forecast.js',
+  /* ─────────────────────────────────────────────────────────────────── */
+
   /* ── جديد في v2.0.14 · NEW in v2.0.14 ──────────────────────────────── */
   /* PDF ووورد وأوتوكاد من نفس زر «استيراد»، وتمييز رسمة PDF عن مستندها
      PDF, Word and AutoCAD from the same Import button, and telling a PDF
      drawing apart from a PDF document */
   './assets/js/import-documents.js',
+  /* ذاكرة ربط الأعمدة، عيّنات إضافية، تحذير الحقول المطلوبة وعلامات الثقة
+     على نافذة الربط اليدوي — رقم CACHE لم يُرفع لهذا الملف عمداً، يُجمَّع مع
+     الدفعة التالية. Column-mapping memory, extra samples, a required-field
+     warning and confidence markers on the manual mapping dialog — CACHE was
+     deliberately not bumped for this file alone; it is batched with the
+     next release. */
+  './assets/js/import-mapping-plus.js',
   /* ─────────────────────────────────────────────────────────────────── */
 
   /* ── جديد في v2.0.12 · NEW in v2.0.12 ──────────────────────────────── */
@@ -242,6 +344,15 @@ var SHELL = [
   /* كشف حساب الموظف — السلف وخصمها
      the employee account statement — advances and their deduction */
   './assets/js/employee-statement.js',
+  /* شيت مناسيب · طلب خرسانة جاهزة · إذن فحص مواد داخلي — ثلاث شاشات جديدة
+     للمكتب الفني. رقم CACHE لم يُرفع لهذا الملف عمداً، يُجمَّع مع الدفعة
+     التالية، بنفس أسلوب import-mapping-plus.js وsite-options.js أعلاه.
+     Levels sheet, ready-mix concrete request, internal material
+     inspection permit — three new technical-office screens. CACHE was
+     deliberately not bumped for this file alone; batched with the next
+     release, same pattern as import-mapping-plus.js and site-options.js
+     above. */
+  './assets/js/sheets-templates.js',
   /* قراءة الملفات المرفقة — الملفات الخمسة صغيرة وتُخزَّن مسبقاً.
      مكتبات vendor الكبيرة ليست هنا عمداً: يلتقطها التخزين أثناء الاستعمال
      (السطور ٣٠٣-٣٢١) عند أول قراءة، فتعمل بلا إنترنت بعدها.
@@ -259,6 +370,18 @@ var SHELL = [
   /* صافي الراتب يحسب البنود الثمانية المكتوبة على الشاشة
      net pay counts the eight items that are on the screen */
   './assets/js/payroll-net.js',
+  /* أجر الاشتراك التأميني وحساب التأمينات آلياً — بلا إنترنت أيضاً، فيبقى
+     ملء خانتي التأمينات يعمل في الموقع حتى بلا اتصال.
+     Insurance wage and computing insurance automatically — offline too, so
+     the two insurance boxes still fill on site with no connection. */
+  './assets/js/payroll-insurance.js',
+  /* ملاحظات ما قبل اعتماد الرواتب — سبع فحوص قراءة فقط، جزء من دفعة
+     v2.0.16 أعلاه. لا يحفظ ولا يعدّل شيئاً، فيعمل بلا إنترنت مثل بقية
+     ملفات الرواتب هنا.
+     Payroll pre-approval notes — seven read-only checks, part of the
+     v2.0.16 batch above. Saves and changes nothing, so it works offline
+     like the rest of the payroll files here. */
+  './assets/js/payroll-review-flags.js',
   /* ─────────────────────────────────────────────────────────────────── */
 
   /* ── جديد في v2.0.10 · NEW in v2.0.10 ──────────────────────────────── */
@@ -307,6 +430,14 @@ var SHELL = [
   './assets/js/access-check.js',
   './assets/js/audit-trail.js',
   './assets/js/sites.js',
+  /* يصحّح تسريب قائمة «الموقع» (سوهاج تصل للروبيكي) وعطلاً كامناً في اطّلاع
+     القرين/المكتب — رقم CACHE لم يُرفع لهذا الملف عمداً، يُجمَّع مع الدفعة
+     التالية، بنفس أسلوب import-mapping-plus.js أعلاه (v2.0.14).
+     Fixes the "site" dropdown leak (Sohag reaching Elrobaki) and a latent
+     Elqurien/HQ visibility bug — CACHE deliberately not bumped for this
+     file alone; batched with the next release, same pattern as
+     import-mapping-plus.js above (v2.0.14). */
+  './assets/js/site-options.js',
   './assets/js/knowledge.js',
   './assets/js/inspector.js',
   './assets/js/inspector-departments.js',
@@ -319,12 +450,26 @@ var SHELL = [
   /* ─────────────────────────────────────────────────────────────────── */
 
   './assets/js/auth.js', './assets/js/identity.js', './assets/js/workflow.js',
-  './assets/js/ui.js', './assets/js/rules.js', './assets/js/print.js',
+  './assets/js/ui.js',
+  /* يمنع تقريب الأرقام العشرية إلى صحيح عند العرض والطباعة (منسوب 98.76
+     كان يُطبَع 99) — جزء من دفعة v2.0.16 غير المنشورة بعد، فلا حاجة لرقم
+     نسخة جديد (نفس منطق import-mapping-plus.js وsheets-templates.js أعلاه).
+     Stops decimal fields rounding to a whole number on screen and print
+     (a level of 98.76 used to print as 99) — part of the still-unpublished
+     v2.0.16 batch, so no new CACHE number is needed (same logic as
+     import-mapping-plus.js and sheets-templates.js above). */
+  './assets/js/number-decimals.js',
+  './assets/js/rules.js', './assets/js/print.js',
   './assets/js/alerts.js', './assets/js/roleview.js', './assets/js/assistant.js',
 
   './assets/js/pages/dashboard.js', './assets/js/pages/dashboard-render.js',
   './assets/js/pages/entity.js', './assets/js/pages/approvals.js',
   './assets/js/pages/reports.js', './assets/js/pages/settings.js',
+
+  /* هاتف المهندس بالموقع — لمس أكبر وشريط حالة وإجراءات سريعة موحّدة،
+     يعمل بلا اتصال أيضاً. The site engineer's phone — bigger touch
+     targets, a status strip, unified quick actions; works offline too. */
+  './assets/js/mobile-field.js',
 
   './assets/js/app.js'
 ];
