@@ -533,10 +533,31 @@
      ٨ · كشف حساب الموظف — «عمل كشف حساب لكل موظف لتسجيل السلف وخصمها»
         يُحسب، لا يُدخَل. لا يمكن أن يختلف عن المستندات لأنه مشتق منها.
      ═══════════════════════════════════════════════════════════════════ */
+
+  /* الشرط الوحيد لعدّ سلفة — يُصدَّر ليستعمله كل ملف آخر بدل نسخة يدوية
+     منه. advance-balance.js كان يكرّر هذا الشرط حرفياً في تعليق يستشهد
+     بسطرين تغيّرا بالفعل (485-487) — استشهاد تحلّل، والتصدير يُنهي الحاجة
+     إلى نسخة ثانية أصلاً.
+     cancelRecord (audit-trail.js) يضع deleted:true ولا يلمس status أبداً؛
+     كل قارئ يفحص status فقط يستمر في عدّ سلفة أُلغيت (عطل V13).
+
+     THE single predicate for counting an advance — exported so every other
+     file calls it instead of keeping its own copy. advance-balance.js used
+     to copy this condition word-for-word in a comment that cited two lines
+     that have since moved (485-487) — a citation that rots. Exporting it
+     removes the need for a second copy at all.
+     cancelRecord (audit-trail.js) sets deleted:true and never touches
+     status; any reader that checks status alone keeps counting a cancelled
+     advance (the V13 bug). */
+  function countsAdvance(a, employeeId) {
+    return a.employee === employeeId && a.status !== 'reversed' && a.status !== 'rejected' &&
+      a.deleted !== true;
+  }
+
   function statement(employeeId) {
     if (!global.Store || !employeeId) return null;
     var advances = Store.all('employeeAdvances').filter(function (a) {
-      return a.employee === employeeId && a.status !== 'reversed' && a.status !== 'rejected';
+      return countsAdvance(a, employeeId);
     });
 
     /* ONE source of truth for money repaid.
@@ -560,8 +581,16 @@
       });
     });
 
-    /* الخصومات الفعلية من المسير المعتمد — هي وحدها الدائن */
-    Store.all('payroll').filter(function (p) { return p.status === 'approved'; })
+    /* الخصومات الفعلية من المسير المعتمد — هي وحدها الدائن.
+       مسير معتمد ثم مُلغى لا يُحسب — نفس عطل V13 من زاوية المسير:
+       cancelRecord يضع deleted:true بلا لمس status، فيبقى «معتمد» ظاهرياً
+       ويضخّم بركة السداد فتظهر سلفة حيّة مسدَّدة أكثر مما حصل فعلاً.
+       An approved-then-cancelled run does not count — the same V13 bug
+       from the payroll side: cancelRecord sets deleted:true without
+       touching status, so it still reads "approved" and would otherwise
+       inflate the repayment pool, making a still-live advance look more
+       repaid than it really is. */
+    Store.all('payroll').filter(function (p) { return p.status === 'approved' && p.deleted !== true; })
       .forEach(function (p) {
         (p.lines || []).forEach(function (l) {
           if (l.employee !== employeeId) return;
@@ -591,8 +620,8 @@
     };
   }
 
-  S.HR = { statement: statement, MODULES: NEW };
-  global.HRDepartment = { statement: statement, modules: NEW };
+  S.HR = { statement: statement, countsAdvance: countsAdvance, MODULES: NEW };
+  global.HRDepartment = { statement: statement, countsAdvance: countsAdvance, modules: NEW };
 
   console.info('hr-department.js: ' + NEW.length + ' new HR screens registered ' +
                '(advances, recruitment documents, site attendance sheet, daily labour).');

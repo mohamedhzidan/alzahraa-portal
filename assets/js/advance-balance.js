@@ -96,12 +96,26 @@
 
   var TABLE = 'employeeAdvances';
 
-  /* السلف التي تُحسب — نفس شرط hr-department.js:485-487 حرفياً.
-     لو اختلف الشرطان لاختلف الرقمان. Same filter as hr-department.js:485-487,
-     word for word — if the two filters differed, the two numbers would. */
+  /* الشرط نفسه من hr-department.js — نُنادي الدالة المُصدَّرة بدل نسخ
+     شرطها هنا. النسخة القديمة كانت «نفس شرط hr-department.js:485-487
+     حرفياً» في تعليق فقط — استشهاد تحلّل فعلاً (السطر الحقيقي صار 538-540
+     بعد هذه الدفعة نفسها)، وهذا بالضبط الفخ الذي يُزال بالتصدير: لا حاجة
+     لصيانة نسخة يدوية متطابقة في ملفين. لو غاب HRDepartment.countsAdvance
+     (مستحيل في بوابة مُركَّبة بالكامل) نُعيد [] فيتدهور السلوك إلى صفر
+     توزيع — وهو سلوك اليوم بالضبط قبل هذا الملف.
+
+     Calls the exported predicate instead of keeping our own copy of its
+     condition. The old comment claimed word-for-word agreement with
+     hr-department.js:485-487 — a citation that had already rotted (the
+     real line is now 538-540, after this very batch). Exporting the
+     predicate removes the trap outright: no hand-maintained twin across
+     two files. If HRDepartment.countsAdvance is missing (impossible in a
+     fully wired portal) we return [], which degrades to today's exact
+     zero-allocation behaviour before this file existed. */
   function countableAdvances(employeeId) {
+    if (!global.HRDepartment || typeof HRDepartment.countsAdvance !== 'function') return [];
     return Store.all(TABLE).filter(function (a) {
-      return a.employee === employeeId && a.status !== 'reversed' && a.status !== 'rejected';
+      return HRDepartment.countsAdvance(a, employeeId);
     }).sort(function (a, b) {
       var d = new Date(a.date || 0) - new Date(b.date || 0);
       return d !== 0 ? d : String(a.docNo || '').localeCompare(String(b.docNo || ''));

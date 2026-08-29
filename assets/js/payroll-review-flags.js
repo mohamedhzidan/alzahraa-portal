@@ -244,9 +244,16 @@
       try {
         var prevP = prevPeriodOf(thisPeriod);
         out.prevPeriod = prevP;
+        /* مسير سابق مُلغى لا يُحسب أساس مقارنة — cancelRecord لا يلمس
+           status، فيبقى مسير مُلغى «معتمداً» ظاهرياً ويُضاعف قاعدة
+           المقارنة لو وُجدت نسخة مكرَّرة منه (عطل V13 من زاوية هذا الفحص).
+           A cancelled previous run is not a valid comparison base —
+           cancelRecord never touches status, so a cancelled run still
+           reads "approved" and would double the comparison base if a
+           cancelled duplicate exists (V13's bug, seen from this check). */
         var candidates = Store.all('payroll').filter(function (p) {
           var pp = periodParts(p.period);
-          return pp && pp.norm === prevP && p.status === 'approved' && p.id !== rec.id;
+          return pp && pp.norm === prevP && p.status === 'approved' && p.deleted !== true && p.id !== rec.id;
         });
         out.prevRunCount = candidates.length;
         if (!candidates.length) {
@@ -412,8 +419,15 @@
              date counts as "due now" by default, never the opposite. */
           var suppressed = false;
           if (thisPeriod) {
+            /* سلفة مُلغاة لا تدخل في فحص القمع — وإلا كسرت شرط "كل السلف
+               تبدأ مستقبلاً" بسلفة أُلغيت أصلاً ولم تعد قائمة (عطل V13).
+               A cancelled advance is excluded from the suppression check —
+               otherwise it breaks the "every advance starts in the future"
+               condition with a row that was cancelled and no longer exists
+               as a real obligation (V13's bug). */
             var open = Store.all('employeeAdvances').filter(function (a) {
-              return a.employee === l.employee && a.status !== 'reversed' && a.status !== 'rejected' && !a.settled;
+              return a.employee === l.employee && a.status !== 'reversed' && a.status !== 'rejected' &&
+                a.deleted !== true && !a.settled;
             });
             if (open.length) {
               suppressed = open.every(function (a) {

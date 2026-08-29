@@ -182,6 +182,14 @@
 
     Store.all('employeeAdvances').forEach(function (a) {
       if (a.status !== 'approved' && a.status !== 'posted') return;
+      /* سلفة مُلغاة لا تُزعج — cancelRecord يضع deleted:true بلا لمس
+         status، فتبقى «معتمدة» ظاهرياً وتنغّص على الموارد البشرية إلى
+         الأبد رغم إلغائها فعلياً (عطل V13).
+         A cancelled advance never nags — cancelRecord sets deleted:true
+         without touching status, so it still reads "approved" and would
+         otherwise pester HR forever despite being genuinely cancelled
+         (V13's bug). */
+      if (a.deleted === true) return;
       if (a.settled) return;
       var amount = Number(a.amount) || 0;
       if (amount <= 0) return;

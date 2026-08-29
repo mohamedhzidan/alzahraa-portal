@@ -130,16 +130,34 @@
     'assets/js/calc-formulas.js',
     /* الرقم القومي إجباري لكل عامل في كشف العمالة اليومية، ويظهر آخر ٤
        أرقام فقط في القوائم والطباعة — يحتاج Schema (لتثبيت lines.validate
-       على dailyLabour) وUI.displayValue (اللفافة الثالثة، بعد الاثنتين
-       أعلاه ليكون الأخارجي). بعد hr-department.js (٤٥) حتماً.
+       على dailyLabour) وUI.displayValue (اللفافة الثالثة من أربع، بعد
+       الاثنتين أعلاه). بعد hr-department.js (٤٥) حتماً.
        Compulsory national ID per worker on the daily-labour sheet, and
        last-4 display in lists/print — needs Schema (to install
-       lines.validate on dailyLabour) and UI.displayValue (the third
-       wrapper, after the two above so it is outermost). Necessarily after
+       lines.validate on dailyLabour) and UI.displayValue (the third of
+       four wrappers, after the two above). Necessarily after
        hr-department.js (45). */
     'assets/js/daily-labour-id.js',
+    /* اللفافة الرابعة على UI.displayValue — صندوق اختيار لم يُجَب يعرض «—»
+       لا «لا». بعد daily-labour-id.js (الثالثة) مباشرة لتكون الأخارجية —
+       الترتيب بين الأربع غير مهم وظيفياً (فروع منفصلة تماماً) لكن هذا
+       يبقي كل لفافات UI.displayValue متجاورة في القائمة.
+       The FOURTH UI.displayValue wrap — an unanswered checkbox now shows
+       '—', never «لا». Immediately after daily-labour-id.js (the third)
+       to be outermost — order among the four is functionally indifferent
+       (entirely disjoint branches) but this keeps every UI.displayValue
+       wrap adjacent in the list. */
+    'assets/js/checkbox-three-states.js',
     'assets/js/rules.js',
     'assets/js/print.js',
+    /* المبلغ بالأرقام وحده على كل ورقة مالية — هذا الملف يضيف «فقط ... لا
+       غير» تحت الرقم على الخمسة عشر مستنداً التي تحمل amountField، بلفّ
+       Print.doc. يحتاج Print موجوداً وقت التحميل، فبعد print.js حتماً.
+       Every money paper printed figures only — this file adds the «فقط …
+       لا غير» words line under the figure on all fifteen amountField
+       documents, by wrapping Print.doc. Needs Print to exist at load
+       time, so necessarily after print.js. */
+    'assets/js/amount-in-words.js',
     /* المبلغ المسدَّد/المحصَّل الحقيقي من سندات الصرف/القبض المعتمدة —
        قبل alerts.js لأنه يقرأها */
     'assets/js/money-owed.js',
@@ -419,6 +437,13 @@
        the order between the two does not matter since each watches the
        DOM with its own independent observer (v2.0.18). */
     'assets/js/authority-ipc-register.js',
+    /* عدّاد التشغيل: بطاقة اللوحة + تبويب «عدّاد التشغيل» في التقارير —
+       يحتاج بالضبط ما يسبقه: DashboardView (pages/dashboard-render.js)
+       وReportsPage (pages/reports.js)، وكلاهما محمَّل قبله بالفعل.
+       The rollout meter: a dashboard card + a "Rollout meter" Reports tab
+       — needs exactly what already precedes it: DashboardView and
+       ReportsPage, both already loaded by this point. */
+    'assets/js/rollout-meter.js',
     /* يوصّل أحداث الأمان (تصدير · كلمات مرور · بيانات الشركة) للسجل الدائم
        — بعد audit-trail.js حتماً لأنه يحتاج AuditTrail.write */
     'assets/js/audit-security-events.js',
@@ -487,6 +512,14 @@
        between pure filters is safe and deliberate — and after schema.js
        because it registers a new screen. */
     'assets/js/site-activity.js',
+    /* الاسم الثامن للسند يتفق مع اسم المورد المختار — يلفّ UI.modal، فيصح
+       في أي مكان بعد ui.js؛ هذا الموضع المتأخر متعمَّد فقط لإبقاء
+       version-badge.js آخر الملفات كما هو موثَّق دائماً.
+       The voucher's beneficiary name agrees with the chosen supplier —
+       wraps UI.modal, so it is correct anywhere after ui.js; this late
+       slot is deliberate only to keep version-badge.js last, as always
+       documented. */
+    'assets/js/beneficiary-fill.js',
     /* رقم النسخة في تذييل الصفحة من الذاكرة الفعلية — آخر ملف عمداً،
        فحص رفعة محمد زيدان */
     'assets/js/version-badge.js'
