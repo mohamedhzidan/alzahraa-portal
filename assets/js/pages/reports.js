@@ -62,7 +62,17 @@
     subcontract: function () { return Auth.canSee('subIPCs') && seesProjectMoney(); },
     /* إجمالي مسير الرواتب: من يرى شاشة الرواتب نفسها */
     payroll:     function () { return Auth.canSee('payroll'); },
-    attendance:  function () { return Auth.canSee('attendance'); }
+    /* الموظف يملك attendance:['view'] لشاشته الخاصة فقط (auth.js:723)، لكن
+       هذا التقرير (:618) يجمع كل الحضور بالاسم عبر Store.find('employees')
+       — فكان يمرّ لأي دور معه اطّلاع على حضوره وحده. نطابق نفس نمط tb أعلاه:
+       كل تقرير يُقاس على كل الشاشات التي يقرأ منها فعلاً (تجربة reports A.m2).
+       employee holds attendance:['view'] for their OWN attendance screen
+       only (auth.js:723), but this report (:618) aggregates ALL attendance
+       WITH NAMES via Store.find('employees') — so it passed for any role
+       that could only see their own attendance. Matches the tb pattern
+       above: each report is gated by every screen its builder actually
+       reads (trial reports A.m2). */
+    attendance:  function () { return Auth.canSee('attendance') && Auth.canSee('employees'); }
   };
   function allowed(id) {
     /* أي فشل في الفحص = منع. فشل صامت أفضل من تسريب صامت.
@@ -117,16 +127,34 @@
 
     /* filters */
     var projects = Store.all('projects');
+    /* تقرير المخزون (D.1): الباني (:370-411 قديماً) لا يقرأ from/to/project
+       إطلاقاً — يحسب رصيداً لحظياً من dashboard.js stockQty، ولا معنى
+       لـ"رصيد بين تاريخين" هنا، فقط "حتى الآن". أصدق حلّ هو تعطيل الفلاتر
+       على هذا التبويب بدل تركها تبدو فعّالة وهي لا تُغيّر شيئاً — القيم
+       تبقى محفوظة، وتعاد الفلاتر فور الانتقال لتبويب آخر (render() تُعاد
+       عند كل ضغط تبويب، :113 وما بعدها).
+       Stock report (D.1): its builder never reads from/to/project at all —
+       it computes a LIVE balance from dashboard.js stockQty, and "balance
+       between two dates" is meaningless here, only "as of now" is honest.
+       The honest fix is disabling the filters on this tab instead of
+       leaving them look active while changing nothing — values stay
+       stored, and the filters re-enable the moment another tab is picked
+       (render() re-runs on every tab click, :113 onward). */
+    var stockTab = current === 'stock';
+    var filterDisabled = stockTab ? ' disabled' : '';
     html += '<div class="card mb-2"><div class="table-toolbar">' +
       '<label class="field" style="min-width:150px"><span class="field-label">' + t('rep.from') + '</span>' +
-      '<input type="date" class="input input-sm" id="fFrom" value="' + UI.attr(filters.from) + '"></label>' +
+      '<input type="date" class="input input-sm" id="fFrom" value="' + UI.attr(filters.from) + '"' + filterDisabled + '></label>' +
       '<label class="field" style="min-width:150px"><span class="field-label">' + t('rep.to') + '</span>' +
-      '<input type="date" class="input input-sm" id="fTo" value="' + UI.attr(filters.to) + '"></label>' +
+      '<input type="date" class="input input-sm" id="fTo" value="' + UI.attr(filters.to) + '"' + filterDisabled + '></label>' +
       '<label class="field" style="min-width:200px"><span class="field-label">' + L({ ar: 'المشروع', en: 'Project' }) + '</span>' +
-      '<select class="select input-sm" id="fProject"><option value="">' + t('g.all') + '</option>' +
+      '<select class="select input-sm" id="fProject"' + filterDisabled + '><option value="">' + t('g.all') + '</option>' +
       projects.map(function (p) { return '<option value="' + UI.attr(p.id) + '"' + (filters.project === p.id ? ' selected' : '') + '>' + UI.esc(p.name) + '</option>'; }).join('') +
       '</select></label>' +
       '<button class="btn btn-ghost btn-sm" id="fClear" style="margin-top:18px">' + t('g.clearFilters') + '</button>' +
+      (stockTab ? '<p class="small muted" style="width:100%;margin:6px 0 0">' + UI.esc(L({
+        ar: 'تقرير المخزون يعرض الرصيد اللحظي — هذه الفلاتر لا تنطبق عليه',
+        en: 'Stock shows the live balance — these filters do not apply here.' })) + '</p>' : '') +
       '</div></div>';
 
     html += '<div class="card"><div class="card-body flush" id="repBody"></div></div>';
@@ -606,7 +634,12 @@
     /* Attendance summary per employee */
     attendance: function () {
       var map = {};
-      Store.all('attendance').forEach(function (a) {
+      /* تشديد إضافي: من يرى فقط مشروعه (reviewer وغيره) يجمع صفوف مشروعه هو
+         فقط، لا كل الشركة — يفشل مغلقاً كالقاعدة نفسها في كل تقرير آخر هنا.
+         Extra hardening: a non-global viewer (reviewer) aggregates only its
+         own projects' rows, not the whole company — fail-closed, consistent
+         with the gate above. */
+      Auth.scopeRows('attendance', Store.all('attendance')).forEach(function (a) {
         if (!inRange(a.date) || !projOk(a.project)) return;
         if (!map[a.employee]) map[a.employee] = { present: 0, absent: 0, leave: 0, mission: 0, sick: 0, ot: 0 };
         var k = a.attStatus || 'present';
