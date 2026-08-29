@@ -404,6 +404,32 @@
        comment for exactly why). Deliberately before version-badge.js —
        no functional link, just a fixed place near the end of the list. */
     'assets/js/date-sanity.js',
+    /* سلوك الشاشات — سؤال قبل ضياع نموذج، القفز لأول خانة حمراء، طيّ
+       الصفوف الفارغة، أزرار الصف مثبّتة على الهاتف. موضعه هنا مقصود
+       بثلاثة قيود: بعد audit-trail.js (آخر من يلفّ openDetail، فيجري
+       الطيّ على الجسم المكتمل)، وبعد mobile-field.js (وسم <style>
+       المحقون هنا يجب أن يتأخر عنه ليفوز بترتيب التتالي)، وقبل
+       version-badge.js الموثَّق أنه الأخير عمداً. أما موضعه في سلسلة
+       لفافات UI.modal فغير مهم عمداً — يقرأ opts.buttons بعد النداء لا
+       قبله، فسلوكه واحد داخلياً كان أم خارجياً.
+       Screen behaviour — ask before losing a typed form, jump to the
+       first red box, fold empty rows, pinned row buttons on phones.
+       This slot is deliberate on three constraints: after audit-trail.js
+       (the last openDetail wrapper, so the fold runs on the finished
+       body), after mobile-field.js (our injected <style> must follow its
+       to win the cascade), and before version-badge.js which is
+       documented as deliberately last. Its position in the UI.modal
+       wrapper chain is deliberately irrelevant — it reads opts.buttons
+       AFTER calling through, so it behaves identically inner or outer. */
+    'assets/js/screen-behaviour.js',
+    /* الاسم الحقيقي بدل رقم قاعدة البيانات الخام على الإرساليات والبحث
+       والفرز وملف CSV — يلفّ Schema.refLabel عبر Schema.get المصدَّرة وقت
+       النداء، فترتيبه بين الملفات المسجِّلة للشاشات غير مهم عمداً.
+       The real name instead of the raw database id on transmittals,
+       search, sort and CSV — wraps Schema.refLabel via the EXPORTED
+       Schema.get at call time, so its order among the screen-registrar
+       files is deliberately irrelevant. */
+    'assets/js/ref-label-resolve.js',
     /* رقم النسخة في تذييل الصفحة من الذاكرة الفعلية — آخر ملف عمداً،
        فحص رفعة محمد زيدان */
     'assets/js/version-badge.js'
