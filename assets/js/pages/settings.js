@@ -6,8 +6,23 @@
 
   var tab = 'company';
 
+  /* المفوَّض: أ. محمد عمارة أو أ. حسانين أو شؤون عاملين الموقع.
+     يرى تبويبة «المستخدمون» **وحدها** — لا بيانات الشركة ولا الصلاحيات ولا
+     السجل ولا تصدير البيانات. هذا نصّ ما وافق عليه المالك.
+     A delegate sees the USERS tab only — not the company profile, the roles
+     screen, the audit log or the data export. That is exactly what the owner
+     approved, no more.
+     ⚠️ محميّ بـ global.AccountFence: لو حُذف الملف الجديد عاد السطر إلى
+     سلوكه القديم حرفاً بحرف. Guarded on global.AccountFence so deleting the
+     new file restores the previous line character for character. */
+  function isDelegateNow() {
+    return !!(global.AccountFence && !Auth.isAdmin() &&
+              AccountFence.isDelegate(Auth.current()));
+  }
+
   function render(host) {
     var admin = Auth.isAdmin();
+    var delegate = isDelegateNow();
     var tabs = [
       { id: 'company', icon: 'building', label: t('set.company') },
       { id: 'users',   icon: 'users',    label: t('set.users'), adminOnly: true },
@@ -15,9 +30,20 @@
       { id: 'audit',   icon: 'clipboard',label: t('set.audit') },
       { id: 'data',    icon: 'download', label: t('set.data') },
       { id: 'about',   icon: 'life-buoy',label: t('set.about') }
-    ].filter(function (x) { return !x.adminOnly || admin; });
+    ].filter(function (x) {
+      if (delegate) return x.id === 'users';
+      return !x.adminOnly || admin;
+    });
 
-    if (!tabs.some(function (x) { return x.id === tab; })) tab = 'company';
+    /* ⚠️ السطر القديم كان يُرجع إلى 'company' عند عدم التطابق. للمفوَّض لا
+       توجد تبويبة 'company' إطلاقاً، فكان سيهبط على شاشة بيانات الشركة —
+       وهي بالضبط الشاشة التي أخفيناها عنه. الرجوع الآن إلى أول تبويبة
+       متاحة فعلاً، لا إلى اسم ثابت.
+       ⚠️ The old line fell back to 'company'. A delegate has no 'company' tab
+       at all, so it would have landed him on the company screen — precisely
+       the screen we just hid from him. It now falls back to the first tab
+       that actually exists, never to a hardcoded name. */
+    if (!tabs.some(function (x) { return x.id === tab; })) tab = tabs[0].id;
 
     var html = '<div class="page-head"><div class="page-head-text">' +
       '<h1 class="page-title">' + UI.icon('settings', 22) + ' ' + t('set.title') + '</h1>' +
@@ -136,7 +162,51 @@
   }
 
   /* ---------- users ---------- */
+  /* إعادة تحميل تشمل المفوَّض. Store.reload لا تجلب قائمة الحسابات له،
+     لأن جدول المستخدمين لا يُزامَن لدوره أصلاً — فبدون هذا السطر تبقى
+     الشاشة تعرض الحالة القديمة بعد فعل ناجح، وهو أسوأ من الفشل الصريح.
+     A reload that includes the delegate. Store.reload does not fetch the
+     accounts list for him because his role never syncs the users table;
+     without this the screen keeps showing the OLD state after a successful
+     action, which is worse than an honest failure. */
+  /* البحث عن حساب بالمعرّف. للمالك: من المخزن كما كان. للمفوَّض: من القائمة
+     التي جلبها بنفسه، لأن المخزن لا يحوي جدول المستخدمين لدوره إطلاقاً.
+     Find an account by id. For the owner: from the store, exactly as before.
+     For a delegate: from the list he fetched himself, because the store holds
+     no users table for his role at all. */
+  function lookupAccount(id) {
+    if (!id) return null;
+    var fromStore = Store.find('users', id);
+    if (fromStore) return fromStore;
+    var list = Auth.users() || [];
+    for (var i = 0; i < list.length; i++) if (String(list[i].id) === String(id)) return list[i];
+    return null;
+  }
+
+  async function reloadAccounts() {
+    await Store.reload();
+    if (isDelegateNow() && global.AccountFence.invalidateUsers) {
+      AccountFence.invalidateUsers();
+      if (Auth.refreshDelegateUsers) await Auth.refreshDelegateUsers();
+    }
+  }
+
   function usersTab(body) {
+    var delegate = isDelegateNow();
+
+    /* المفوَّض يجلب القائمة بنفسه مرة واحدة، ثم تُرسم الشاشة من جديد.
+       الفحص على وجود النسخة لا على طولها: قائمة فارغة إجابة مشروعة، ولو
+       اختبرنا الطول لدخلنا في جلب لا ينتهي.
+       The delegate fetches the list once, then the screen redraws. The test
+       is whether the cache EXISTS, not whether it has rows: an empty list is
+       a legitimate answer, and testing length would loop for ever. */
+    if (delegate && global.AccountFence.hasUserCache && !AccountFence.hasUserCache()) {
+      body.innerHTML = '<div class="card"><div class="empty">' +
+        L({ ar: 'جارٍ تحميل الحسابات…', en: 'Loading accounts…' }) + '</div></div>';
+      if (Auth.refreshDelegateUsers) Auth.refreshDelegateUsers().then(function () { usersTab(body); });
+      return;
+    }
+
     var list = Auth.users();
     var domain = (Store.meta().companyDomain) || (global.Identity && Identity.SETTINGS.companyDomain) || '';
 
@@ -164,8 +234,13 @@
       '<h3 class="card-title">' + UI.icon('users', 17) + ' ' + t('set.users') + '</h3>' +
       '<span class="badge b-info plain num">' + list.length + '</span>' +
       '<div style="margin-inline-start:auto;display:flex;gap:6px;flex-wrap:wrap">' +
+        /* زر التحويل يعيد كتابة بريد الدخول لكل حساب في الشركة دفعة واحدة —
+           يبقى للمالك وحده. المفوَّض لا يراه أصلاً.
+           The convert button rewrites the login email of EVERY account in the
+           company in one action. Owner only; a delegate never sees it. */
+        (delegate ? '' :
         '<button class="btn btn-outline btn-sm" id="migBtn">' + UI.icon('send', 14) + ' ' +
-          L({ ar: 'التحويل إلى بريد الشركة', en: 'Convert to company email' }) + '</button>' +
+          L({ ar: 'التحويل إلى بريد الشركة', en: 'Convert to company email' }) + '</button>') +
         '<button class="btn btn-primary btn-sm" id="newUser">' + UI.icon('plus', 14) + ' ' + t('g.new') + '</button>' +
       '</div></div>' +
       '<div class="table-wrap"><table class="data-table"><thead><tr>' +
@@ -186,10 +261,30 @@
         '<td class="small">' + UI.esc(Auth.roleLabel(u.role)) + '</td>' +
         '<td><span class="badge ' + (u.status === 'inactive' ? 'b-inactive' : 'b-active') + '">' +
           (u.status === 'inactive' ? L({ ar: 'موقوف', en: 'Disabled' }) : L({ ar: 'نشط', en: 'Active' })) + '</span></td>' +
+        /* أزرار الصف تمرّ على السياج. الصف الذي لا يملك المفوَّض إدارته يظهر
+           بلا أزرار، مع سبب مكتوب — لا زر مكسور ولا رسالة بعد الضغط.
+           ⚠️ إخفاء الزر ليس هو السياج: من يفتح الطرفية يتجاوزه في ثانية.
+           السياج الحقيقي في قاعدة البيانات وفي برنامج الحسابات، وكلٌّ منهما
+           يرفض وحده. هذا للوضوح فقط.
+           Row buttons pass through the fence. A row the delegate may not
+           manage is drawn with no buttons and a written reason — never a
+           button that fails after it is pressed.
+           ⚠️ Hiding a button is NOT the fence: a console bypasses it in a
+           second. The real fence is the database policy and the accounts
+           program, each refusing on its own. This is clarity, not security. */
         '<td class="col-actions"><div class="row-actions">' +
-        '<button class="row-btn" data-reset="' + UI.attr(u.id) + '" title="' + L({ ar: 'كلمة مرور جديدة', en: 'New password' }) + '">' + UI.icon('shuffle', 15) + '</button>' +
-        '<button class="row-btn" data-eu="' + UI.attr(u.id) + '" title="' + t('g.edit') + '">' + UI.icon('edit', 15) + '</button>' +
-        (u.username !== 'admin' ? '<button class="row-btn danger" data-du="' + UI.attr(u.id) + '">' + UI.icon('trash', 15) + '</button>' : '') +
+        (function () {
+          if (!delegate) {
+            return '<button class="row-btn" data-reset="' + UI.attr(u.id) + '" title="' + L({ ar: 'كلمة مرور جديدة', en: 'New password' }) + '">' + UI.icon('shuffle', 15) + '</button>' +
+              '<button class="row-btn" data-eu="' + UI.attr(u.id) + '" title="' + t('g.edit') + '">' + UI.icon('edit', 15) + '</button>' +
+              (u.username !== 'admin' ? '<button class="row-btn danger" data-du="' + UI.attr(u.id) + '">' + UI.icon('trash', 15) + '</button>' : '');
+          }
+          var v = AccountFence.canManageAccount(Auth.current(), u, null, {});
+          if (!v.ok) return '<span class="muted small" title="' + UI.attr(v.reason) + '">—</span>';
+          return '<button class="row-btn" data-reset="' + UI.attr(u.id) + '" title="' + L({ ar: 'كلمة مرور جديدة', en: 'New password' }) + '">' + UI.icon('shuffle', 15) + '</button>' +
+            '<button class="row-btn" data-eu="' + UI.attr(u.id) + '" title="' + t('g.edit') + '">' + UI.icon('edit', 15) + '</button>' +
+            (u.username !== 'admin' ? '<button class="row-btn danger" data-du="' + UI.attr(u.id) + '">' + UI.icon('trash', 15) + '</button>' : '');
+        })() +
         '</div></td></tr>';
     });
     h += '</tbody></table></div></div>';
@@ -203,12 +298,24 @@
     body.innerHTML = h;
 
     document.getElementById('newUser').onclick = function () { userForm(null, body); };
-    document.getElementById('migBtn').onclick = function () { migrateDialog(body); };
+    /* ⚠️ زر التحويل غير موجود للمفوَّض، والسطر القديم كان سيرمي خطأً يوقف
+       تركيب بقية الأزرار في نفس اللحظة — فتفتح الشاشة بلا أي زر يعمل.
+       ⚠️ The convert button does not exist for a delegate, and the old line
+       would have thrown right there, stopping every remaining button on the
+       screen from being wired — the page would open completely dead. */
+    var migBtn = document.getElementById('migBtn');
+    if (migBtn) migBtn.onclick = function () { migrateDialog(body); };
 
     body.querySelectorAll('[data-reset]').forEach(function (b) {
       b.onclick = function () {
         var id = b.getAttribute('data-reset');
-        var u = Store.find('users', id);
+        /* ⚠️ Store.find('users') فارغ تماماً للمفوَّض — جدول المستخدمين لا
+           يُزامَن لدوره. السطر القديم كان سيرمي على u.name قبل أن تظهر أي
+           نافذة، فيبدو الزر ميتاً بلا سبب معروض.
+           ⚠️ Store.find('users') is completely empty for a delegate — his
+           role never syncs that table. The old line threw on u.name before
+           any dialog appeared, so the button looked dead with no reason. */
+        var u = lookupAccount(id) || { name: '' };
         UI.confirm({
           title: L({ ar: 'كلمة مرور جديدة', en: 'New password' }),
           message: L({ ar: 'سيتم توليد كلمة مرور جديدة لـ«' + u.name + '» وسيُطلب منه تغييرها عند أول دخول.',
@@ -219,7 +326,7 @@
             if (!result.ok) { UI.toast(result.error || 'Error', 'error', 6000); return false; }
             var map = {}; map[id] = result.password;
             Identity.slips([id], map);
-            await Store.reload();
+            await reloadAccounts();
             usersTab(body);
             return true;
           }
@@ -234,7 +341,7 @@
           onOk: async function () {
             var result = await Auth.adminUsers('deactivate', { userId: b.getAttribute('data-du') });
             if (!result.ok) { UI.toast(result.error || 'Error', 'error', 6000); return false; }
-            await Store.reload(); UI.toast(t('g.saved')); usersTab(body); return true;
+            await reloadAccounts(); UI.toast(t('g.saved')); usersTab(body); return true;
           }
         });
       };
@@ -292,7 +399,11 @@
   }
 
   function userForm(id, body) {
-    var u = id ? Store.find('users', id)
+    /* lookupAccount بدل Store.find: المفوَّض لا يملك جدول المستخدمين في
+       المخزن، فكان زر التعديل يفتح نافذة فارغة تماماً.
+       lookupAccount instead of Store.find: a delegate has no users table in
+       the store, so the edit button opened a completely blank dialog. */
+    var u = id ? lookupAccount(id)
                : { name: '', username: '', email: '', role: 'employee', status: 'active', projects: [], mustChangePassword: true };
     var temporaryPassword = id ? '' : (global.Identity ? Identity.makePassword() : '');
     var projects = Store.all('projects');
@@ -307,10 +418,50 @@
       L({ ar: 'توليد', en: 'generate' }) + '</button></span>' +
       '<input class="input num" id="uPass" value="' + UI.attr(temporaryPassword) + '" autocomplete="new-password"></label>' : '') +
       '<label class="field"><span class="field-label">' + L({ ar: 'الدور', en: 'Role' }) + '</span><select class="select" id="uRole">';
-    Object.keys(Auth.ROLES).forEach(function (k) {
+    /* القائمة تُبنى من السياج نفسه، فلا تعرض أبداً دوراً سيرفضه الحفظ.
+       عرض خيار يُرفض بعد الضغط هو أسوأ من عدم عرضه.
+       The dropdown is built from the fence itself, so it can never offer a
+       role the save will refuse. Offering a choice that fails after it is
+       pressed is worse than not offering it. */
+    var roleKeys = isDelegateNow()
+      ? AccountFence.assignableRoles(Auth.current())
+      : Object.keys(Auth.ROLES);
+    roleKeys.forEach(function (k) {
       h += '<option value="' + k + '"' + (u.role === k ? ' selected' : '') + '>' + UI.esc(Auth.roleLabel(k)) + '</option>';
     });
     h += '</select></label>' +
+      /* ⭐⭐ خانة الموقع — أمنية، لا شكلية.
+         الحساب الذي يُحفظ بلا موقع **يرى كل المواقع** بحكم تصميم قاعدة
+         البيانات (دالة المواقع ترجع «مسموح» لمن لا موقع له، حتى لا يُقفل
+         أحد خارج النظام). لم تكن هذه الخانة موجودة إطلاقاً، وكان كل حساب
+         يُنشأ من الشاشة يولد مطّلعاً على كل المواقع — وهو مقبول حين كان
+         المالك وحده ينشئ الحسابات، وخطر مباشر لحظة أن يفعلها موظف موقع.
+         ⭐⭐ THE SITE BOX — security, not cosmetics.
+         An account saved with no site SEES EVERY SITE, by database design
+         (the site function answers "allowed" for anyone with no site, so
+         nobody is ever locked out). This box did not exist at all, so every
+         account created from this screen was born able to see every site —
+         tolerable while only the owner created accounts, and a direct leak
+         the moment a site HR person does it.
+         المالك يرى كل المواقع · مدير أي موقع يرى كل المواقع · موظف شؤون
+         عاملين الموقع يرى موقعه هو فقط، مقفلاً، ويُفرض على الخادم أيضاً.
+         The owner and the two managers get the full list; a site HR person
+         sees their own site only, locked — and the server forces it again. */
+      (function () {
+        var sites = (Store.all('sites') || []).filter(function (s) { return s.status !== 'inactive'; });
+        var forced = isDelegateNow() && AccountFence.forcedSiteFor ? AccountFence.forcedSiteFor(Auth.current()) : null;
+        var cur = u.site || forced || '';
+        var out = '<label class="field"><span class="field-label">' +
+          L({ ar: 'الموقع', en: 'Site' }) + ' <span class="req">*</span></span>' +
+          '<select class="select" id="uSite"' + (forced ? ' disabled' : '') + '>';
+        if (!forced) out += '<option value="">' + L({ ar: '— اختر الموقع —', en: '— choose a site —' }) + '</option>';
+        sites.forEach(function (s) {
+          if (forced && s.id !== forced) return;
+          out += '<option value="' + UI.attr(s.id) + '"' + (cur === s.id ? ' selected' : '') + '>' + UI.esc(s.name || s.id) + '</option>';
+        });
+        out += '</select></label>';
+        return out;
+      })() +
       '<label class="field"><span class="field-label">' + t('g.status') + '</span><select class="select" id="uStatus">' +
       '<option value="active"' + (u.status !== 'inactive' ? ' selected' : '') + '>' + L({ ar: 'نشط', en: 'Active' }) + '</option>' +
       '<option value="inactive"' + (u.status === 'inactive' ? ' selected' : '') + '>' + L({ ar: 'موقوف', en: 'Disabled' }) + '</option>' +
@@ -344,12 +495,27 @@
             if (dup.length) { UI.toast(L({ ar: 'اسم المستخدم مستخدم بالفعل', en: 'Username already exists' }), 'error'); return false; }
             var projs = [];
             document.querySelectorAll('[data-up]:checked').forEach(function (c) { projs.push(c.getAttribute('data-up')); });
+            /* الموقع إلزامي. حساب بلا موقع يرى كل المواقع — فالحفظ بلا
+               موقع ليس نقصاً في البيانات بل ثغرة. الخادم يفحصها ثانيةً.
+               The site is required. An account with no site sees every site,
+               so saving without one is not missing data — it is a hole. The
+               server checks it again; this message is only so the person
+               finds out here rather than after the account exists. */
+            var siteEl = document.getElementById('uSite');
+            var siteVal = siteEl ? siteEl.value : (u.site || '');
+            if (!siteVal) {
+              UI.toast(L({ ar: 'اختر الموقع أولاً — الحساب بلا موقع يرى كل المواقع.',
+                           en: 'Choose a site first — an account with no site can see every site.' }), 'error', 6000);
+              if (siteEl) siteEl.focus();
+              return false;
+            }
             var data = {
               userId: id || undefined,
               name: name, username: username,
               role: document.getElementById('uRole').value,
               status: document.getElementById('uStatus').value,
               email: document.getElementById('uEmail').value,
+              site: siteVal,
               projects: projs
             };
             if (!id) data.temporaryPassword = document.getElementById('uPass').value;
