@@ -608,7 +608,14 @@
       var rows = [], tot = 0;
       an().approved('payroll').forEach(function (p) {
         if (!inRange(p.date) || !projOk(p.project)) return;
-        var count = (p.lines || []).length;
+        /* القاعدة الواحدة من employee-count-fill.js — لا نسخة ثانية هنا.
+           بدونه نعود لسلوكنا القديم بالضبط (الملف إضافي وقابل للحذف).
+           The ONE rule from employee-count-fill.js — never a second copy
+           here. Without it we fall back to the exact previous behaviour
+           (that file stays additive and deletable). */
+        var count = (window.EmployeeCountFill && EmployeeCountFill.countRealLines)
+          ? EmployeeCountFill.countRealLines(p.lines)
+          : (p.lines || []).length;
         var gross = 0, ded = 0;
         (p.lines || []).forEach(function (l) {
           parts.add.forEach(function (k) { gross += Number(l[k]) || 0; });
