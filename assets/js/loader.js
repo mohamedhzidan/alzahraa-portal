@@ -128,6 +128,16 @@
        Makes function-style formulas actually compute — eight HR fields were
        reading zero. After ui.js, and before pages/entity.js. */
     'assets/js/calc-formulas.js',
+    /* الرقم القومي إجباري لكل عامل في كشف العمالة اليومية، ويظهر آخر ٤
+       أرقام فقط في القوائم والطباعة — يحتاج Schema (لتثبيت lines.validate
+       على dailyLabour) وUI.displayValue (اللفافة الثالثة، بعد الاثنتين
+       أعلاه ليكون الأخارجي). بعد hr-department.js (٤٥) حتماً.
+       Compulsory national ID per worker on the daily-labour sheet, and
+       last-4 display in lists/print — needs Schema (to install
+       lines.validate on dailyLabour) and UI.displayValue (the third
+       wrapper, after the two above so it is outermost). Necessarily after
+       hr-department.js (45). */
+    'assets/js/daily-labour-id.js',
     'assets/js/rules.js',
     'assets/js/print.js',
     /* المبلغ المسدَّد/المحصَّل الحقيقي من سندات الصرف/القبض المعتمدة —
@@ -151,6 +161,18 @@
        the merged list. If dc-alerts.js came first, the HR alerts would
        vanish from the screen with no error at all. */
     'assets/js/hr-alerts.js',
+    /* التحويل المخزني يُقيَّد فقط عند تسجيل الوصول الفعلي، لا عند الاعتماد
+       الورقي — يلفّ Alerts.list ويحتاج أن يسبق dc-alerts.js بالضبط لنفس
+       سبب hr-alerts.js أعلاه (انظر تعليقه). يحتاج Store/Schema/Auth/Rules/
+       Alerts (كلها قبله). فالسلسلة الإلزامية الآن رباعية:
+       alerts.js → hr-alerts.js → stock-in-transit.js → dc-alerts.js.
+       Stock transfers are credited at the destination only once real
+       arrival is recorded, never on paper approval alone — wraps
+       Alerts.list and must precede dc-alerts.js for exactly hr-alerts.js's
+       own reason above (see its comment). Needs Store/Schema/Auth/Rules/
+       Alerts (all earlier). The mandatory chain is now FOUR files:
+       alerts.js → hr-alerts.js → stock-in-transit.js → dc-alerts.js. */
+    'assets/js/stock-in-transit.js',
     'assets/js/dc-alerts.js',
     /* «صادر للتنفيذ» كان يُرفض دائماً — حقل شاشة اسمه status (draft/issued/
        review/superseded/void) كان يكتب في عمود دورة الاعتماد نفسه، المقيَّد
@@ -244,6 +266,18 @@
        The employee statement wraps EntityPage.openDetail exactly as
        attachments.js does, so it comes after it and lands below it. */
     'assets/js/employee-statement.js',
+    /* يُنهي إصلاح المخزون: يُلصق Dashboard.analytics بالحساب المصحَّح
+       (يحتاج Dashboard موجوداً — بعد pages/dashboard.js)، ويضيف زرّ
+       «تسجيل وصول التحويل» على تحويل معتمد عبر لفّ EntityPage.openDetail
+       — بعد employee-statement.js فيظهر تحت لوحته لا فوقها، بنفس أسلوب
+       attachments.js/employee-statement.js أعلاه.
+       Finishes the stock fix: patches Dashboard.analytics onto the
+       corrected computation (needs Dashboard to exist — after pages/
+       dashboard.js), and adds a "Record transfer arrival" button on an
+       approved transfer by wrapping EntityPage.openDetail — after
+       employee-statement.js so it lands below its panel, not above,
+       exactly like attachments.js/employee-statement.js above. */
+    'assets/js/stock-arrival-gate.js',
 
     /* ثلاث شاشات مكتب فني جديدة (شيت مناسيب · طلب خرسانة · إذن فحص داخلي) —
        بعد employee-statement.js وقبل app.js حتماً، وقبل doc-numbering.js
@@ -430,6 +464,29 @@
        Schema.get at call time, so its order among the screen-registrar
        files is deliberately irrelevant. */
     'assets/js/ref-label-resolve.js',
+    /* ── جديد في v2.0.23 · NEW in v2.0.23 ──────────────────────────────
+       سياج الرتب لإدارة الحسابات المفوّضة. موضعه هنا مقصود: بعد auth.js
+       (يلفّ Auth.adminUsers وAuth.users)، وبعد أي ملف يعدّل Auth.ROLES —
+       فهو يقرأ الأدوار وقت النداء لا وقت التحميل، لكن ترتيبه بعد
+       robot-role.js يجعل القائمة مكتملة عند أول رسم. وقبل version-badge.js
+       الموثَّق أنه الأخير عمداً.
+       The rank fence for delegated account management. This slot is
+       deliberate: after auth.js (it wraps Auth.adminUsers and Auth.users),
+       and after anything that mutates Auth.ROLES — it reads roles at call
+       time, not load time, but sitting after robot-role.js means the list
+       is complete at first render. Before version-badge.js, which is
+       documented as deliberately last. */
+    'assets/js/account-fence.js',
+    /* صفحات نشاط المواقع + تبويبات المواقع على شاشات القوائم. بعد
+       account-fence.js حتماً (يستعمل AccountFence لصفوف الحسابات)، وبعد
+       audit-trail.js حتماً لأن كليهما يلفّ Auth.scopeRows وترتيب المرشّحات
+       النقية بينهما آمن ومقصود، وبعد schema.js لأنه يسجّل شاشة جديدة.
+       Site activity pages + the site tabs on list screens. Necessarily
+       after account-fence.js (it uses AccountFence for account rows) and
+       after audit-trail.js — both wrap Auth.scopeRows, and the order
+       between pure filters is safe and deliberate — and after schema.js
+       because it registers a new screen. */
+    'assets/js/site-activity.js',
     /* رقم النسخة في تذييل الصفحة من الذاكرة الفعلية — آخر ملف عمداً،
        فحص رفعة محمد زيدان */
     'assets/js/version-badge.js'

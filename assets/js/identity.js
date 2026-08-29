@@ -169,7 +169,14 @@
     var pass = makePassword();
     var result = await Auth.adminUsers('reset_password', { userId: userId, temporaryPassword: pass });
     if (!result || result.ok === false) return result || { ok: false, error: 'reset-failed' };
-    Store.log('password_reset', 'users', userId, (Store.find('users', userId) || {}).name || '');
+    /* نفس السبب: بدون هذا يُسجَّل «إعادة ضبط كلمة مرور» بلا اسم صاحبها
+       حين يفعلها مفوَّض — سطر في السجل لا يقول عمّن يتحدث.
+       Same reason: without this a delegate's password reset is logged with
+       no name at all — an audit line that does not say who it was about. */
+    Store.log('password_reset', 'users', userId,
+      ((Store.find('users', userId) ||
+        (global.AccountFence && AccountFence.findUser ? AccountFence.findUser(userId) : null) ||
+        {}).name) || '');
     return { ok: true, password: result.temporaryPassword || pass };
   }
 
@@ -237,7 +244,18 @@
     var cards = '';
 
     (userIds || []).forEach(function (uid) {
-      var u = Store.find('users', uid);
+      /* ⚠️ Store.find('users') فارغ للمفوَّض — جدول المستخدمين لا يُزامَن
+         لدوره. النتيجة كانت صامتة وقاسية: أ. محمد عمارة ينشئ حساباً، يرى
+         «تم الحفظ»، ولا تُطبع أي ورقة — فلا يملك كلمة المرور ليعطيها
+         للموظف الجديد، والحساب موجود فعلاً ولا سبيل لدخوله.
+         ⚠️ Store.find('users') is empty for a delegate — his role never syncs
+         that table. The failure was silent and cruel: عمارة creates an
+         account, sees "saved", and NO slip prints — so he has no password to
+         hand the new employee, while the account really does exist and
+         cannot be signed into. Guarded: without the fence file this line
+         behaves exactly as it did before. */
+      var u = Store.find('users', uid) ||
+              (global.AccountFence && AccountFence.findUser ? AccountFence.findUser(uid) : null);
       if (!u) return;
       var pw = (passwords && passwords[uid]) || '—';
       var login = u.email || u.username;
