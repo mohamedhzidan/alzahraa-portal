@@ -359,6 +359,12 @@
        is in this list on purpose — it downloads on first press only,
        same policy as the three readers above. */
     'assets/js/read-ocr.js',
+    /* زر «📷 صوّر ورقة» بجانب «＋ إضافة ملف» — بعد attachments.js وpages/entity.js
+       حتماً: لا يلفّ شيئاً في attachments.js بل ينتظر اللوحة التي ترسمها هي.
+       The «📷 Photograph a page» button beside «＋ Add file» — necessarily after
+       attachments.js and pages/entity.js: it wraps nothing inside attachments.js,
+       it waits for the panel attachments.js itself renders. (v2.0.26) */
+    'assets/js/camera-capture.js',
     'assets/js/import.js',
     /* استيراد PDF ووورد وأوتوكاد من نفس زر «استيراد» — بعد import.js حتماً،
        لأنه يعيد ربط الزر الذي يُنشئه import.js نفسه، لا يستبدل دالته.
@@ -415,6 +421,16 @@
        Store.create, necessarily after audit-trail.js, and it needs
        Auth.client() to ask the server what number it issued. */
     'assets/js/doc-numbering.js',
+    /* «عدد الموظفين» كان دائماً فارغاً: schema.js:1050 يعرّفه readonly ولا
+       شيء يكتبه. هذا الملف يحسبه من بنود المسير الحقيقية عند كل إنشاء/حفظ
+       (يستبعد السطر الفارغ)، بلفّ Store.create/Store.save — بعد
+       doc-numbering.js مباشرة ليكون اللفّ الأخير.
+       «عدد الموظفين» was always blank: schema.js:1050 defines it readonly
+       and nothing ever wrote it. This computes it from the real payroll
+       lines on every create/save (blank filler line excluded) by wrapping
+       Store.create/Store.save — directly after doc-numbering.js so it is
+       the outermost wrap. (v2.0.26) */
+    'assets/js/employee-count-fill.js',
     /* يخفي زر التقارير عمّن لا تقارير له — الحماية نفسها داخل pages/reports.js */
     'assets/js/report-access.js',
     /* تقويم النقدية لاثني عشر أسبوعاً داخل صفحة التقارير — يلفّ

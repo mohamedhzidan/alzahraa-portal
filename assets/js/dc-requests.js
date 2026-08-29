@@ -770,7 +770,7 @@
     b.className = 'btn btn-outline btn-sm';
     b.textContent = L({ ar: '📎 مرفقات', en: '📎 Attachments' });
     b.onclick = function () {
-      var panel = document.querySelector('[data-az-attachments], #azAttachPanel');
+      var panel = document.getElementById('azAttachSection'); /* الإصلاح: كان يبحث عن معرّف غير موجود إطلاقاً فيسقط دائماً لـ«احفظ أولاً» · FIX: was querying an id that exists nowhere, so it always fell to "save first" (attachments.js:383) */
       if (panel && panel.scrollIntoView) {
         panel.scrollIntoView({ behavior: 'smooth', block: 'center' });
         var input = panel.querySelector('#azAttachInput');
@@ -853,8 +853,32 @@
           var cell = document.querySelector('[data-az-state="' + id + '"]');
           var rec = Store.find('employees', id);
           if (!rec) return;
-          rec.site = sel.value || null;
-          Promise.resolve(Store.save('employees', rec)).then(function () {
+          /* ⭐ الإصلاح — كان: Store.save('employees', rec)
+             توقيع الدالة الحقيقي هو save(table, id, patch, opts)
+             (store.js:394)، فكان السجلّ يُمرَّر في مكان المعرّف: find تقارن
+             r.id === <كائن> فلا تطابق أبداً (store.js:367)، وsave تعود null
+             فوراً (store.js:396-397) بلا رمي استثناء. ثم Promise.resolve(null)
+             ينجح فتُرسم ✓ الخضراء و.catch لا يعمل أبداً — فيوزّع أ. أحمد
+             أربعين موظفاً على المواقع، يرى أربعين ✓، ولا يُحفظ ولا واحد.
+             وحقل site هو سياج الخصوصية نفسه (سوهاج/الروبيكي)، فالصفّ بلا
+             موقع ليس ناقصاً فحسب بل خارج السياج.
+             ونتحقّق الآن من القيمة العائدة قبل رسم ✓: «رجعت الدالة» ليست
+             «حُفظ» (HISTORY #3).
+             ⭐ THE FIX — was: Store.save('employees', rec)
+             The real signature is save(table, id, patch, opts)
+             (store.js:394), so the RECORD was being passed where the id
+             belongs: find compares r.id === <an object> and never matches
+             (store.js:367), so save returned null at once
+             (store.js:396-397) without throwing. Promise.resolve(null) then
+             RESOLVED, the green ✓ was drawn and .catch never ran — so Ahmed
+             could assign forty people to sites, see forty ticks, and save
+             none of them. And `site` IS the privacy fence (سوهاج/الروبيكي):
+             a row with no site is not merely incomplete, it is outside the
+             fence. We now also check the returned value before drawing ✓:
+             "the function returned" is not "it saved" (HISTORY #3).
+             Proven by TESTS/assign-site-silent-failure-trial.js. */
+          Promise.resolve(Store.save('employees', id, { site: sel.value || null })).then(function (saved) {
+            if (!saved) throw new Error('لم يُحفظ الموقع — لم يُعثر على الموظف · the site was not saved — employee not found');
             if (cell) cell.innerHTML = '<span style="color:#1a7f37">✓</span>';
           }).catch(function (err) {
             if (cell) cell.innerHTML = '<span style="color:#b42318" title="' +
