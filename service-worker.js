@@ -1,5 +1,23 @@
 /* Al Zahraa Portal PWA shell cache. Business records stay in encrypted IndexedDB.
    ---------------------------------------------------------------------------
+   v2.0.21 — ٢٩ أغسطس ٢٠٢٦ — ملفان جديدان:
+   screen-behaviour.js: سؤال قبل ضياع نموذج مكتوب فيه، القفز إلى أول خانة
+   حمراء مع تسميتها، طيّ صفوف «—» الفارغة في عرض السجل خلف سطر واحد
+   (للشاشة فقط — الورق يُظهر كل شيء)، وتثبيت عمود أزرار الصف على حافة
+   الشاشة في الهاتف (كان صفر زر ظاهراً من دون سحب الجدول جانبياً).
+   ref-label-resolve.js: الاسم الحقيقي بدل رقم قاعدة البيانات الخام (dr1)
+   على الإرساليات والبحث والفرز وملف CSV — لأربع شاشات مسجَّلة خارج
+   schema.js. حذف أي من الملفين يعيد سلوكه السابق بالضبط.
+   v2.0.21 — 29 August 2026 — two new files:
+   screen-behaviour.js: ask before a typed form is lost, jump to (and
+   name) the first red box, fold empty «—» rows behind one line in the
+   record view (screen only — paper shows everything), and pin the
+   row-action column to the phone's visible edge (0 buttons were visible
+   without dragging). ref-label-resolve.js: the real name instead of the
+   raw database id (dr1) on transmittals, search, sort and CSV, for the
+   four screens registered outside schema.js. Deleting either file
+   restores its previous behaviour exactly.
+   ---------------------------------------------------------------------------
    v2.0.20 — ٢٨ أغسطس ٢٠٢٦ — حارس محو الرواتب الصامت
    ملف واحد جديد فقط، بلا تعديل على أي ملف قديم:
 
@@ -504,7 +522,7 @@
 
       بدون إضافتها لن يعمل الذكاء الاصطناعي ولا القسمان الجديدان بدون إنترنت.
    --------------------------------------------------------------------------- */
-var CACHE = 'alzahraa-shell-v2.0.20';
+var CACHE = 'alzahraa-shell-v2.0.21';
 
 var SHELL = [
   './', './index.html', './manifest.webmanifest', './robots.txt',
@@ -756,6 +774,17 @@ var SHELL = [
      يعمل بلا اتصال أيضاً. The site engineer's phone — bigger touch
      targets, a status strip, unified quick actions; works offline too. */
   './assets/js/mobile-field.js',
+
+  /* ── جديد في v2.0.21 · NEW in v2.0.21 ────────────────────────────── */
+  /* سلوك الشاشات: سؤال قبل ضياع نموذج مكتوب، القفز لأول خانة حمراء،
+     طيّ الصفوف الفارغة، وأزرار الصف في متناول الإبهام على الهاتف.
+     Screen behaviour: ask before losing a typed form, jump to the first
+     red box, fold empty rows, and row buttons reachable on a phone. */
+  './assets/js/screen-behaviour.js',
+  /* الاسم الحقيقي بدل الرقم الخام (dr1) على الإرساليات والبحث والفرز
+     وCSV. The real name instead of the raw id (dr1) on transmittals,
+     search, sort and CSV. */
+  './assets/js/ref-label-resolve.js',
 
   './assets/js/app.js'
 ];
