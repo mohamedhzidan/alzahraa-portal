@@ -575,7 +575,7 @@
 
       بدون إضافتها لن يعمل الذكاء الاصطناعي ولا القسمان الجديدان بدون إنترنت.
    --------------------------------------------------------------------------- */
-var CACHE = 'alzahraa-shell-v2.0.25';
+var CACHE = 'alzahraa-shell-v2.0.26';
 
 var SHELL = [
   './', './index.html', './manifest.webmanifest', './robots.txt',
@@ -701,6 +701,7 @@ var SHELL = [
   /* أرقام مستندات حقيقية لكل الشاشات وكل الأقسام
      real document numbers, every screen, every department */
   './assets/js/doc-numbering.js',
+  './assets/js/employee-count-fill.js',
   /* «المسدَّد» و«المتبقي» الحقيقيان على سلف الموظفين
      the real repaid and outstanding figures on employee advances */
   './assets/js/advance-balance.js',
@@ -891,6 +892,9 @@ var SHELL = [
   './assets/js/beneficiary-fill.js',
   './assets/js/amount-in-words.js',
   './assets/js/checkbox-three-states.js',
+
+  /* NEW in v2.0.26 — زر الكاميرا · the camera button */
+  './assets/js/camera-capture.js',
 
   './assets/js/app.js'
 ];
