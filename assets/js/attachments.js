@@ -288,11 +288,52 @@
     /* السجل يُقرأ من الخادم لا من الذاكرة — الذاكرة تفرغ بعد كل تحديث
        read the row from the server, not the cache — the cache is empty
        after every refresh, which is the very bug this file fixes */
-    var got = await c.from('attachments').select('id, path').eq('id', attachmentId).maybeSingle();
+    var got = await c.from('attachments').select('id, path, module, recordId').eq('id', attachmentId).maybeSingle();
     if (got.error || !got.data) {
       return { ok: false, error: (got.error && got.error.message) ||
         L({ ar: 'المرفق غير موجود.', en: 'Attachment not found.' }) };
     }
+
+    /* ⭐ القاعدة التي وعد بها تعليق هذا الملف أعلاه (سطر ٢٨٠) لكن لم يُنفّذها
+       أحد قط (تجربة B.11): «المستندات المعتمدة لا تُحذف مرفقاتها». نقرأ
+       حالة السجل الأب من الخادم مباشرة (لا من الذاكرة — نفس سبب قراءة
+       المرفق نفسه أعلاه)، ونرفض الحذف إن كانت approved أو reversed. سجلّات
+       بيانات أساسية (موردون، أصناف...) لا تملك دورة اعتماد أصلاً فتمرّ دون
+       تغيير. أما إذا تعذّر تحديد وحدة السجل الأب أصلاً (module غير معروف —
+       لا يُفترض أن يحدث، upload() يكتبه دوماً) أو فشلت قراءة حالته (شبكة،
+       صلاحية) فالرفض هو الافتراضي — أب مجهول لا يُثبت أنه غير محمي، لا نخمّن.
+       ⭐ THE RULE THIS FILE'S OWN COMMENT PROMISED ABOVE (line 280) but
+       nobody ever enforced (trial B.11): "approved documents do not have
+       their attachments deleted." We read the parent record's status
+       straight from the server (not the cache — same reason as reading
+       the attachment itself above), and refuse when it is approved or
+       reversed. Master-data records (suppliers, items…) have no workflow
+       cycle at all, so they pass through unchanged. But when the parent's
+       module cannot even be resolved (unknown module — should never
+       happen, upload() always writes it) or its status read fails
+       (network, permission), refusing is the default — an unknown parent
+       is not proof of safety; never guess. */
+    var parentModule = (global.Schema && Schema.get && Schema.get(got.data.module)) || null;
+    if (!parentModule) {
+      return { ok: false, error: L({
+        ar: 'تعذّر تحديد المستند الأصلي لهذا المرفق — لم يُحذف.',
+        en: 'Could not identify this attachment\'s parent document — it was NOT deleted.' }) };
+    }
+    if (parentModule.workflow) {
+      var parentRow = await c.from(parentModule.table).select('status').eq('id', got.data.recordId).maybeSingle();
+      if (parentRow.error) {
+        return { ok: false, error: L({
+          ar: 'تعذّر التأكد من حالة المستند الأصلي — لم يُحذف المرفق.',
+          en: 'Could not confirm the parent document\'s status — the attachment was NOT deleted.' }) };
+      }
+      var pStatus = parentRow.data && parentRow.data.status;
+      if (pStatus === 'approved' || pStatus === 'reversed') {
+        return { ok: false, error: L({
+          ar: 'لا يمكن حذف مرفق من مستند معتمد — المستند المعتمد ومرفقاته سجل واحد.',
+          en: 'Cannot delete an attachment from an approved document — an approved document and its attachments are one record.' }) };
+      }
+    }
+
     var u = me();
     /* نعلّم السجل محذوفاً أولاً — السجل هو المرجع، والملف يتبعه.
        mark the register first — the register is the authority. */
@@ -326,6 +367,19 @@
 
   async function panelHTML(moduleId, recordId, canEdit) {
     var files = await list(moduleId, recordId);
+    /* تجميلي فقط — الحارس الحقيقي داخل remove() أعلاه (بحث الخادم في كل
+       ضغطة). لكن إظهار زر «حذف» على مرفق مستحيل حذفه فعلاً يُربك أحمد؛
+       نُخفيه هنا من معرفة محلية متاحة أصلاً للوحة (Store.find)، بلا طلب
+       شبكة إضافي — كل صفوف هذه اللوحة تخص نفس السجل الأب فيكفي فحص واحد.
+       Cosmetic only — the real guard is inside remove() above (a fresh
+       server read on every press). But showing a "delete" button on an
+       attachment that cannot actually be deleted is confusing for أحمد;
+       hide it here from information the panel already has locally
+       (Store.find), no extra network round-trip — every row in this panel
+       belongs to the same parent record, so one check covers them all. */
+    var pMod = global.Schema && Schema.get ? Schema.get(moduleId) : null;
+    var pRec = (pMod && pMod.workflow && global.Store && Store.find) ? Store.find(pMod.table, recordId) : null;
+    var parentLocked = !!(pRec && (pRec.status === 'approved' || pRec.status === 'reversed'));
     var h = '<div class="form-section" id="azAttachSection">' +
       '<div class="form-section-title">' +
         esc(L({ ar: 'المرفقات', en: 'Attachments' })) +
@@ -363,7 +417,7 @@
           '<td class="col-actions" style="white-space:nowrap">' +
             '<button type="button" class="row-btn" data-az-open="' + esc(f.path) + '" title="' +
               esc(L({ ar: 'فتح', en: 'Open' })) + '">⬇</button>' +
-            (canEdit ? '<button type="button" class="row-btn danger" data-az-del="' + esc(f.id) +
+            (canEdit && !parentLocked ? '<button type="button" class="row-btn danger" data-az-del="' + esc(f.id) +
               '" title="' + esc(L({ ar: 'حذف', en: 'Delete' })) + '">✕</button>' : '') +
           '</td></tr>';
       });

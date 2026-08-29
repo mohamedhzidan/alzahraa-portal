@@ -139,7 +139,20 @@
       var iStatus = target.columns.indexOf('status');
       if (target.columns.indexOf('documentStatus') === -1) {
         if (iStatus === -1) target.columns.push('documentStatus');
-        else target.columns.splice(iStatus, 0, 'documentStatus');
+        /* ⚠️ الرقم ١ هنا يعني «استبدل» لا «أدخل بجانبه». النسخة الأولى
+           كتبت ٠ فبقي عمود status القديم في القائمة بجانب الجديد — وبما
+           أن هذه الشاشة ليست شاشة سير عمل (workflow:false) لا يوجد حقل
+           اسمه status أصلاً، فكان entity.js:140 يقرأ .options على لا شيء
+           وتنهار شاشة «سجل المستندات» كلها فور أول مستند حقيقي. الشاشة
+           بدت سليمة فقط لأنها كانت فارغة.
+           ⚠️ The 1 here means REPLACE, not insert-beside. The first copy
+           wrote 0, so the old status column stayed in the list next to
+           the new one — and since this is not a workflow screen
+           (workflow:false) no field named status exists at all, so
+           entity.js:140 read .options on nothing and the whole document
+           register crashed on the first real document. It only looked
+           fine because the screen was still empty. */
+        else target.columns.splice(iStatus, 1, 'documentStatus');
       }
     }
 

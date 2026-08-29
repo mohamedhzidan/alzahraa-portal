@@ -509,14 +509,24 @@
     addLine(F('penalty', 'جزاءات', 'Penalties', 'money', { default: 0 }), 'advanceDeduction');
   }
 
-  /* ٧ · الإجازات — كل الأنواع يعتمدها رئيس مجلس الإدارة، فليُكتب ذلك */
+  /* ٧ · الإجازات — توقيعان الآن: مدير الموارد البشرية أولاً، ثم الاعتماد
+     النهائي للمدير العام. النص القديم («رئيس مجلس الإدارة يعتمد كل
+     الأنواع») كان يصف حكماً سابقاً — القاعدة الحالية مسجَّلة في
+     DECISIONS.md ومفروضة في auth.js وrole_workflow_permissions معاً
+     (41-LEAVE-TWO-SIGNATURES.sql)، فتُصحَّح الشاشة لتطابقها.
+     Leaves now need TWO signatures: the HR manager first, then the
+     general manager's final approval. The old text ("the Chairman
+     approves every type") described an earlier ruling — the current
+     rule is recorded in DECISIONS.md and enforced in both auth.js and
+     role_workflow_permissions (41-LEAVE-TWO-SIGNATURES.sql), so the
+     screen text is corrected to match it. */
   var lv = origGet('leaves');
   if (lv) {
-    lv.desc = { ar: 'طلبات الإجازات — كل الأنواع يعتمدها رئيس مجلس الإدارة',
-                en: 'Leave requests — every type is approved by the Chairman' };
+    lv.desc = { ar: 'طلبات الإجازات — توقيعان: مدير الموارد البشرية أولاً ثم الاعتماد النهائي للمدير العام',
+                en: 'Leave requests — two signatures: HR manager first, then the general manager\'s final approval' };
     var lt = lv.fields.filter(function (f) { return f.name === 'leaveType'; })[0];
-    if (lt) lt.help = { ar: 'الاعتماد النهائي لرئيس مجلس الإدارة لكل الأنواع',
-                        en: 'Final approval rests with the Chairman for every type' };
+    if (lt) lt.help = { ar: 'توقيعان: مدير الموارد البشرية أولاً ثم الاعتماد النهائي للمدير العام',
+                        en: 'Two signatures: HR manager first, then the general manager\'s final approval' };
   }
 
   /* ═══════════════════════════════════════════════════════════════════

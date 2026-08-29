@@ -10,6 +10,21 @@
     'assets/js/offline-db.js',
     'assets/js/i18n.js',
     'assets/js/store.js',
+    /* يمنع محو الرواتب حين يُعاد حفظ عمود مُقنَّع (عرض portal_employees يُعيد
+       الأعمدة المخفية عن hr_manager كـ NULL صريح، لا يحذفها) — مباشرة بعد
+       store.js ولا شيء قبل schema.js/auth.js، لأنه لا يعتمد عليهما ويجب أن
+       يصبح أقرب لفّة إلى Store.save الأصلية، فتُطبَّق قاعدته قبل أي لفّة
+       لاحقة (save-guard.js، audit-trail.js). انظر تعليق الملف نفسه للسلسلة
+       كاملة، ومُثبَت بالتشغيل في TESTS/masked-null-writeback-trial.js.
+       Stops a masked NULL from erasing real data on save (the
+       portal_employees view returns hidden columns to hr_manager as
+       explicit NULL, never omitted) — immediately after store.js and
+       before schema.js/auth.js, since it needs neither and must become
+       the innermost wrap around Store.save, so its rule runs before any
+       later wrap (save-guard.js, audit-trail.js). See the file's own
+       header for the full chain; proven by running
+       TESTS/masked-null-writeback-trial.js. */
+    'assets/js/null-writeback-guard.js',
     'assets/js/schema.js',
     /* يضيف حقل تاريخ الإفراج عن الاحتجاز — يجب أن يسبق agents.js */
     'assets/js/retention-release-field.js',
@@ -18,6 +33,14 @@
     /* يضيف «متوقع تحصيله في» لمستخلصات العميل — يقرأه cash-forecast.js لاحقاً؛
        نفس فتحة retention-release-field.js وclient-ipc-withholding.js تماماً */
     'assets/js/expected-collection-field.js',
+    /* «تاريخ التقديم للهيئة» و«القيمة المعتمدة من الهيئة» على مستخلصات
+       العميل — يقرأهما سجل مستخلصات الهيئة (authority-ipc-register.js)
+       لاحقاً؛ نفس فتحة الثلاثة حقول التي تسبقه تماماً (v2.0.18).
+       "Date submitted to the Authority" and "amount the Authority
+       certified" on client IPCs — read later by the Authority-IPC
+       register; the exact same slot as the three fields before it
+       (v2.0.18). */
+    'assets/js/authority-ipc-fields.js',
     'assets/js/departments.js',
     'assets/js/hr-department.js',
     /* صافي الراتب يحسب البنود الثمانية التي أضافها hr-department.js —
@@ -40,6 +63,13 @@
        after it. */
     'assets/js/project-site-field.js',
     'assets/js/auth.js',
+    /* يُسجِّل دور «robot» في المتصفح — تكملة سور 20-ROBOT-ACCOUNT.sql في
+       القاعدة وحدها؛ بعد auth.js حتماً ليضيف إلى Auth.ROLES الموجود
+       فعلاً (v2.0.18). Registers the "robot" role in the browser — the
+       missing half of 20-ROBOT-ACCOUNT.sql's database-only fence;
+       necessarily after auth.js to add to the already-existing
+       Auth.ROLES (v2.0.18). */
+    'assets/js/robot-role.js',
     /* يُثبِّت حاجز المواقع الذي فشل sites.js نفسه في تثبيته وقته —
        Auth.__sitesInstalled أُثبت undefined على الإنتاج الحيّ. يعيد بناء
        نفس اللفّة من Sites.* المُصدَّرة، محروسة بنفس العلم، فلا لفّ مزدوج
@@ -50,6 +80,21 @@
        same flag, so double-wrapping is impossible. Necessarily after
        auth.js — the very thing it is waiting to exist. */
     'assets/js/site-fence-retry.js',
+    /* رفض القاعدة يظهر بصدق في شاشة الدخول بدل «كلمة مرور خاطئة» — يلفّ
+       Auth.login، فيأتي بعد auth.js حتماً ولا يمكن لأي إنسان الضغط على
+       زر الدخول قبل أن تكتمل هذه اللفة (v2.0.19).
+       A database refusal shows honestly on the login screen instead of
+       "wrong password" — wraps Auth.login, so it necessarily comes after
+       auth.js, and no human can press the login button before this wrap
+       completes (v2.0.19). */
+    'assets/js/login-refusal-text.js',
+    /* جلسة تموت تحت الواجهة لا تُترَك بلا تفسير — يستمع لحدث Supabase
+       الحقيقي عبر Auth.client()، فيحتاج Auth موجوداً فقط، مثل الملف السابق
+       تماماً (v2.0.19).
+       A session that dies under the UI is never left unexplained —
+       listens to Supabase's own real event through Auth.client(), so it
+       only needs Auth to exist, exactly like the file before it (v2.0.19). */
+    'assets/js/session-expiry-watch.js',
     /* أجر الاشتراك التأميني وحساب التأمينات — بعد auth.js حتماً، لأن دفع
        الحقل في Auth.SENSITIVE.employees يحتاج Auth موجوداً أولاً.
        Insurance wage and its arithmetic — necessarily after auth.js,
@@ -61,6 +106,14 @@
     'assets/js/workflow-policy.js',
     /* يفكّ عَلَق مستندات التوقيع الواحد — بعد workflow-policy.js حتماً */
     'assets/js/one-step-approval.js',
+    /* يُعيد زر «مراجعة» على شاشة المستند نفسها لصاحب التوقيع الأول على
+       مستندات التوقيع الواحد — بعد one-step-approval.js حتماً ليرى
+       نتيجة زرّه المباشر أولاً (v2.0.18).
+       Restores the "review" button on the document's own screen for the
+       first-signature holder on one-step documents — necessarily after
+       one-step-approval.js so it sees its direct button's result first
+       (v2.0.18). */
+    'assets/js/first-signature.js',
     'assets/js/ui.js',
     /* يمنع تقريب الأرقام العشرية (منسوب 98.76، حجم 7.5) إلى صحيح عند
        العرض والطباعة — يلفّ UI.displayValue فيحتاج ui.js محمَّلاً أولاً،
@@ -158,6 +211,16 @@
        the buttons are ever added — nothing gets wrapped, and the bug
        returns in full. */
     'assets/js/draft-guard.js',
+    /* يمنع زرّي «مسودة» من الظهور على نوافذ لا تخصّ سجلاً في المخطط —
+       المستخدمون هي الحالة المُثبَتة اليوم. يجب أن يسبق save-modes.js
+       لنفس سبب draft-guard.js أعلاه بالضبط (ترتيب اللفّ)؛ الترتيب بينه
+       وبين draft-guard.js نفسه لا يهمّ (v2.0.18).
+       Strips the two "draft" buttons from dialogs with no backing schema
+       record — the Users dialog is today's proven case. Must precede
+       save-modes.js for exactly draft-guard.js's own reason above (wrap
+       order); the order between this file and draft-guard.js itself does
+       not matter (v2.0.18). */
+    'assets/js/user-dialog-guard.js',
     'assets/js/save-modes.js',
     /* كل قائمة اختيار ref تحترم الآن نطاق الاطّلاع (مشروعات/مواقع/إلخ) —
        بعد save-modes.js: كلاهما يلفّ UI.modal، والترتيب بينهما غير مهم
@@ -232,6 +295,18 @@
     'assets/js/read-pdf.js',
     'assets/js/read-dwg.js',
     'assets/js/attachment-reader.js',
+    /* قراءة النص المطبوع من صور PDF الممسوحة ضوئياً والصور المرفقة —
+       تجريبي ومجاني بالكامل. بعد attachment-reader.js حتماً: يلفّ
+       ReadPdf.read العامة التي يناديها ذلك الملف، ويحتاج EntityPage
+       موجوداً (v2.0.18). لا مكتبة vendor في هذه القائمة عمداً — تُنزَّل
+       عند أول ضغطة فقط، بنفس سياسة القرّاء الثلاثة أعلاه.
+       Reading printed text out of scanned PDF pages and photo
+       attachments — experimental and entirely free. Necessarily after
+       attachment-reader.js: it wraps the global ReadPdf.read that file
+       calls, and needs EntityPage to exist (v2.0.18). No vendor library
+       is in this list on purpose — it downloads on first press only,
+       same policy as the three readers above. */
+    'assets/js/read-ocr.js',
     'assets/js/import.js',
     /* استيراد PDF ووورد وأوتوكاد من نفس زر «استيراد» — بعد import.js حتماً،
        لأنه يعيد ربط الزر الذي يُنشئه import.js نفسه، لا يستبدل دالته.
@@ -270,6 +345,15 @@
        so its Store.all/Store.find wrap installs outermost, above
        lookup-loader's own wrap. */
     'assets/js/site-options.js',
+    /* يملأ اسم «قام بإنشائه» لدور خارج الخمسة التي يجلب لها store.js:62
+       جدول users كاملاً — بعد site-options.js مباشرة: كلاهما يلفّ
+       Store.find، لكن على جدولين مختلفين تماماً (sites/users) فلا تصادم
+       (v2.0.19).
+       Fills in the creator's display name for a role outside the five
+       store.js:62 fetches the full users table for — right after
+       site-options.js: both wrap Store.find, but on entirely different
+       tables (sites/users), so no collision (v2.0.19). */
+    'assets/js/creator-name-fill.js',
     /* يحوّل الحذف إلى إلغاء موثّق ويسجّل كل تغيير على الخادم */
     'assets/js/audit-trail.js',
     /* أرقام المستندات الحقيقية لكل الأقسام — آخر ملف يلفّ Store.create،
@@ -291,6 +375,16 @@
        DOM-watching technique report-access.js:56-62 already proves
        (loaded right after it, the last of the three in load order). */
     'assets/js/cash-forecast.js',
+    /* سجل مستخلصات الهيئة — تبويب «مستخلصات الهيئة» بجوار «توقعات
+       النقدية» داخل التقارير. بعد cash-forecast.js حتماً (يحتاج نفس
+       pages/reports.js وroleview.js وreport-access.js)؛ الترتيب بين
+       الاثنين لا يهمّ لأن كل ملف يراقب الـDOM بمراقبه المستقل (v2.0.18).
+       The Authority-IPC register — an "Authority IPCs" tab beside "Cash
+       forecast" inside Reports. Necessarily after cash-forecast.js
+       (needs the same pages/reports.js, roleview.js, report-access.js);
+       the order between the two does not matter since each watches the
+       DOM with its own independent observer (v2.0.18). */
+    'assets/js/authority-ipc-register.js',
     /* يوصّل أحداث الأمان (تصدير · كلمات مرور · بيانات الشركة) للسجل الدائم
        — بعد audit-trail.js حتماً لأنه يحتاج AuditTrail.write */
     'assets/js/audit-security-events.js',

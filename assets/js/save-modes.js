@@ -515,8 +515,24 @@
                 try {
                   result = mod ? withoutRequired(mod, runSave) : runSave();
                 } finally { MODE = 'normal'; }
-                if (result !== false && global.UI && UI.toast) {
-                  var wf = mod && mod.workflow;
+                /* الكذبة التي كانت هنا (أثبتتها تجربة B.3): result قد يكون
+                   Promise لحفظ غير متزامن (settings.js:339 مثلاً) — وPromise
+                   لا يساوي false أبداً، فكان الشرط أدناه يُطلق «حُفظت
+                   كمسودة»/«حُفظ بالكامل» فوراً، قبل أن يردّ الخادم بشيء،
+                   حتى لو رفض الحفظ فعلياً. الإصلاح: إن كانت النتيجة
+                   Promise ننتظرها ونطلق التنبيه بعد ردّها فقط؛ التزامن
+                   العادي (entity.js) لا يتغيّر إطلاقاً.
+                   THE LIE THAT WAS HERE (proven by trial B.3): result can be
+                   a Promise for an async save (e.g. settings.js:339) — and a
+                   Promise is never ===false, so the check below fired «Saved
+                   as a draft»/«Saved in full» immediately, before the server
+                   answered anything, even when the save was actually
+                   refused. THE FIX: when the result is a Promise, wait for
+                   it and fire the toast only after it resolves; the ordinary
+                   synchronous path (entity.js) is completely unchanged. */
+                var wf = mod && mod.workflow;
+                function fireDraftToast() {
+                  if (!global.UI || !UI.toast) return;
                   UI.toast(
                     wf ? (isAr() ? 'حُفظت كمسودة. يمكنك إكمالها لاحقاً.'
                                  : 'Saved as a draft. You can finish it later.')
@@ -525,6 +541,15 @@
                                  : 'Saved in full. This screen has no approval cycle, so the record ' +
                                    'is active and you can complete the remaining fields any time.'),
                     'success', 6000);
+                }
+                if (result && typeof result.then === 'function') {
+                  /* لا تنبيه عند الرفض — الحوار نفسه يعرض خطأه (تجربة E)
+                     no toast on rejection — the dialog's own error handling
+                     already speaks (proven in trial E: settings shows its
+                     own error toast). */
+                  result.then(function (r) { if (r !== false) fireDraftToast(); });
+                } else if (result !== false) {
+                  fireDraftToast();
                 }
                 return result;
               }
@@ -566,11 +591,22 @@
                   var r0;
                   try { r0 = m0 ? withoutRequired(m0, runSave) : runSave(); }
                   finally { MODE = 'normal'; }
-                  if (r0 !== false && global.UI && UI.toast) {
+                  /* نفس الكذبة (فرع الزر الذهبي، تجربة B.3): r0 قد يكون
+                     Promise أيضاً — لا نُطلق النجاح قبل ردّ الخادم.
+                     Same lie, gold-button fallback path (trial B.3): r0 can
+                     be a Promise too — never fire success before the server
+                     answers. */
+                  function fireLocalUnavailableToast() {
+                    if (!global.UI || !UI.toast) return;
                     UI.toast(isAr()
                       ? 'تعذّر الحفظ المحلي على هذا الجهاز، فحُفظ على الخادم مباشرة كمسودة.'
                       : 'Local saving is unavailable on this device, so it was saved to the server directly as a draft.',
                       'warn', 6000);
+                  }
+                  if (r0 && typeof r0.then === 'function') {
+                    r0.then(function (r) { if (r !== false) fireLocalUnavailableToast(); });
+                  } else if (r0 !== false) {
+                    fireLocalUnavailableToast();
                   }
                   return r0;
                 }

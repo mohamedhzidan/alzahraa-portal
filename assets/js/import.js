@@ -407,9 +407,38 @@
        with no "ضريبية" qualifier means the national ID, not the tax card.
        Mohamed Zidan's exact words, recorded in DECISIONS.md: "رقم البطاقة
        is national id, رقم البطاقة الضريبة is tax card." "ر.ق" is
-       deliberately not added here — explicitly declined. */
-    'الرقم القومي': 'nationalIdNo', 'رقم قومي': 'nationalIdNo',
-    'بطاقة': 'nationalIdNo', 'رقم البطاقة': 'nationalIdNo'
+       deliberately not added here — explicitly declined.
+
+       ٢٨ أغسطس ٢٠٢٦ — القيمة الآن مصفوفة مرشحين لا نصاً واحداً، لأن اسم
+       الحقل نفسه يختلف باختلاف الشاشة: عند الموظفين هو nationalId
+       (schema.js:958، hr-department.js:348)، وعند المقاولين من الباطن
+       هو nationalIdNo (dc-requests.js:183) — حقلان منفصلان تماماً في
+       وحدتين مختلفتين، لا خطأ تسمية واحد. قبل هذا التاريخ كانت القيمة
+       nationalIdNo فقط، فأي عمود «الرقم القومي» في ملف استيراد الموظفين
+       كان يطابق حقلاً غير موجود إطلاقاً في شاشة الموظفين ويسقط بصمت —
+       لا خطأ، لا تنبيه، والصف يُستورد «بنجاح» بلا الرقم القومي. الحلقة
+       عند pick() تبحث داخل fields، وهي قائمة حقول الوحدة الحالية فقط،
+       فتختار أياً من المرشحين يوجد فعلاً في تلك الشاشة — بلا جدول خاص
+       بكل وحدة وبلا قرار يُتخذ هنا. تأكّدنا أن لا شاشة تملك الحقلين معاً،
+       فترتيب المرشحين في المصفوفة لا يسبّب أي التباس.
+
+       28 August 2026 — the value is now an array of candidates, not one
+       string, because the field's real name differs by screen:
+       nationalId for employees (schema.js:958, hr-department.js:348),
+       nationalIdNo for subcontractors (dc-requests.js:183) — two
+       separate fields in two separate modules, not one naming mistake.
+       Before this date the value was nationalIdNo only, so a "national
+       ID" column in an EMPLOYEE import file matched a field that does
+       not exist on that screen at all, and was silently dropped — no
+       error, no warning, the row "imported successfully" minus the
+       national ID. The lookup inside pick() searches `fields`, which is
+       only the CURRENT module's own field list, so it picks whichever
+       candidate that screen actually has — no per-module table, no
+       decision made here. Confirmed no screen carries both fields at
+       once, so the candidates' order in the array cannot create
+       ambiguity. */
+    'الرقم القومي': ['nationalId', 'nationalIdNo'], 'رقم قومي': ['nationalId', 'nationalIdNo'],
+    'بطاقة': ['nationalId', 'nationalIdNo'], 'رقم البطاقة': ['nationalId', 'nationalIdNo']
   };
 
   /* كل مفتاح يُطبَّع بنفس norm() التي تُطبَّع بها عناوين الملف — فيستحيل
@@ -419,15 +448,36 @@
      Every key runs through the same norm() used on file headers, so no
      key can silently stay unnormalized. If two different raw keys collapse
      to the same normalized string but point at two different fields, that
-     is a real authoring mistake and must be visible, not silent. */
+     is a real authoring mistake and must be visible, not silent.
+
+     ٢٨ أغسطس ٢٠٢٦ — target أصبحت أحياناً مصفوفة (انظر تعليق الرقم القومي
+     أعلاه). المقارنة القديمة seenBy[n].target !== target كانت تقارن
+     نصاً بنص، فتصبح خاطئة أمام مصفوفة: مقارنة مرجعين بـ!== تُبلِّغ عن
+     تصادم وهمي حتى لو كانت المصفوفتان متطابقتين تماماً، لأنهما كائنان
+     مختلفان في الذاكرة. aliasKey() تحوّل كليهما — نصاً كان أو مصفوفة —
+     إلى تمثيل نصي موحّد (مصفوفة من عنصر واحد مرتّبة ومدمجة بفاصلة) قبل
+     المقارنة، فيبقى التحذير يعمل بلا إبلاغ زائف وبلا إخفاء تصادم حقيقي.
+     28 August 2026 — target can now sometimes be an array (see the
+     national-ID comment above). The old comparison
+     seenBy[n].target !== target compared string to string, and breaks
+     against an array: comparing two references with !== reports a false
+     collision even when the two arrays hold identical values, because
+     they are two different objects in memory. aliasKey() turns either
+     shape — string or array — into one normalised string (a sorted,
+     comma-joined single-item array for a bare string) before comparing,
+     so the warning keeps working with no false alarm and no real
+     collision hidden. */
+  function aliasKey(t) { return (Array.isArray(t) ? t.slice() : [t]).sort().join('|'); }
+  function aliasStr(t) { return Array.isArray(t) ? t.join('|') : t; }
+
   var ALIAS = {};
   (function buildAlias() {
     var seenBy = {};
     Object.keys(ALIAS_RAW).forEach(function (raw) {
       var n = norm(raw), target = ALIAS_RAW[raw];
-      if (seenBy[n] && seenBy[n].target !== target) {
+      if (seenBy[n] && aliasKey(seenBy[n].target) !== aliasKey(target)) {
         console.warn('[import] ALIAS collision: "' + seenBy[n].raw + '" -> ' +
-          seenBy[n].target + '  vs  "' + raw + '" -> ' + target +
+          aliasStr(seenBy[n].target) + '  vs  "' + raw + '" -> ' + aliasStr(target) +
           '  (both normalize to "' + n + '")');
       }
       seenBy[n] = { raw: raw, target: target };
@@ -462,10 +512,22 @@
         if (used[f.name]) continue;
         if (norm(f.label.ar) === n || norm(f.label.en) === n || norm(f.name) === n) return f;
       }
-      /* ٢ · مرادف معروف */
+      /* ٢ · مرادف معروف — قد تكون القيمة نصاً أو مصفوفة مرشحين (انظر
+         تعليق الرقم القومي أعلى ALIAS_RAW). نبحث في fields نفسها — قائمة
+         حقول الشاشة الحالية فقط — فنختار أي مرشح موجود فعلاً هنا؛ هكذا
+         يطابق «الرقم القومي» nationalId عند الموظفين وnationalIdNo عند
+         المقاولين من الباطن بلا معرفة اسم الوحدة هنا إطلاقاً.
+         ٢ · Known synonym — the value may be a string or an array of
+         candidates (see the national-ID comment above ALIAS_RAW). We
+         search `fields` itself — the CURRENT screen's own field list —
+         and take whichever candidate actually exists here; this is how
+         "الرقم القومي" resolves to nationalId on employees and
+         nationalIdNo on subcontractors with no module name known here
+         at all. */
       if (ALIAS[n]) {
+        var wanted = Array.isArray(ALIAS[n]) ? ALIAS[n] : [ALIAS[n]];
         for (i = 0; i < fields.length; i++) {
-          if (!used[fields[i].name] && fields[i].name === ALIAS[n]) return fields[i];
+          if (!used[fields[i].name] && wanted.indexOf(fields[i].name) !== -1) return fields[i];
         }
       }
       /* ٣ · أحدهما يحتوي الآخر — «تاريخالطلب» مقابل «تاريخ» */
@@ -588,6 +650,31 @@
   function coerce(field, raw) {
     var v = String(raw == null ? '' : raw).trim();
     if (v === '') return '';
+
+    /* خلية محتواها بالكامل شرطة وحيدة (— أو – أو -) ولا شيء غيرها تعني
+       «فارغ»، لا قيمة حقيقية. هذا بالضبط ما يُصدّره schema.js لعرض حقل
+       اختياري فارغ (refLabel :1248، optionLabel :1262) وما يُصدّره
+       i18n.js:331 لتاريخ فارغ. تصدير→تعديل بإكسل→استيراد هو تحديداً
+       الأسلوب الذي سيُستخدم في تجهيز بيانات سبتمبر، فبدون هذا السطر
+       تُكتب الشرطة حرفياً في السجل — مقيس فعلياً: صف موظفين عاد بـ
+       status: "—". الشرط متعمَّد الصرامة: طول الخلية بعد الحذف حرف واحد
+       بالضبط من هذه الثلاثة فقط، وإلا تبقى القيمة كما هي دون تغيير —
+       فتاريخ «2026-09-01» ورقم مستند «RFI-001» ورقم سالب «-15» لا يمرّون
+       من هذا الشرط أصلاً لأن طول كل منهم بعد الحذف أكبر من حرف واحد.
+       A cell whose ENTIRE content is a lone dash (em, en or hyphen) and
+       nothing else means "empty", not a real value. This is exactly what
+       schema.js exports for an empty optional field (refLabel :1248,
+       optionLabel :1262) and what i18n.js:331 exports for an empty date.
+       Export → edit in Excel → re-import is precisely the workflow about
+       to be used preparing September's data, so without this line the
+       dash gets written into the record literally — measured: an
+       employees row came back with status: "—". Deliberately strict: the
+       cell's length after trimming must be exactly one character, one of
+       these three, or the value is left untouched — a date
+       "2026-09-01", a doc number "RFI-001" and a negative number "-15"
+       never reach this branch at all because each is longer than one
+       character once trimmed. */
+    if (v === '—' || v === '–' || v === '-') return '';
     if (field.type === 'number' || field.type === 'money' || field.type === 'percent') {
       /* Arabic-Indic digits and thousands separators both appear in real files */
       v = v.replace(/[٠-٩]/g, function (d) { return '٠١٢٣٤٥٦٧٨٩'.indexOf(d); })

@@ -573,7 +573,6 @@
         employeeDocs: ['view', 'create', 'edit', 'delete'],
         employmentContracts: ['view', 'create', 'edit'],
         siteAttendance: ['view', 'create', 'edit', 'delete'],
-        dailyLabour: ['view', 'create', 'edit'],
         /* HR OFFICER — شؤون العاملين
            Prepares everything, approves nothing. His manager signs.
            يُعدّ كل شيء ولا يعتمد شيئاً — المدير يوقّع. */
@@ -639,8 +638,17 @@
         siteAttendance:      ['view', 'create', 'edit', 'delete'],
         announcements:       ['view', 'create', 'edit', 'delete'],
 
-        /* …plus the authority to sign off his own department's work */
-        leaves:              ['view', 'create', 'edit', 'review', 'approve'],
+        /* …plus the authority to sign off his own department's work.
+           إجازات فقط: توقيعان الآن — عمارة يراجع (توقيعه الأول)، وهشام
+           وحده يعتمد. مطابق تماماً لِما كان مطبَّقاً على الرواتب من قبل
+           (يراجع، لا يعتمد) — القرار مسجَّل في DECISIONS.md، والملف
+           41-LEAVE-TWO-SIGNATURES.sql يفرضه من الخادم أيضاً.
+           Leaves only: two signatures now — Amara reviews (his first
+           signature), Hesham alone approves. Exactly the same shape
+           already applied to payroll (reviews, never approves) — the
+           ruling is recorded in DECISIONS.md, and
+           41-LEAVE-TWO-SIGNATURES.sql enforces it server-side too. */
+        leaves:              ['view', 'create', 'edit', 'review'],
         employeeAdvances:    ['view', 'create', 'edit', 'review', 'approve'],
         dailyLabour:         ['view', 'create', 'edit', 'review', 'approve'],
 

@@ -194,7 +194,26 @@
       var modR = Schema.get('docRegister');
       if (modR) {
         Store.all(modR.table).forEach(function (r) {
-          if (r.status !== 'superseded' || !r.issuedToSite || r.oldCopyRecalled) return;
+          /* v2.0.17's doc-status-field.js نقل حقل الشاشة status إلى
+             documentStatus (حتى تقبل «صادر للتنفيذ» فحص CHECK عمود سير
+             العمل). لكن هذا التنبيه بقي يقرأ status وحده — وعمود سير
+             العمل لا يقبل أبداً القيمة 'superseded' (قائمة CHECK الحقيقية
+             draft/pending/reviewed/approved/rejected/returned/reversed)،
+             فالتنبيه صامت للأبد لأحمد. || r.status يبقى شبكة أمان: لو حُذف
+             doc-status-field.js يعمل التنبيه كما كان، ولصف إنتاج قديم لم
+             يمرّ بإعادة التسمية بعد.
+             v2.0.17's doc-status-field.js moved the screen field status to
+             documentStatus (so "issued for construction" stops being
+             refused by the workflow column's CHECK). But this alert kept
+             reading status alone — and the workflow column can NEVER hold
+             'superseded' (the real CHECK list is draft/pending/reviewed/
+             approved/rejected/returned/reversed), so the alert has been
+             permanently silent for أحمد. `|| r.status` stays a safety net:
+             if doc-status-field.js is ever deleted the alert still works
+             as before, and so does any old production row that predates
+             the rename. */
+          var st = r.documentStatus || r.status;
+          if (st !== 'superseded' || !r.issuedToSite || r.oldCopyRecalled) return;
           mk(out, 'danger', 'docRegister', modR.icon,
             'مستند «' + (r.docCode || r.docNo || '') + '»' + (r.revision ? ' مراجعة ' + r.revision : '') +
               ' أُلغي وصدرت نسخة أحدث، لكن النسخة القديمة لم تُسحب من الموقع بعد — خطر تنفيذ عمل برسمة ملغاة',
