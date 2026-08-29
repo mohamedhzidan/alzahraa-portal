@@ -575,7 +575,7 @@
 
       بدون إضافتها لن يعمل الذكاء الاصطناعي ولا القسمان الجديدان بدون إنترنت.
    --------------------------------------------------------------------------- */
-var CACHE = 'alzahraa-shell-v2.0.23';
+var CACHE = 'alzahraa-shell-v2.0.25';
 
 var SHELL = [
   './', './index.html', './manifest.webmanifest', './robots.txt',
@@ -871,6 +871,26 @@ var SHELL = [
      generated automatically from the sites table — and the site tabs on the
      list screens. */
   './assets/js/site-activity.js',
+
+  /* ── جديد في v2.0.24 · NEW in v2.0.24 ────────────────────────────── */
+  /* عدّاد التشغيل: من أدخل شغلاً هذا الأسبوع، من لم يدخل شيئاً، من لم
+     يفعّل حسابه أصلاً — بطاقة على اللوحة وتبويب كامل في التقارير، بجلب
+     خاص مرتَّب ومحدود التاريخ، أبداً Store.all('audit').
+     The rollout meter: who entered work this week, who entered nothing,
+     who never activated their account — a dashboard card and a full
+     Reports tab, with its own ordered, date-bounded fetch, never
+     Store.all('audit'). */
+  './assets/js/rollout-meter.js',
+
+  /* ── جديد في v2.0.25 · NEW in v2.0.25 ──────────────────────────────── */
+  /* ثلاثة إصلاحات لأوراق المال: اسم المستفيد يتفق مع المورد المختار،
+     سطر «فقط ... لا غير» تحت كل مبلغ مطبوع، وصندوق الاختيار غير المُجاب
+     يعرض «—» لا «لا». Three money-paper fixes: the beneficiary name
+     agrees with the chosen supplier, a «فقط … لا غير» words line under
+     every printed amount, and an unanswered checkbox shows '—' not «لا». */
+  './assets/js/beneficiary-fill.js',
+  './assets/js/amount-in-words.js',
+  './assets/js/checkbox-three-states.js',
 
   './assets/js/app.js'
 ];
