@@ -6,7 +6,21 @@
 <meta name="description" content="بوابة موظفي شركة الزهراء للمقاولات العامة — Alzahraa General Contracting Employee Portal">
 <meta name="theme-color" content="#0000A3">
 <meta name="referrer" content="no-referrer">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; img-src 'self' data: blob:; connect-src 'self' https://*.supabase.co wss://*.supabase.co; worker-src 'self' blob:; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'">
+<!-- 'wasm-unsafe-eval' أُضيفت لسطر واحد فقط — تسمح بتصريف WebAssembly لِما هو
+     مسموح أصلاً من سكربتات (script-src 'self')، لا لأي أصل جديد ولا لـ
+     'unsafe-eval' الكاملة. سبب الإضافة: أداة قراءة الصور (read-ocr.js) تشغّل
+     محرّكها داخل عامل blob: يرث سياسة الصفحة نفسها (worker-src blob: موجود
+     أصلاً)، والقطعة الوحيدة الناقصة كانت تصريف wasm. متصفح قديم يتجاهل هذا
+     الرمز بصمت — فيفشل زر القراءة برسالة صادقة، والموقع نفسه لا يتأثر.
+     'wasm-unsafe-eval' added to ONE line only — permits compiling
+     WebAssembly for scripts already allowed (script-src 'self'), no new
+     origin, not full 'unsafe-eval'. Why: the printed-text reader
+     (read-ocr.js) runs its engine inside a blob: worker that inherits the
+     page's own policy (worker-src blob: already existed); WASM compilation
+     was the one missing piece. An old browser ignores the token silently —
+     the reader button fails with an honest message, the rest of the site
+     is unaffected. -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; img-src 'self' data: blob:; connect-src 'self' https://*.supabase.co wss://*.supabase.co; worker-src 'self' blob:; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'">
 <title>بوابة الزهراء | Alzahraa Portal</title>
 
 <script src="assets/js/frame-guard.js"></script>
@@ -175,7 +189,7 @@
     <footer class="app-footer">
       <span data-i18n="footer.copy">© 2026 شركة الزهراء للمقاولات العامة — نظام داخلي</span>
       <span class="footer-sep">•</span>
-      <span id="footerVersion">v2.0.1</span>
+      <span id="footerVersion">v2.0.20</span>
       <span class="footer-sep">•</span>
       <span class="production-flag">تشغيل فعلي · قاعدة بيانات مركزية · مسودات مشفّرة دون اتصال</span>
       <span id="azSyncBadge" class="sync-badge offline" hidden>غير متصل</span>

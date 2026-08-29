@@ -1,5 +1,156 @@
 /* Al Zahraa Portal PWA shell cache. Business records stay in encrypted IndexedDB.
    ---------------------------------------------------------------------------
+   v2.0.20 — ٢٨ أغسطس ٢٠٢٦ — حارس محو الرواتب الصامت
+   ملف واحد جديد فقط، بلا تعديل على أي ملف قديم:
+
+     أ. محمد عمارة (hr_manager) كان يعدّل حقلاً بريئاً واحداً في أي موظف
+     (المسمى الوظيفي مثلاً) فيُمحى تسعة أعمدة حقيقية بصمت — الراتب
+     الأساسي والبدلات ورقم التأمينات والحساب البنكي والرقم القومي
+     والهاتف والبريد والعنوان والملاحظات — لأن عرض portal_employees
+     يُعيدها له كـ NULL صريح بدل أن يحذفها، فتحملها مسودة النموذج ويكتبها
+     الحفظ فوق القيم الحقيقية. مُثبَت بالتشغيل الفعلي في
+     TESTS/masked-null-writeback-trial.js (قسم A). null-writeback-guard.js
+     يمنع أي حفظ من كتابة null فوق قيمة كانت أصلاً null على الشاشة نفسها
+     — قاعدة على القيمة لا على الدور، فتحمي كل جدول وكل دور، ولا تختل مع
+     تغيّر الأدوار مستقبلاً، وتحمي أيضاً مسار «إلغاء المستند».
+
+   v2.0.20 — 28 August 2026 — the silent salary-erasure guard
+   One new file only, no old file edited:
+
+     أ. محمد عمارة (hr_manager) could edit one harmless field on any
+     employee (job title, for example) and silently erase nine real
+     columns — basic salary, allowances, insurance number, bank account,
+     national ID, phone, email, address, notes — because the
+     portal_employees view returns them to him as explicit NULL instead
+     of omitting them, so the form's draft carries them and the save
+     writes them over the real values. Proven by actually running
+     TESTS/masked-null-writeback-trial.js (section A). null-writeback-
+     guard.js stops any save from writing null over a value that was
+     already null on that same screen — a value-based rule, not a
+     role-based one, so it protects every table and every role and
+     cannot drift when roles change later, and it also protects the
+     "cancel document" path.
+   ---------------------------------------------------------------------------
+   v2.0.19 — ٢٨ أغسطس ٢٠٢٦ — دفعة الأعطال المُثبَتة الثانية (Track E)
+   ثلاثة ملفات جديدة فقط (بلا تعديل ملف قديم عدا save-modes.js وpages/
+   reports.js وdc-alerts.js وattachments.js وauth.js — بند واحد أو تصحيح
+   سطر في كل منها، لا تغيير سلوك في auth.js نفسه):
+
+     ١) «حُفظ بالكامل» كانت تظهر فوراً على حفظ غير متزامن (نافذة
+        المستخدمين مثلاً) قبل ردّ الخادم فعلياً — save-modes.js يصبر الآن
+        حتى الردّ الحقيقي قبل إظهار أي تنبيه نجاح.
+     ٢) الموظف كان يستطيع فتح تقرير الحضور الإجمالي للشركة كلها من شاشة
+        حضوره الشخصي وحدها — pages/reports.js يشترط الآن رؤية شاشة
+        الموظفين أيضاً، ويقصر التجميع على مشروعات الدور فعلاً.
+     ٣) رسالة دخول مضلِّلة حين ترفض القاعدة قراءة الحساب (تبدو كخطأ كلمة
+        مرور) — login-refusal-text.js يصحّحها بنصّ صادق.
+     ٤) صفر مستمعين لانتهاء الجلسة تحت الواجهة — session-expiry-watch.js
+        يعيد المستخدم لشاشة الدخول بتفسير صادق بدل فشل حفظ صامت.
+     ٥) اسم «قام بإنشائه» كان يظهر «—» لأي دور خارج خمسة أدوار محدَّدة في
+        store.js — creator-name-fill.js يملأه من قراءة محدودة (id, name
+        فقط) لا تُوسِّع ما يُعرَض.
+     ٦) تنبيه «نسخة ملغاة ما زالت في الموقع» كان صامتاً للأبد بعد إعادة
+        تسمية حقل الحالة في v2.0.17 — dc-alerts.js يقرأ الحقل الجديد الآن.
+     ٧) حذف مرفق من مستند معتمد كان ممكناً رغم وعد تعليق الملف نفسه —
+        attachments.js يتحقق الآن من حالة المستند الأصلي على الخادم.
+
+   v2.0.19 — 28 August 2026 — the second proven-bugs batch (Track E)
+   Three new files only (no old file edited except save-modes.js,
+   pages/reports.js, dc-alerts.js, attachments.js and auth.js — one item
+   or one line fix in each, no behaviour change in auth.js itself):
+
+     1) "Saved in full" appeared immediately on an async save (the Users
+        dialog, for example) before the server had actually answered —
+        save-modes.js now waits for the real answer before any success
+        toast.
+     2) An employee could open the company-wide attendance report from
+        their own attendance screen alone — pages/reports.js now also
+        requires the employees screen, and scopes the aggregate to the
+        role's own projects.
+     3) A misleading login message when the database refuses to read the
+        account (looks like a wrong password) — login-refusal-text.js
+        corrects it with an honest message.
+     4) Zero listeners for a session dying under the UI —
+        session-expiry-watch.js returns the user to the login screen with
+        an honest reason instead of a silent save failure.
+     5) The creator's name showed «—» for any role outside five specific
+        roles in store.js — creator-name-fill.js fills it from a narrow
+        read (id, name only) that never widens what is shown.
+     6) The "a superseded copy is still on site" alert had been
+        permanently silent since v2.0.17 renamed the status field —
+        dc-alerts.js now reads the new field.
+     7) Deleting an attachment from an approved document was possible
+        despite the file's own comment promising otherwise —
+        attachments.js now checks the parent document's status on the
+        server.
+   ---------------------------------------------------------------------------
+   v2.0.18 — ٢٨ أغسطس ٢٠٢٦ — دفعة القراءة الضوئية المجانية، سجل مستخلصات
+   الهيئة، توقيعا الإجازة، ودور «الروبوت»
+   ستة ملفات جديدة (بلا تعديل ملف قديم عدا auth.js وhr-department.js
+   وindex.html وconfig.js — سطر واحد أو نص فقط في كل منها):
+
+     ١) قراءة النص المطبوع من صور PDF الممسوحة ضوئياً والصور المرفقة
+        (jpg/png/…) — تجريبية، مجانية بالكامل، تعمل داخل المتصفح فقط
+        (read-ocr.js + مجلد assets/vendor/tesseract-7.0.0/، بلا رفع لأي
+        جهة). يحتاج تعديل خانة الأمان في index.html برمز واحد
+        ('wasm-unsafe-eval') لتصريف WebAssembly داخل عامل الأداة.
+     ٢) سجل «مستخلصات الهيئة» — تبويب جديد بجوار «توقعات النقدية» في
+        التقارير يُظهر الواقف عند جهة الاعتماد الحكومية، القيمة المعتمدة
+        أو «لم يُعتمد بعد»، نسبة الخصم، والوسيط الزمني للتحصيل
+        (authority-ipc-register.js + authority-ipc-fields.js، يحتاج
+        SQL 40).
+     ٣) طلب الإجازة يحتاج الآن توقيعين: مدير الموارد البشرية أولاً
+        (مراجعة)، ثم اعتماد المدير العام النهائي — بدل توقيع واحد كان
+        يكفي (first-signature.js + تعديل سطر واحد في auth.js + نص شاشة
+        الإجازات في hr-department.js، يحتاج SQL 41).
+     ٤) دور «robot» (حساب الاختبار الآلي) لم يكن معروفاً في المتصفح رغم
+        وجود أسواره كاملة في قاعدة البيانات — robot-role.js يسجّله
+        فيعمل حساب الاختبار وتختفي عطلة زر «ملفي».
+     ٥) زرّا «مسودة» كانا يظهران كذباً على نافذة المستخدمين (لا تخصّ
+        سجلاً في المخطط) — الضغط على «مسودة» هناك كان يُنشئ حساباً حقيقياً
+        حياً مع رسالة نجاح كاذبة قبل رد الخادم — user-dialog-guard.js
+        يمنعهما عن أي نافذة من هذا الشكل.
+
+   أمر تشغيل قاعدة البيانات إلزامي قبل الرفع: SQL 40 ثم 41 في Supabase
+   أولاً — بعدها فقط يُرفع كود المتصفح، وإلا رُفض حفظ الحقلين الجديدين
+   على مستخلصات العميل.
+
+   v2.0.18 — 28 August 2026 — the free OCR reader, the Authority-IPC
+   register, the leave two-signature rule, and the "robot" role
+   Six new files (no old file edited except auth.js, hr-department.js,
+   index.html and config.js — one line or one text block in each):
+
+     1) Reading printed text out of scanned PDF pages and photo
+        attachments (jpg/png/…) — experimental, entirely free, runs
+        inside the browser only (read-ocr.js +
+        assets/vendor/tesseract-7.0.0/, nothing uploaded anywhere). Needs
+        a one-token security-setting edit in index.html
+        ('wasm-unsafe-eval') to compile WebAssembly inside the engine's
+        worker.
+     2) The "Authority IPCs" register — a new tab beside "Cash forecast"
+        in Reports showing what is outstanding at the government
+        certifying body, the certified amount or "not certified yet",
+        the haircut percentage, and the median collection time
+        (authority-ipc-register.js + authority-ipc-fields.js, needs SQL 40).
+     3) A leave request now needs two signatures: the HR manager first
+        (review), then the general manager's final approval — instead of
+        one signature being enough (first-signature.js + a one-line
+        auth.js edit + the leave screen's text in hr-department.js, needs
+        SQL 41).
+     4) The "robot" role (the automated test account) was unknown in the
+        browser even though its database fences were complete —
+        robot-role.js registers it, so the test account works and the
+        "my profile" button crash disappears.
+     5) The two "Draft" buttons were falsely appearing on the Users
+        dialog (which backs no schema record) — pressing "Draft" there
+        created a real, live account with a false success toast before
+        the server even answered — user-dialog-guard.js strips them from
+        any dialog of that shape.
+
+   The database run is mandatory before uploading: SQL 40 then 41 in
+   Supabase first — only then the browser code, or saving the two new
+   client-IPC fields is refused.
+   ---------------------------------------------------------------------------
    v2.0.17 — 27 أغسطس ٢٠٢٦ — دفعة الأعطال الثمانية المُثبَتة
    تسعة ملفات جديدة، بلا تعديل في أي ملف قديم عدا pages/reports.js (تعديل
    مكانه، نسخته السابقة محفوظة في _old-copies-do-not-upload/reports.js.v2016):
@@ -353,7 +504,7 @@
 
       بدون إضافتها لن يعمل الذكاء الاصطناعي ولا القسمان الجديدان بدون إنترنت.
    --------------------------------------------------------------------------- */
-var CACHE = 'alzahraa-shell-v2.0.17';
+var CACHE = 'alzahraa-shell-v2.0.20';
 
 var SHELL = [
   './', './index.html', './manifest.webmanifest', './robots.txt',
@@ -369,6 +520,58 @@ var SHELL = [
   './assets/js/frame-guard.js', './assets/js/loader.js', './assets/js/env.js',
   './assets/js/config.js', './assets/js/offline-db.js', './assets/js/i18n.js',
   './assets/js/store.js', './assets/js/schema.js',
+
+  /* ── جديد في v2.0.20 · NEW in v2.0.20 ──────────────────────────────── */
+  /* حارس محو الرواتب — يمنع عموداً مُقنَّعاً (يصل كـ NULL صريح من عرض
+     portal_employees لدور hr_manager) من محو قيمة حقيقية عند أي حفظ.
+     ثابت الترتيب مباشرة بعد store.js — بلا اتصال أيضاً، لأنه لا يلمس
+     الشبكة إطلاقاً، فقط يعدّل الرقعة قبل تسليمها للحفظ الحقيقي.
+     The null write-back guard — stops a masked column (arriving as
+     explicit NULL from the portal_employees view for hr_manager) from
+     erasing a real value on any save. Fixed right after store.js —
+     works offline too, since it never touches the network, only edits
+     the patch before the real save runs. */
+  './assets/js/null-writeback-guard.js',
+  /* ─────────────────────────────────────────────────────────────────── */
+
+  /* ── جديد في v2.0.19 · NEW in v2.0.19 ──────────────────────────────── */
+  /* دفعة الأعطال المُثبَتة الثانية: نصّ صادق لرفض القاعدة في شاشة الدخول
+     بدل «كلمة مرور خاطئة» — مراقبة جلسة تموت تحت الواجهة فتعيد المستخدم
+     لشاشة الدخول بتفسير صادق بدل فشل صامت — واسم منشئ السجل يظهر الآن
+     لأي دور خارج الخمسة التي كانت وحدها تحمّل جدول المستخدمين كاملاً
+     (عمارة أول من يستفيد منها في صندوق اعتماد الإجازات).
+     The second proven-bugs batch: an honest login-refusal message instead
+     of "wrong password" — a session-expiry watcher that returns the user
+     to the login screen with an honest reason instead of failing silently
+     — and the creator's name now resolves for any role outside the five
+     that used to be the only ones loading the full users table (عمارة is
+     the first to benefit, in the leave-approval inbox). */
+  './assets/js/login-refusal-text.js',
+  './assets/js/session-expiry-watch.js',
+  './assets/js/creator-name-fill.js',
+  /* ─────────────────────────────────────────────────────────────────── */
+
+  /* ── جديد في v2.0.18 · NEW in v2.0.18 ──────────────────────────────── */
+  /* قراءة النص المطبوع (تجريبي) — سجل مستخلصات الهيئة — توقيعا الإجازة —
+     دور الروبوت — حارس نافذة المستخدمين. ملفات الجافاسكربت الستة صغيرة
+     وتُخزَّن مسبقاً. مكتبة القراءة الضوئية (tesseract-7.0.0/) ليست هنا
+     عمداً — تلتقطها الشيفرة العامة للتخزين وقت الاستعمال (معالج fetch
+     أسفل الملف) عند أول ضغطة على زر القراءة، فتعمل بلا إنترنت بعد ذلك،
+     تماماً كمكتبات pdfjs/docx/dwg أعلاه.
+     Printed-text reading (experimental) — the Authority-IPC register —
+     the leave two-signature rule — the robot role — the Users-dialog
+     guard. The six JS files are small and pre-cached. The OCR library
+     (tesseract-7.0.0/) is deliberately NOT here — the generic runtime
+     fetch handler (near the foot of this file) picks it up on first use,
+     so it works offline after that, exactly like the pdfjs/docx/dwg
+     libraries above. */
+  './assets/js/authority-ipc-fields.js',
+  './assets/js/authority-ipc-register.js',
+  './assets/js/first-signature.js',
+  './assets/js/robot-role.js',
+  './assets/js/user-dialog-guard.js',
+  './assets/js/read-ocr.js',
+  /* ─────────────────────────────────────────────────────────────────── */
 
   /* ── جديد في v2.0.16 · NEW in v2.0.16 ──────────────────────────────── */
   /* تقويم النقدية لاثني عشر أسبوعاً — «متوقع تحصيله في» على مستخلصات
