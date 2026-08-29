@@ -1,5 +1,58 @@
 /* Al Zahraa Portal PWA shell cache. Business records stay in encrypted IndexedDB.
    ---------------------------------------------------------------------------
+   v2.0.23 — ٢٩ أغسطس ٢٠٢٦ — إدارة الحسابات المفوّضة وصفحات نشاط المواقع
+   ملفان جديدان + تعديل على شاشة المستخدمين وعلى identity.js:
+
+     ١) account-fence.js — سياج الرتب. أ. محمد عمارة (hr_manager) وأ. حسانين
+        (finance_manager) يديران حسابات الرتب الأدنى منهما تماماً في أي موقع؛
+        وشؤون عاملين الموقع (hr) يدير موظفي موقعه هو فقط. المساواة في الرتبة
+        مرفوضة في كل مكان. **نفس الدالة** تحكم صلاحية الإدارة وصلاحية رؤية
+        سجل النشاط، فلا يمكن أن ينفصلا. السلّم هنا نسخة من نسخ ثلاث: الأصل
+        في هذا الملف، ونسخة في دالة SQL az_role_rank()، ونسخة داخل الـ Edge
+        Function admin-users — تعديل واحدة دون الأخريين هو الخطأ الصامت الذي
+        كلّف المشروع يومين مرتين.
+     ٢) site-activity.js — صفحة نشاط لكل موقع، تُولَّد تلقائياً من جدول
+        المواقع (صف موقع جديد = تبويب جديد، بلا سطر كود)، وتبويبات المواقع
+        على شاشات القوائم لكل من يرى أكثر من موقع.
+     ٣) pages/settings.js — تبويبة «المستخدمون» وحدها للمفوَّض، أزرار الصفوف
+        عبر السياج، قائمة الأدوار من السياج، و**خانة الموقع الجديدة وهي
+        أمنية لا شكلية**: الحساب بلا موقع يرى كل المواقع بحكم تصميم قاعدة
+        البيانات، ولم تكن هذه الخانة موجودة إطلاقاً.
+     ٤) identity.js — ورقة كلمة المرور كانت لا تُطبع إطلاقاً للمفوَّض (سطر
+        صامت يقرأ جدولاً لا يُزامَن لدوره)، فينشئ حساباً بلا كلمة مرور يعطيها.
+
+   v2.0.23 — 29 August 2026 — delegated account management + site activity
+   Two new files plus edits to the users screen and identity.js:
+     1) account-fence.js — the rank fence. عمارة and حسانين manage accounts
+        STRICTLY below their own level at any site; site HR manages their own
+        site's employees only. Equal rank is refused everywhere. The SAME
+        function drives management rights AND audit visibility, so the two
+        cannot drift. The ladder here is one of three mirrors — the others
+        are the SQL function az_role_rank() and a block inside the
+        admin-users Edge Function.
+     2) site-activity.js — one activity page per site, generated from the
+        sites table (a new site row = a new tab, no code), plus site tabs on
+        the list screens for everyone who sees more than one site.
+     3) pages/settings.js — the users tab only for a delegate, row buttons
+        through the fence, the role dropdown built from the fence, and the
+        NEW site box, which is security and not cosmetics: an account with no
+        site sees every site by database design, and this box did not exist.
+     4) identity.js — the password slip printed NOTHING for a delegate (a
+        silent line reading a table his role never syncs), so he would create
+        an account and have no password to hand over.
+   ---------------------------------------------------------------------------
+   v2.0.22 — ٢٩ أغسطس ٢٠٢٦ — ملفان جديدان للتحويلات المخزنية:
+   stock-in-transit.js: الوجهة تُقيَّد فقط عند تسجيل الوصول الفعلي لا عند
+   الاعتماد الورقي، وتنبيه مجمَّع «تحويلات لم يُسجَّل وصولها»، وحارس الرصيد
+   السالب يُغلق بدل أن يفشل صامتاً ويفحص التحويلات أيضاً.
+   stock-arrival-gate.js: يُلصق Dashboard.analytics بالحساب المصحَّح ويضيف
+   زرّ «تسجيل وصول التحويل» على تحويل معتمد. حذف الملفين يعيد سلوك اليوم.
+   v2.0.22 — 29 Aug 2026 — two new stock-transfer files: destination
+   credited only on recorded arrival (never paper approval), an aggregated
+   awaiting-arrival alert, the negative-stock guard fails closed and now
+   checks transfers; plus the arrival-recording button on approved
+   transfers. Deleting both restores today.
+   ---------------------------------------------------------------------------
    v2.0.21 — ٢٩ أغسطس ٢٠٢٦ — ملفان جديدان:
    screen-behaviour.js: سؤال قبل ضياع نموذج مكتوب فيه، القفز إلى أول خانة
    حمراء مع تسميتها، طيّ صفوف «—» الفارغة في عرض السجل خلف سطر واحد
@@ -522,7 +575,7 @@
 
       بدون إضافتها لن يعمل الذكاء الاصطناعي ولا القسمان الجديدان بدون إنترنت.
    --------------------------------------------------------------------------- */
-var CACHE = 'alzahraa-shell-v2.0.21';
+var CACHE = 'alzahraa-shell-v2.0.23';
 
 var SHELL = [
   './', './index.html', './manifest.webmanifest', './robots.txt',
@@ -639,6 +692,12 @@ var SHELL = [
   /* الصيغ المكتوبة كدوالّ — ثمانية حقول في الموارد البشرية كانت صفراً
      function-style formulas — eight HR fields were reading zero */
   './assets/js/calc-formulas.js',
+  /* الرقم القومي إجباري لكل عامل في كشف العمالة اليومية، وآخر ٤ أرقام فقط
+     في القوائم والطباعة — ملف غير مدرَج هنا لا يُخزَّن ولا يعمل بلا اتصال
+     compulsory national ID per worker on the daily-labour sheet, last-4
+     display in lists/print — a file missing from this list is not cached
+     and vanishes offline */
+  './assets/js/daily-labour-id.js',
   /* أرقام مستندات حقيقية لكل الشاشات وكل الأقسام
      real document numbers, every screen, every department */
   './assets/js/doc-numbering.js',
@@ -785,6 +844,33 @@ var SHELL = [
      وCSV. The real name instead of the raw id (dr1) on transmittals,
      search, sort and CSV. */
   './assets/js/ref-label-resolve.js',
+
+  /* ── جديد في v2.0.22 · NEW in v2.0.22 ────────────────────────────── */
+  /* التحويلات المخزنية: الوجهة تُقيَّد فقط عند تسجيل الوصول الفعلي، لا عند
+     الاعتماد الورقي؛ حارس الرصيد السالب يُغلق بدل أن يفشل صامتاً ويفحص
+     التحويلات أيضاً. Stock transfers: the destination is credited only on
+     recorded arrival, never on paper approval; the negative-stock guard
+     now fails closed and checks transfers too. */
+  './assets/js/stock-in-transit.js',
+  /* يُلصق Dashboard.analytics بالحساب المصحَّح ويضيف زرّ «تسجيل وصول
+     التحويل» على تحويل معتمد. Wires Dashboard.analytics to the corrected
+     computation and adds the "Record transfer arrival" button. */
+  './assets/js/stock-arrival-gate.js',
+
+  /* ── جديد في v2.0.23 · NEW in v2.0.23 ────────────────────────────── */
+  /* سياج الرتب: أ. محمد عمارة وأ. حسانين يديران حسابات الرتب الأدنى منهما
+     في أي موقع، وشؤون عاملين الموقع يدير موظفي موقعه فقط — ولا أحد يلمس
+     من هو في رتبته أو أعلى. نفس الدالة تحكم الإدارة ورؤية سجل النشاط، فلا
+     ينفصلان أبداً. The rank fence: عمارة and حسانين manage accounts below
+     their own level at any site, site HR manages their own site's employees
+     only, and nobody reaches at or above their own level. The same function
+     drives management AND audit visibility, so the two cannot drift. */
+  './assets/js/account-fence.js',
+  /* صفحات نشاط المواقع (صفحة لكل موقع تُولَّد تلقائياً من جدول المواقع)
+     وتبويبات المواقع على شاشات القوائم. Site activity pages — one per site,
+     generated automatically from the sites table — and the site tabs on the
+     list screens. */
+  './assets/js/site-activity.js',
 
   './assets/js/app.js'
 ];
