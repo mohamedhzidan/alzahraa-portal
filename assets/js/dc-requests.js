@@ -446,11 +446,51 @@
       var el = document.querySelector(tries[i]);
       if (el && /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName)) return el;
     }
-    /* آخر محاولة: ابحث عن الحقل الذي عنوانه «المهنة» أو «المهن والتخصصات» */
+    /* آخر محاولة: ابحث عن الحقل الذي عنوانه «المهنة» أو «المهن والتخصصات»
+
+       🔴 لا تُعِد الجذر المجرّد «المهن» إلى هذا الشرط أبداً.
+       كان مكتوباً هنا `txt.indexOf('المهن')`، وعنوان «اسم المهندس الفاحص
+       (الاستشاري)» يحتوي «المهنـدس» وبداخله «المهن». وشاشة طلب فحص
+       الأعمال (wir) ليس بها حقل trade إطلاقاً، فكانت المحاولات السابقة
+       كلها تفشل ويصل البحث إلى هنا فيختطف خانة اسم الاستشاري: يخفيها
+       ويضع مكانها قائمة المهن الستة عشر.
+
+       وكان صامتاً في كل اتجاه: الخانة غير قابلة للكتابة · المهن المختارة
+       لا تُكتب فيها · الحقل غير مطلوب فالنموذج يُحفظ بلا شكوى · العنوان
+       يظل ظاهراً فتبدو الشاشة مُجابة · والحقول الفارغة تُحذف من الطباعة،
+       فالطلب الذي يصل الاستشاري لا يحمل اسم الفاحص. لا خطأ ولا رسالة.
+
+       «المهنة» ليست جزءاً من «المهندس»، و«المهن والتخصصات» يلتقطها فرع
+       «التخصص» أصلاً — لكنها مذكورة صراحةً هنا حتى لا يعتمد الصواب على
+       مصادفة في فرع آخر.
+       مُثبَت بالتشغيل: TESTS/wir-consultant-name-hijack-trial.js (القسم F
+       يعيد الجذر المجرّد ويثبت أن الفحص يحمرّ فعلاً).
+
+       🔴 NEVER put the bare stem «المهن» back into this condition.
+       It used to read `txt.indexOf('المهن')`, and the label «اسم المهندس
+       الفاحص (الاستشاري)» contains «المهندس», which contains «المهن». The
+       work-inspection-request screen (wir) has no `trade` field at all, so
+       every earlier attempt failed and the lookup reached here and seized
+       the consultant-name box — hiding it and planting the 16-trade list
+       in its place.
+
+       Silent in every direction: unfillable · the picked trades were never
+       written into it · the field is not required so the form saved without
+       complaint · the label still showed so the screen looked answered ·
+       and empty fields are dropped from print, so the request reaching the
+       consultant carried no inspector name. No error, no message.
+
+       «المهنة» is not a substring of «المهندس», and «المهن والتخصصات» is
+       already caught by the «التخصص» branch — but it is named explicitly
+       so correctness never depends on a coincidence in another branch.
+       Proven by running TESTS/wir-consultant-name-hijack-trial.js (its
+       section F restores the bare stem and proves the check goes red).
+       Found and measured by TRACK ENHANCER, 30 Aug 2026. (v2.0.27) */
     var labels = document.querySelectorAll('label, .field-label, .form-label');
     for (var j = 0; j < labels.length; j++) {
       var txt = (labels[j].textContent || '').trim();
-      if (txt.indexOf('التخصص') !== -1 || txt.indexOf('المهن') !== -1 ||
+      if (txt.indexOf('التخصص') !== -1 || txt.indexOf('المهنة') !== -1 ||
+          txt.indexOf('المهن والتخصصات') !== -1 ||
           txt.indexOf('Trade') !== -1) {
         var wrap = labels[j].closest ? labels[j].closest('.field, .form-group, div') : labels[j].parentNode;
         var f = wrap && wrap.querySelector('input, textarea, select');
@@ -776,8 +816,26 @@
         var input = panel.querySelector('#azAttachInput');
         if (input) setTimeout(function () { input.click(); }, 400);
       } else if (global.UI && UI.toast) {
-        UI.toast(L({ ar: 'احفظ المستند أولاً ثم افتحه لإرفاق الملفات.',
-                     en: 'Save the document first, then reopen it to attach files.' }), 'info');
+        /* 🔴 كانت الرسالة تقول «احفظ المستند أولاً» دائماً — حتى على مستند
+           محفوظ ومفتوح أمام المستخدم، لأن اللوحة لم تكن توجد في نموذج
+           التعديل إطلاقاً. أبلغ المالك عنها بنفسه في ٣٠ أغسطس ٢٠٢٦.
+           الآن نسأل السجل: هل هو محفوظ فعلاً؟ data-record-id على #entForm
+           (entity.js:545-546) هو الجواب الصادق الوحيد المتاح.
+           «الرفض يجب أن يشخّص لا أن يتّهم» — قاعدة مسجَّلة في هذا المشروع.
+           🔴 This used to say "save the document first" ALWAYS — even on a
+           saved document open in front of the user — because the panel never
+           existed in the edit form at all. The owner reported it himself on
+           30 Aug 2026. Now we ask the record whether it is really saved:
+           data-record-id on #entForm (entity.js:545-546) is the only
+           truthful answer available. "A refusal must DIAGNOSE, not accuse." */
+        var f = document.getElementById('entForm');
+        var reallyUnsaved = !f || !f.getAttribute || !f.getAttribute('data-record-id');
+        UI.toast(reallyUnsaved
+          ? L({ ar: 'احفظ هذا السجل أولاً، ثم افتحه لإرفاق الملفات.',
+                en: 'Save this record first, then reopen it to attach files.' })
+          : L({ ar: 'جارٍ فتح المرفقات… إن لم تظهر، افتح السجل بزرّ العين 👁.',
+                en: 'Opening attachments… if nothing appears, open the record with the eye button 👁.' }),
+          'info');
       }
     };
     host.insertBefore(b, host.firstChild);
@@ -1044,11 +1102,79 @@
     });
   }
 
+  /* 🔴 التقاط المهن المحفوظة — نُقل إلى هنا في ٣٠ أغسطس ٢٠٢٦ من مسار ميت.
+
+     كان هذا الالتقاط داخل wrapOpenForm أدناه، الذي يلفّ EntityPage.openForm
+     **المُصدَّرة** — وهي نسخة لا ينادِيها أحد. زرّ ✏ ينادي النسخة المحلية
+     داخل الإغلاق (entity.js:265)، وكذلك :246 و:317 و:408. فذلك اللفّ لم
+     يعمل ولا مرة واحدة منذ كُتب، رغم أن تعليقه يسمّيه «حزاماً وحمّالة».
+
+     النتيجة الحقيقية، مُثبَتة بالتشغيل
+     (TESTS/subcontractor-trades-wipe-trial.js): pendingTrades تظلّ null
+     دائماً، فتُبنى قائمة المهن بلا اختيار، فيرى المستخدم خانة فارغة على
+     مقاول له مهنتان محفوظتان — فيملؤها ظانّاً أنها كانت فارغة، **فتصير
+     المهنتان مهنة واحدة.** ضياع بيانات صامت، بلا رسالة ولا أثر.
+     وهذا هو التعليق أدناه نفسه يحذّر من هذا العطل بالضبط — بينما الكود
+     الذي يمنعه لم يكن يعمل. حارسٌ مكتوب في مكان ميت ليس حارساً.
+
+     الإصلاح: نلتقط هنا، في لافّة UI.modal — وهي المسار الحيّ الوحيد —
+     ونقرأ هوية السجل من data-module/data-record-id على #entForm
+     (entity.js:545-546). والمميِّز هو **نوع النافذة** لا شكل زرّ: نموذج
+     التعديل وحده يحمل #entForm. (درس عطلٍ آخر في الدفعة نفسها: شكل الزرّ
+     لم يكن مميِّزاً قط، فأعاد ملفٌ تسمية زرّ الطباعة على ٣٥ شاشة.)
+
+     🔴 CAPTURING THE STORED TRADES — moved here on 30 Aug 2026 from a DEAD
+     path. This capture lived inside wrapOpenForm below, which wraps the
+     EXPORTED EntityPage.openForm — a binding nothing calls. The ✏ button
+     uses the closure-local one (entity.js:265), as do :246, :317 and :408.
+     So that wrapper has never once run since it was written, even though its
+     own comment calls it "belt and braces".
+
+     The real consequence, proven by running
+     TESTS/subcontractor-trades-wipe-trial.js: pendingTrades stayed null
+     forever, the picker built with nothing selected, and the user saw an
+     EMPTY box on a subcontractor with two stored trades — filled it
+     believing it was empty, and **two trades became one.** Silent data loss,
+     no message, no trace. The comment below warns about exactly this fault
+     while the code preventing it was not running. A guard written in a dead
+     place is not a guard.
+
+     The fix: capture HERE, in the UI.modal wrapper — the only live path —
+     reading the record's identity from data-module/data-record-id on
+     #entForm (entity.js:545-546). The discriminator is the MODAL KIND, never
+     a button's shape (the lesson of another bug in this same batch, where a
+     shape-based match renamed the Print button on 35 screens). */
+  function capturePendingTrades() {
+    pendingTrades = null;
+    try {
+      var form = document.getElementById('entForm');
+      if (!form || !form.getAttribute) return;
+      var moduleId = form.getAttribute('data-module');
+      var recordId = form.getAttribute('data-record-id');
+      /* لا معرّف = سجل جديد، ولا مهن محفوظة أصلاً — لا شيء نحميه
+         no id = a new record with no stored trades — nothing to protect */
+      if (!moduleId || !recordId) return;
+      var mod = global.Schema && Schema.get(moduleId);
+      var rec = mod && global.Store && Store.find(mod.table, recordId);
+      if (rec && rec.trade) pendingTrades = String(rec.trade);
+    } catch (e) {
+      /* لا نُفشل فتح نموذج لأجل التقاط — لكن نقولها، لأن الصمت هنا يعني
+         احتمال ضياع مهن. never break a form for a capture — but say so,
+         because silence here can mean trades are lost */
+      try { console.warn('[dc-requests] could not read the stored trades', e); } catch (e2) {}
+    }
+  }
+
   function wrapModal() {
     if (!global.UI || !UI.modal || UI.__azTradesWrapped) return;
     var orig = UI.modal;
     UI.modal = function () {
       var out = orig.apply(UI, arguments);
+      /* بالترتيب حتماً: الالتقاط قبل afterModal، لأن afterModal هي التي
+         تبني القائمة وتقرأ pendingTrades.
+         Order is load-bearing: capture BEFORE afterModal, because
+         afterModal is what builds the picker and reads pendingTrades. */
+      capturePendingTrades();
       afterModal();
       return out;
     };
@@ -1056,9 +1182,35 @@
     console.info('[dc-requests] UI.modal wrapped — the trades picker now builds when a form opens.');
   }
 
-  /* لفّ openForm أيضاً — حزام وحمّالة. لو تغيّرت UI.modal يوماً ما زال
-     هذا المسار يعمل. Belt and braces: if UI.modal ever changes, this
-     second path still catches the form opening. */
+  /* ⚠️ هذا اللفّ ميت ولم يعمل قط — ويُترك عمداً، فارغاً من الحراسة.
+
+     كان يُسمّى «حزاماً وحمّالة»، والحقيقة أنه لم يكن أياً منهما: يلفّ
+     EntityPage.openForm **المُصدَّرة**، ولا أحد ينادي تلك النسخة — كل
+     النداءات الداخلية تستعمل الدالة المحلية داخل الإغلاق (entity.js:246
+     و:265 و:317 و:408). فالتقاط المهن الذي كان هنا لم يُنفَّذ ولا مرة،
+     وضاعت مهن مقاولين بصمت طوال ذلك الوقت.
+
+     نُقلت الحراسة إلى capturePendingTrades() داخل لافّة UI.modal أعلاه —
+     المسار الحيّ. ويبقى هذا اللفّ لأنه غير ضارّ ولأن حذفه يخفي الدرس؛
+     ولا يُعاد إليه أي منطق حارس أبداً.
+     🔴 القاعدة: قبل أن تكتب «حزام وحمّالة»، أثبت أن الحمّالة تُشدّ فعلاً.
+     مسارٌ احتياطي لم يُختبر ليس احتياطاً — هو اعتقادٌ بالأمان بلا أمان.
+
+     ⚠️ THIS WRAPPER IS DEAD AND HAS NEVER RUN — kept deliberately, but
+     emptied of any guard. It called itself "belt and braces" and was
+     neither: it wraps the EXPORTED EntityPage.openForm, which nothing
+     calls — every internal caller uses the closure-local function
+     (entity.js:246, :265, :317, :408). So the trades capture that used to
+     live here never executed once, and subcontractors' trades were being
+     lost silently the whole time.
+
+     The guard moved to capturePendingTrades() inside the UI.modal wrapper
+     above — the live path. This wrapper stays because it is harmless and
+     because deleting it hides the lesson; no guard logic is ever put back
+     into it.
+     🔴 The rule: before writing "belt and braces", prove the braces are
+     actually fastened. An untested fallback is not a fallback — it is a
+     belief in safety without the safety. */
   function wrapOpenForm() {
     if (!global.EntityPage || !EntityPage.openForm || EntityPage.__azTradesWrapped) return;
     var orig = EntityPage.openForm;

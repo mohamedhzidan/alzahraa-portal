@@ -116,13 +116,87 @@
     return transaction('queue', 'readwrite', function (s) { return request(s.put(row)); });
   }
 
-  async function queueList(userId) {
-    var rows = await transaction('queue', 'readonly', function (s) { return request(s.index('userId').getAll(userId)); });
-    var out = [];
+  /* ═══════════════════════════════════════════════════════════════════
+     🔴 صفٌّ واحد سيّئ كان يُخفي الطابور كلّه — أُصلح ٣٠ أغسطس ٢٠٢٦
+
+     ما كان يحدث، مُثبَتاً بالتشغيل (TESTS/engineer-offline-day-trial.js
+     قسم D2): صفّ تالف الشكل يجعل unseal تُرجع **null** (سطر ٨٣، لا ترمي)،
+     فيدخل null إلى المصفوفة، ثم يحاول الفرز أدناه قراءة `a.at` من null
+     فيرمي — والرمي كان يهرب من هذه الدالة كلّها. وحارس الدخول
+     (offline-db-guard.js) يلتقطه ويُرجع [] نظيفة، فتصير النتيجة: خمسة
+     صفوف مخزّنة، صفر معروضة، الشارة تختفي، ولا شيء يُرفع. عمل يوم كامل
+     يبقى على الجهاز غير مرئي.
+
+     القاعدة المطبَّقة هنا، وهي ثلاث قواعد في تغيير واحد:
+       ١) فشل صفّ واحد يبقى في صفّه — لا يُسقط جيرانه أبداً.
+       ٢) unseal التي تُرجع null وunseal التي ترمي تُعامَلان بالضبط نفس
+          المعاملة — الفرق بينهما كان مصدر العطل كلّه.
+       ٣) الصفوف غير المقروءة تُعَدّ ويُبلَّغ عنها، ولا تُتجاهَل بصمت.
+
+     لماذا العدّاد غير قابل للتعداد (non-enumerable): كل من ينادي هذه
+     الدالة اليوم يتوقّع مصفوفة عادية (store.js:145، save-modes.js:158
+     و:202 و:391). خاصية غير قابلة للتعداد لا تظهر في أي حلقة ولا في
+     JSON.stringify ولا في نسخ المصفوفة — فلا يتغيّر شكل شيء لأي قارئ
+     قائم، بينما تستطيع شارة «بانتظار الرفع» قراءتها حين تُبنى.
+
+     🔴 ONE BAD ROW USED TO HIDE THE WHOLE QUEUE — fixed 30 Aug 2026.
+
+     Proven by running (TESTS/engineer-offline-day-trial.js, section D2): a
+     malformed row makes unseal RETURN NULL (line 83, it does not throw),
+     null enters the array, the sort below then reads `a.at` off null and
+     THROWS, and that throw escaped this whole function. The sign-in guard
+     (offline-db-guard.js) caught it and returned a clean [] — so five rows
+     stored became zero shown, the badge disappeared, and nothing flushed.
+     A full day's work sat on the device, invisible.
+
+     Three rules in one change: (1) a per-row failure stays per-row and
+     never removes its neighbours; (2) unseal-returns-null and
+     unseal-throws are handled identically — the difference between them
+     WAS the bug; (3) unreadable rows are counted and reported, never
+     silently skipped.
+
+     Why the counter is non-enumerable: every current caller expects a
+     plain array (store.js:145, save-modes.js:158/:202/:391). A
+     non-enumerable property never appears in a loop, in JSON.stringify or
+     in an array copy — so no existing reader changes shape at all, while
+     the "waiting to upload" indicator can read it when it is built.
+     ═══════════════════════════════════════════════════════════════════ */
+  function withUnreadableCount(list, unreadable) {
+    try {
+      Object.defineProperty(list, '__unreadable', {
+        value: unreadable.slice(), enumerable: false, writable: false, configurable: true
+      });
+    } catch (e) { /* لا نُفشل القراءة كلها لأجل عدّاد · never fail the read for a counter */ }
+    return list;
+  }
+
+  async function readSealedRows(storeName, userId, keyName) {
+    var rows = await transaction(storeName, 'readonly', function (s) { return request(s.index('userId').getAll(userId)); });
+    var out = [], unreadable = [];
     for (var i = 0; i < rows.length; i++) {
-      try { out.push(await unseal(userId, rows[i].payload)); } catch (e) {}
+      var one = null;
+      /* null والرمي: نفس المعاملة تماماً · null and throw: treated identically */
+      try { one = await unseal(userId, rows[i].payload); } catch (e) { one = null; }
+      if (one && one.at) out.push(one);
+      else unreadable.push(rows[i] && rows[i][keyName]);
     }
-    return out.sort(function (a, b) { return new Date(a.at) - new Date(b.at); });
+    if (unreadable.length) {
+      try {
+        console.warn('[offline-db] ' + unreadable.length + ' of ' + rows.length +
+          ' stored ' + storeName + ' row(s) could not be read; the rest are intact and are NOT hidden.',
+          unreadable);
+      } catch (e) {}
+    }
+    return withUnreadableCount(out, unreadable);
+  }
+
+  async function queueList(userId) {
+    var out = await readSealedRows('queue', userId, 'queueId');
+    var unreadable = out.__unreadable || [];
+    /* الفرز آمن الآن لأن كل عنصر باقٍ يحمل `at` حقيقياً (فُحص أعلاه)
+       the sort is safe now because every surviving row has a real `at` */
+    out.sort(function (a, b) { return new Date(a.at) - new Date(b.at); });
+    return withUnreadableCount(out, unreadable);
   }
 
   function queueRemove(queueId) {
@@ -142,13 +216,14 @@
     return value;
   }
 
+  /* التوأم الذي لم يسمّه أحد: نفس الالتقاط الفارغ بالضبط كان هنا أيضاً.
+     التعارضات أقلّ خطراً من الطابور (لا فرز يرمي هنا)، لكن صفّاً غير مقروء
+     كان يختفي بلا عدّ أيضاً — ونفس القاعدة تنطبق.
+     The twin nobody had named: the identical empty catch was here too.
+     Conflicts are less dangerous than the queue (no sort to throw), but an
+     unreadable row still vanished uncounted — the same rule applies. */
   async function conflicts(userId) {
-    var rows = await transaction('conflicts', 'readonly', function (s) { return request(s.index('userId').getAll(userId)); });
-    var out = [];
-    for (var i = 0; i < rows.length; i++) {
-      try { out.push(await unseal(userId, rows[i].payload)); } catch (e) {}
-    }
-    return out;
+    return readSealedRows('conflicts', userId, 'conflictId');
   }
 
   function conflictRemove(conflictId) {

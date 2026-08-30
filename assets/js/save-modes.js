@@ -715,10 +715,45 @@
   /* ═══════════════════════════════════════════════════════════════════
      ٦ · شارة «في انتظار الرفع» + الرفع التلقائي
      ═══════════════════════════════════════════════════════════════════ */
+  /* 🔴 كم صفّاً مخزَّناً تعذّرت قراءته؟
+     offline-db.js يُرفق العدد بالمصفوفة كخاصية غير قابلة للتعداد
+     (__unreadable) بدل أن يبتلع الصفوف بصمت كما كان يفعل. القيمة موجودة في
+     البيانات منذ إصلاح ٣٠ أغسطس — لكنها لم تكن تصل إلى الموظف إطلاقاً:
+     بستة صفوف مخزَّنة، أربعة سليمة واثنان غير مقروءين، كانت الشارة تقول
+     «٤ مستندات قيد الرفع» وتسكت عن الاثنين تماماً. عددٌ يُحسب ولا يُعرض هو
+     نصف إصلاح.
+     ⚠️ ليست هذه شارة «Q9» الجديدة — تلك ما زالت تنتظر قرار المالك. هذا
+     إصلاح صدق شارةٍ **قائمة بالفعل**.
+     🔴 How many stored rows could not be read? offline-db.js attaches the
+     count to the array as a non-enumerable property (__unreadable) instead
+     of swallowing those rows silently as it used to. The value has existed
+     in the data since the 30 Aug fix — but it never reached the person: with
+     6 stored, 4 good and 2 unreadable, the badge said "4 documents
+     uploading" and stayed completely silent about the 2. A count that is
+     computed and never shown is half a fix.
+     ⚠️ This is NOT the new "Q9" indicator — that still awaits the owner's
+     decision. This is the honesty of a badge that ALREADY EXISTS. */
+  async function unreadableCount() {
+    if (!global.OfflineDB) return 0;
+    var user = uid();
+    if (!user) return 0;
+    try {
+      var jobs = await OfflineDB.queueList(user);
+      var u = jobs && jobs.__unreadable;
+      return (u && u.length) || 0;
+    } catch (e) { return 0; }
+  }
+
   function updateBadge() {
-    pendingCount().then(function (n) {
+    Promise.all([pendingCount(), unreadableCount()]).then(function (pair) {
+      var n = pair[0], bad = pair[1];
       var el = document.getElementById('azQueueBadge');
-      if (!n) { if (el) el.remove(); return; }
+      /* الشارة تظهر أيضاً حين يكون المعلوم صفراً وهناك غير مقروء — وإلا
+         اختفت تماماً وهي الحالة التي يجب أن تُقال بالذات.
+         The badge also shows when the readable count is zero but something
+         is unreadable — otherwise it would vanish in exactly the case that
+         most needs saying. */
+      if (!n && !bad) { if (el) el.remove(); return; }
       if (!el) {
         el = document.createElement('button');
         el.id = 'azQueueBadge';
@@ -735,13 +770,25 @@
          "Waiting for a connection" is wrong wording when a connection is
          already available — this state now means an upload and a
          confirmation are in progress, not a wait for something absent. */
-      el.textContent = navigator.onLine !== false
+      var main = navigator.onLine !== false
         ? (isAr()
             ? n + ' مستند قيد الرفع والتأكد — اضغط للمحاولة الآن'
             : n + ' document(s) uploading and confirming — tap to retry now')
         : (isAr()
             ? n + ' مستند في انتظار الاتصال — اضغط للرفع الآن'
             : n + ' document(s) waiting for a connection — tap to upload now');
+
+      /* الصفوف غير المقروءة تُقال صراحةً ولا تُطوى في الصمت. الشغل ما زال
+         على الجهاز ولم يُحذف — وهذا أهم ما يحتاج الموظف سماعه.
+         Unreadable rows are said out loud, never folded into silence. The
+         work is still on the device and was not deleted — the single most
+         important thing for the person to hear. */
+      if (bad) {
+        main = isAr()
+          ? (n ? n + ' قيد الرفع، ' : '') + bad + ' غير مقروء على هذا الجهاز — أبلغ الإدارة'
+          : (n ? n + ' uploading, ' : '') + bad + ' unreadable on this device — tell the office';
+      }
+      el.textContent = main;
     });
   }
 

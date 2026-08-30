@@ -26,7 +26,7 @@
        a wrong answer. The footer was already handled (version-badge.js
        reads the real cache name), but nothing touches this screen — so
        the number here has to be raised by hand. */
-    version: '2.0.26',
+    version: '2.0.28',
     supabaseUrl: injected.SUPABASE_URL || '',
     supabaseAnonKey: injected.SUPABASE_ANON_KEY || '',
     authFunction: 'auth-login',

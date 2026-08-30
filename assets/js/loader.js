@@ -8,6 +8,25 @@
     'assets/js/env.js',
     'assets/js/config.js',
     'assets/js/offline-db.js',
+    /* 🔴 الهاتف الممتلئ (أو التصفّح الخاص) كان يمنع الدخول تماماً:
+       store.js:145-146 و:152 تنتظر ثلاثة نداءات على OfflineDB بلا
+       try/catch، فيرفض التخزين ويموت الدخول برسالة «تحقق من الاتصال» —
+       وكلمة السر صحيحة والإنترنت يعمل. يجب أن يأتي بعد offline-db.js
+       مباشرة (يلفّه) وقبل أي استعمال له. store.js مقروء فقط بقاعدة
+       المشروع، ولذلك هو ملف منفصل: حذفه يعيد سلوك اليوم حرفياً.
+       مُثبَت بالتشغيل: TESTS/offline-db-guard-trial.js — القسم B يستنسخ
+       الدخول الممنوع، والقسم G يثبت أن الفحص يحمرّ فعلاً.
+       🔴 A full phone (or private browsing) used to block signing in
+       entirely: store.js:145-146 and :152 await three OfflineDB calls with
+       no try/catch, so storage refuses and the login dies with "check your
+       connection" — while the password was right and the internet fine.
+       Must load immediately after offline-db.js (it wraps it) and before
+       anything uses it. store.js is read-only by project rule, hence a
+       separate file: deleting it restores today's behaviour exactly.
+       Proven by running TESTS/offline-db-guard-trial.js — section B
+       reproduces the blocked login, section G proves the check can go
+       red. (v2.0.27) */
+    'assets/js/offline-db-guard.js',
     'assets/js/i18n.js',
     'assets/js/store.js',
     /* يمنع محو الرواتب حين يُعاد حفظ عمود مُقنَّع (عرض portal_employees يُعيد
@@ -42,6 +61,19 @@
        (v2.0.18). */
     'assets/js/authority-ipc-fields.js',
     'assets/js/departments.js',
+    /* «تاريخ الرد الفعلي» على المراسلات فقط (لا على مذكرات الإرسال — قرار
+       المالك ٢٩ أغسطس). لا يعمل قبل departments.js لأنه هو الذي يسجّل شاشة
+       correspondence؛ لو حُمّل قبله لا يحدث خطأ ولا تظهر الخانة إطلاقاً —
+       عطل صامت. مُثبَت بالتشغيل: TESTS/correspondence-reply-date-trial.js
+       فحص العطل رقم ١.
+       "Actual reply date" on correspondence letters ONLY (never on
+       transmittals — the owner's ruling, 29 Aug). Does nothing before
+       departments.js, which registers the correspondence screen; loaded
+       earlier it throws no error and the box simply never appears — a
+       silent failure. Proven by running
+       TESTS/correspondence-reply-date-trial.js, fault injection #1.
+       (v2.0.27) */
+    'assets/js/correspondence-reply-date.js',
     'assets/js/hr-department.js',
     /* صافي الراتب يحسب البنود الثمانية التي أضافها hr-department.js —
        بعده مباشرة حتماً، لأنه يبني الصيغة من الحقول الموجودة فعلاً.
@@ -104,6 +136,26 @@
     'assets/js/identity.js',
     'assets/js/workflow.js',
     'assets/js/workflow-policy.js',
+    /* 🔴 بعد workflow-policy.js حتماً. شاشات الاعتماد (طلبات فحص الأعمال،
+       بطاقات الصبّة…) تكتب حالة السجل فعلاً لكن قائمتها لا تعرض عمود
+       الحالة، لأن dc-requests.js deriveColumns يضيفه فقط إن وجد حقلاً اسمه
+       status — وهذه الشاشات حالتها في عمود دورة الاعتماد لا في حقل شاشة.
+       فالشاشات التي لها حالة حقيقية هي وحدها التي لا تعرضها. هذه شكوى
+       المالك حرفياً: «شغل الموقع والتنفيذ… هي just there».
+       يجب أن يأتي بعد workflow-policy.js لأنه يخفّض شاشات طبقة السجل إلى
+       workflow=false؛ لو عملنا قبله لأضفنا العمود لشاشة بلا دورة اعتماد
+       وأعدنا انهيار سجل المستندات (عمود status بلا حقل status).
+       🔴 Necessarily AFTER workflow-policy.js. Approval screens really do
+       write a status but their lists never show it, because deriveColumns
+       adds that column only when a `status` FIELD exists — and their status
+       lives in the workflow column, not a screen field. So the screens that
+       HAVE a real state are the only ones not showing it. This is the
+       owner's literal complaint. Must be after workflow-policy.js, which
+       demotes RECORD-tier screens to workflow=false: running earlier we
+       would add the column to a screen with no approval cycle and recreate
+       the document-register crash. Proven by running
+       TESTS/workflow-status-column-trial.js. (v2.0.28) */
+    'assets/js/workflow-status-column.js',
     /* يفكّ عَلَق مستندات التوقيع الواحد — بعد workflow-policy.js حتماً */
     'assets/js/one-step-approval.js',
     /* يُعيد زر «مراجعة» على شاشة المستند نفسها لصاحب التوقيع الأول على
@@ -261,7 +313,42 @@
        order); the order between this file and draft-guard.js itself does
        not matter (v2.0.18). */
     'assets/js/user-dialog-guard.js',
+    /* 🔴 قبل save-modes.js حتماً، وهذا عكس attach-from-form.js عمداً.
+       save-modes.js هو من يُنشئ زرَّي «مسودة» و«مسودة حتى الاتصال» داخل
+       لافّته لـUI.modal. فلكي نرى الأزرار يجب أن يلفّنا هو لا العكس: يضيف
+       أزراره إلى opts ثم ينادي ما تحته، فتصلنا opts وفيها الأزرار. لو
+       حُمّلنا بعده لصرنا الأبعد ولعملنا قبل أن توجد الأزرار إطلاقاً.
+       يغيّر الاسم فقط على الشاشات المخفَّضة (workflow=false وقت التشغيل)،
+       حيث لا يصير أي سجل «مسودة» — ويمنع «التأكيد الكاذب»: عمود دورة
+       حياة المستند يعرض «مسودة» افتراضياً سواء ضُغط الزرّ أم لا.
+       🔴 Necessarily BEFORE save-modes.js — deliberately the opposite of
+       attach-from-form.js. save-modes.js creates the two draft buttons
+       inside its own UI.modal wrapper, so it must wrap US: it adds its
+       buttons to opts and then calls through, so opts reaches us already
+       carrying them. Loaded after, we would be outermost and would run
+       before the buttons existed. Label only, on RUNTIME-demoted screens
+       where nothing becomes a draft — and it breaks the FALSE CONFIRMATION:
+       the document-lifecycle column shows «مسودة» by default whether or not
+       the button was pressed. Proven by running
+       TESTS/save-mode-labels-trial.js. (v2.0.28) */
+    'assets/js/save-mode-labels.js',
     'assets/js/save-modes.js',
+    /* «تم الحفظ» وحدها كانت تُقرأ كـ«تمّ كل شيء» بينما يظلّ السجل «مسودة».
+       يغيّر الكلام فقط — لا يلمس status ولا يرقّي شيئاً. بعد save-modes.js
+       حتماً: كلاهما يلفّ Store.save/Store.create، وهذا يجب أن يكون الأبعد
+       فيرى ما وصل فعلاً. يقرأ mod.workflow **وقت التشغيل**، فلا يتكلّم عن
+       شاشات طبقة RECORD التي خفّضها workflow-policy.js:117 ولا تُختم
+       «مسودة» أصلاً. مُثبَت: TESTS/draft-save-honesty-trial.js (القسم I
+       يثبت أن الفحص يحمرّ فعلاً).
+       "Saved" alone read as "everything is done" while the record stayed a
+       draft. Wording only — never touches status, never promotes anything.
+       Necessarily after save-modes.js: both wrap Store.save/Store.create and
+       this must be the outer one so it sees what actually arrived. Reads
+       mod.workflow AT RUNTIME, so it stays silent about RECORD-tier screens
+       demoted by workflow-policy.js:117, which never stamp drafts at all.
+       Proven by running TESTS/draft-save-honesty-trial.js (section I proves
+       the check can go red). (v2.0.28) */
+    'assets/js/draft-save-honesty.js',
     /* كل قائمة اختيار ref تحترم الآن نطاق الاطّلاع (مشروعات/مواقع/إلخ) —
        بعد save-modes.js: كلاهما يلفّ UI.modal، والترتيب بينهما غير مهم
        (كل واحد يقرأ opts.buttons أو الـDOM، لا يتصادمان أبداً).
@@ -431,6 +518,21 @@
        Store.create/Store.save — directly after doc-numbering.js so it is
        the outermost wrap. (v2.0.26) */
     'assets/js/employee-count-fill.js',
+    /* تاريخ الأسعار وأرخص مورد لكل صنف — يلفّ EntityPage.openDetail ولا
+       يعمل إلا على شاشة الأصناف. يقرأ إذون الاستلام المعتمدة عبر
+       Auth.canSee/Auth.scopeRows بنفس الطريقة تماماً التي تستعملها شاشة
+       إذون الاستلام نفسها، فلا يستطيع إظهار أكثر ممّا يراه الموظف أصلاً.
+       أي موضع بعد pages/entity.js (سطر ٢٢٥) يعمل؛ وُضع هنا بجوار أحدث
+       دفعة حتى لا يُفصل تعليق قائم عن ملفه.
+       Purchase price history and cheapest supplier per item — wraps
+       EntityPage.openDetail, active only on the Items screen. Reads
+       approved goods receipts through Auth.canSee/Auth.scopeRows exactly
+       as the Goods Receipts screen itself does, so it can never show more
+       than that person could already see. Any position after
+       pages/entity.js (line 225) works; placed here beside the most
+       recent batch so no existing comment is split from its file.
+       (v2.0.27) */
+    'assets/js/purchase-price-history.js',
     /* يخفي زر التقارير عمّن لا تقارير له — الحماية نفسها داخل pages/reports.js */
     'assets/js/report-access.js',
     /* تقويم النقدية لاثني عشر أسبوعاً داخل صفحة التقارير — يلفّ
@@ -470,6 +572,27 @@
        strip, and Quick Actions reordered so site screens lead — necessarily
        after dashboard-render.js because it replaces PANELS.quickActions. */
     'assets/js/mobile-field.js',
+    /* سجل تأخير المستندات — صفحة «سجل التأخيرات» داخل قائمة أ. أحمد
+       الجانبية (ضبط المستندات)، تلخّص طلبات المعلومات والاعتمادات
+       والمراسلات ومذكرات الإرسال المتأخرة. وُضع هنا لأنه يلفّ
+       EntityPage.render (محمَّل من pages/entity.js سطر ٢٢٥) ويستعمل
+       Auth.scopeRows (auth.js وsites.js)، وكلها فوقه بكثير. لا علاقة
+       وظيفية بـ mobile-field.js — فقط مكان ثابت لا ينازعه أحد.
+       🔴 لماذا صفحة في قائمته لا تبويب في التقارير: أ. أحمد لا يستطيع فتح
+       صفحة التقارير إطلاقاً (reports.js:53-79 وreport-access.js:41-53
+       يحذفان الزر من قائمته)، فتبويب هناك كان ليكون خفيّاً عن الشخص
+       الوحيد المقصود به.
+       Document-delay register — a «سجل التأخيرات» page inside Ahmed's own
+       side menu (Document Control), summarising overdue RFIs, submittals,
+       correspondence and transmittals. Placed here because it wraps
+       EntityPage.render (pages/entity.js line 225) and uses
+       Auth.scopeRows (auth.js, sites.js) — all far above. No functional
+       link to mobile-field.js, simply an uncontested fixed spot.
+       🔴 Why a page in HIS menu and not a Reports tab: Ahmed cannot open
+       the Reports page at all (reports.js:53-79 and report-access.js:41-53
+       delete the button from his menu), so a tab there would have been
+       invisible to the only person it is for. (v2.0.27) */
+    'assets/js/doc-delay-register.js',
     /* تحذير فقط — «السنة بعيدة عن اليوم؟» على أي حقل تاريخ في #entForm.
        لا يلمس الحفظ ولا Rules إطلاقاً (انظر تعليق الملف عن سبب ذلك
        تحديداً). قبل version-badge.js عمداً — لا علاقة وظيفية، فقط لضمان
@@ -536,6 +659,22 @@
        slot is deliberate only to keep version-badge.js last, as always
        documented. */
     'assets/js/beneficiary-fill.js',
+    /* المرفقات من داخل نموذج التعديل — «تعديل ← مرفقات» لم يكن مساراً
+       معطّلاً بل مساراً لم يُبنَ قط (أبلغ عنه المالك ٣٠ أغسطس ٢٠٢٦).
+       اللافّة التاسعة لـUI.modal، وهي الأبعد في السلسلة. لكن موضعها بين
+       اللوافّ **لا يقرّر** هل تعمل: نحقن بعد عودة النداء لا عبر opts.onOpen،
+       لأن ملفات أخرى في السلسلة تستبدل onOpen. يحتاج attachments.js
+       (ينادي panelHTML/wirePanel المُصدَّرتين) وentity.js (يقرأ
+       data-record-id) — وكلاهما فوقه بكثير.
+       Attachments from inside the edit form — «تعديل ← مرفقات» was not a
+       broken path but a path never built (owner-reported 30 Aug 2026).
+       The 9th UI.modal wrapper, outermost in the chain. But its position
+       among the wrappers does NOT decide whether it works: we inject after
+       the call returns, never via opts.onOpen, because other files in the
+       chain replace onOpen. Needs attachments.js (it CALLS the exported
+       panelHTML/wirePanel) and entity.js (it reads data-record-id) — both
+       far above. (v2.0.28) */
+    'assets/js/attach-from-form.js',
     /* رقم النسخة في تذييل الصفحة من الذاكرة الفعلية — آخر ملف عمداً،
        فحص رفعة محمد زيدان */
     'assets/js/version-badge.js'
