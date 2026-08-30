@@ -575,7 +575,7 @@
 
       بدون إضافتها لن يعمل الذكاء الاصطناعي ولا القسمان الجديدان بدون إنترنت.
    --------------------------------------------------------------------------- */
-var CACHE = 'alzahraa-shell-v2.0.26';
+var CACHE = 'alzahraa-shell-v2.0.28';
 
 var SHELL = [
   './', './index.html', './manifest.webmanifest', './robots.txt',
@@ -589,7 +589,11 @@ var SHELL = [
   './assets/vendor/chart-4.4.1.umd.js', './assets/vendor/supabase-2.112.3.js',
 
   './assets/js/frame-guard.js', './assets/js/loader.js', './assets/js/env.js',
-  './assets/js/config.js', './assets/js/offline-db.js', './assets/js/i18n.js',
+  './assets/js/config.js', './assets/js/offline-db.js',
+  /* يمنع الهاتف الممتلئ من منع الدخول — لا يعمل بلا اتصال إن غاب من هذه
+     القائمة. Stops a full phone blocking sign-in — does not work offline
+     if missing from this list. (v2.0.27) */
+  './assets/js/offline-db-guard.js', './assets/js/i18n.js',
   './assets/js/store.js', './assets/js/schema.js',
 
   /* ── جديد في v2.0.20 · NEW in v2.0.20 ──────────────────────────────── */
@@ -702,6 +706,12 @@ var SHELL = [
      real document numbers, every screen, every department */
   './assets/js/doc-numbering.js',
   './assets/js/employee-count-fill.js',
+  /* تاريخ الأسعار وأرخص مورد على شاشة الأصناف — لا يُخزَّن ولا يعمل بلا
+     اتصال إن غاب من هذه القائمة.
+     Purchase price history and cheapest supplier on the Items screen —
+     not stored and does not work offline if missing from this list.
+     (v2.0.27) */
+  './assets/js/purchase-price-history.js',
   /* «المسدَّد» و«المتبقي» الحقيقيان على سلف الموظفين
      the real repaid and outstanding figures on employee advances */
   './assets/js/advance-balance.js',
@@ -788,6 +798,10 @@ var SHELL = [
      The other five are the assistant: without them a site engineer with
      no signal loses every check and every piece of job knowledge. */
   './assets/js/departments.js',
+  /* «تاريخ الرد الفعلي» على المراسلات — لا يعمل بلا اتصال إن غاب من هذه
+     القائمة. Actual reply date on letters — does not work offline if
+     missing from this list. (v2.0.27) */
+  './assets/js/correspondence-reply-date.js',
   './assets/js/hr-department.js',
   './assets/js/dc-requests.js',
   './assets/js/save-guard.js',
@@ -807,10 +821,23 @@ var SHELL = [
   './assets/js/inspector-departments.js',
   './assets/js/assistant-pro.js',
   './assets/js/agents.js',
+  /* اسم زرّ الحفظ بحسب طبقة الشاشة — لا يعمل بلا اتصال إن غاب من هذه
+     القائمة. The save-button label by screen tier — does not work offline if
+     missing from this list. (v2.0.28) */
+  './assets/js/save-mode-labels.js',
   './assets/js/save-modes.js',
+  /* يقول للموظف إن السجل ما زال «مسودة» بعد الحفظ — كلام فقط، ولا يعمل بلا
+     اتصال إن غاب من هذه القائمة. Tells the person the record is still a
+     draft after saving — wording only; does not work offline if missing
+     from this list. (v2.0.28) */
+  './assets/js/draft-save-honesty.js',
   './assets/js/attachments.js',
   './assets/js/import.js',
   './assets/js/workflow-policy.js',
+  /* عمود «الحالة» على شاشات الاعتماد — لا يعمل بلا اتصال إن غاب من هذه
+     القائمة. The status column on approval screens — does not work offline
+     if missing from this list. (v2.0.28) */
+  './assets/js/workflow-status-column.js',
   /* ─────────────────────────────────────────────────────────────────── */
 
   './assets/js/auth.js', './assets/js/identity.js', './assets/js/workflow.js',
@@ -834,6 +861,10 @@ var SHELL = [
      يعمل بلا اتصال أيضاً. The site engineer's phone — bigger touch
      targets, a status strip, unified quick actions; works offline too. */
   './assets/js/mobile-field.js',
+  /* سجل تأخير المستندات — صفحة في قائمة أ. أحمد وحده، إضافية بالكامل.
+     Document-delay register — a page in Ahmed's menu only, fully
+     additive. (v2.0.27) */
+  './assets/js/doc-delay-register.js',
 
   /* ── جديد في v2.0.21 · NEW in v2.0.21 ────────────────────────────── */
   /* سلوك الشاشات: سؤال قبل ضياع نموذج مكتوب، القفز لأول خانة حمراء،
@@ -890,6 +921,10 @@ var SHELL = [
      agrees with the chosen supplier, a «فقط … لا غير» words line under
      every printed amount, and an unanswered checkbox shows '—' not «لا». */
   './assets/js/beneficiary-fill.js',
+  /* المرفقات من داخل نموذج التعديل — لا يعمل بلا اتصال إن غاب من هذه
+     القائمة. Attachments from inside the edit form — does not work offline
+     if missing from this list. (v2.0.28) */
+  './assets/js/attach-from-form.js',
   './assets/js/amount-in-words.js',
   './assets/js/checkbox-three-states.js',
 
