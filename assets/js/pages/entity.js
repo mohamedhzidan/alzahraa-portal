@@ -511,7 +511,40 @@
     }
     if (mod.lines && (!draft.lines || !draft.lines.length)) draft.lines = [blankLine(mod)];
 
-    var body = '<form id="entForm" autocomplete="off">';
+    /* 🔴 السطر الوحيد المضاف إلى هذا الملف المحميّ (٣٠ أغسطس ٢٠٢٦) — والسبب:
+       نافذة التعديل كانت لا تحمل أي دليل على هويتها إطلاقاً. openForm يمرّر
+       إلى UI.modal العنوانَ والجسمَ والأزرار فقط (سطر ٥٢٩)، وui.js:94 لا
+       يمرّر أي هوية، وmoduleId وid يعيشان داخل الإغلاق وحده. فأي ملف إضافي
+       يريد أن يضيف شيئاً إلى نموذج التعديل لا يستطيع أن يعرف **أيّ سجل** هو.
+       يمنع هذان الوصفان عطلين محدَّدين:
+         ١) لوحة مرفقات تُربط بالسجل الخطأ — أسوأ بكثير من غياب اللوحة.
+         ٢) اللجوء إلى مطابقة نصّ العنوان العربي (كما في
+            save-modes.js currentModule) — نمط هشّ أثبت فشله: مِجسّ في
+            تجربة أخرى طابق «حالة الجو» على أنه عمود حالة. والعنوان لا
+            يعطي رقم السجل أصلاً، فلا يحلّ المشكلة حتى لو قُبلت هشاشته.
+       إضافيّ بحتاً: وصفان لا يقرؤهما شيء في هذا الملف ولا يغيّران أي سلوك.
+       القيم تمرّ عبر UI.attr مثل بقية الملف (سطر ٨٧).
+
+       🔴 THE ONE LINE ADDED TO THIS PROTECTED FILE (30 Aug 2026) — the why:
+       the edit form carried no evidence of its own identity at all. openForm
+       passes UI.modal only title/body/buttons (:529), ui.js:94 forwards no
+       identity, and moduleId/id live only in the closure. So any additive
+       file wanting to add something to the edit form cannot know WHICH
+       RECORD it is for. These two attributes prevent two specific bugs:
+         1) an attachments panel bound to the WRONG record — far worse than
+            no panel at all;
+         2) falling back to matching the Arabic title text (as
+            save-modes.js currentModule does) — a fragile pattern already
+            proven to fail: a probe in another trial matched «حالة الجو»
+            (the weather) as a status column. The title also yields no
+            record id, so it cannot solve this even if its fragility were
+            accepted.
+       Purely additive: nothing in this file reads them and no behaviour
+       changes. Values go through UI.attr like the rest of the file (:87). */
+    var body = '<form id="entForm" autocomplete="off"'
+             + ' data-module="' + UI.attr(mod.id) + '"'
+             + (editing ? ' data-record-id="' + UI.attr(id) + '"' : '')
+             + '>';
     groupFields(mod.fields).forEach(function (sec) {
       body += '<div class="form-section"><div class="form-section-title">' + UI.esc(sec.title) + '</div><div class="form-grid">';
       sec.fields.forEach(function (f) { body += fieldHTML(f, draft, personalFieldLocked(moduleId, f.name)); });
