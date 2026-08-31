@@ -677,6 +677,57 @@
     'assets/js/attach-from-form.js',
     /* رقم النسخة في تذييل الصفحة من الذاكرة الفعلية — آخر ملف عمداً،
        فحص رفعة محمد زيدان */
+    /* 🔴 طيّ أقسام النماذج — يجب أن يأتي بعد screen-behaviour.js
+       وmobile-field.js، لأنه يحقن <style> خاصاً به ويفوز بالتتابع بكونه
+       الأحدث في الرأس فقط — بلا !important وبلا لمس styles.css. وقبل
+       version-badge.js لأن ذاك موثّق أنه الأخير عمداً.
+       موضعه في سلسلة لوافّ UI.modal غير مهمّ إطلاقاً وهذا مقصود: لا يقرأ
+       opts ولا يستبدل onOpen، بل يبني بعد عودة النداء.
+       🔴 Form-section folding — must come AFTER screen-behaviour.js and
+       mobile-field.js, because it injects its own <style> and wins the
+       cascade purely by being later in the head — no !important, no edit to
+       styles.css. And BEFORE version-badge.js, which is documented as
+       deliberately last. Its position in the UI.modal wrapper chain is
+       deliberately irrelevant: it reads no opts and replaces no onOpen, it
+       builds after the call returns.
+       Proven by running TESTS/form-sections-trial.js. (v2.0.29) */
+    /* 🔴 منتقي البحث في القوائم المرتبطة — **ميزة خصوصية قبل أن تكون
+       راحة**. يجب أن يأتي بعد ref-dropdown-scope.js حتماً: لافّتنا تصير
+       الخارجية، فيكون سياجه قد ضبط حالته حين نبني، وننادي applyFence()
+       تزامنياً قبل قراءة أي خيار. ref-dropdown-scope يجدول القصّ على
+       [0,60,300,900]ms، فالخيارات الخام موجودة لحظةً — ومنتقٍ يُبنى فيها
+       يلتقط القائمة كاملة ويحتفظ بها، والقائمة الأصلية تُقصّ بعده وتُخفى
+       فلا يظهر أثر للخطأ. ولو غاب ذلك الملف لا نبني شيئاً إطلاقاً.
+       🔴 Searchable reference picker — a PRIVACY feature before it is a
+       convenience. Necessarily AFTER ref-dropdown-scope.js: our wrapper is
+       then the OUTER one, so its fence has already set its state when we
+       build, and we call applyFence() synchronously before reading any
+       option. It schedules pruning at [0,60,300,900]ms, so raw options
+       exist for a moment — a picker built in that window captures the FULL
+       list and keeps it, while the native select is pruned and hidden
+       afterwards, leaving no visible trace of the mistake. If that file is
+       absent we build nothing at all.
+       Proven by running TESTS/ref-search-picker-trial.js — section D
+       removes the fence call and BOTH forbidden names appear. (v2.0.29) */
+    /* «كرّر كشف أمس» — زرّ في شريط الصفحة، لا في الصفّ، ولسببين مستقلين:
+       (١) الغرض كله ألّا يبحث المهندس عن صفّ أمس، وزرّ الصفّ يفترض أنه
+       وجده — وentity.js:91 فيه زرّ نسخ لكل صفّ أصلاً؛ (٢) قيد العرض من
+       v2.0.21: نصّ «كرّر» في أزرار الصفّ وسّع dailyLabour ٤٣٣←٤٥١ بكسل ومعه
+       الجدول. شريط .page-actions يتجنّب المشكلة بدل أن يخفّفها — عمود
+       الإجراءات لا يُمسّ. يلفّ EntityPage.render، فيحتاج pages/entity.js
+       قبله. لا يحفظ شيئاً: يفتح النموذج فقط.
+       "Repeat yesterday" — a PAGE-bar button, never a row button, for two
+       independent reasons: (1) the point is not having to find yesterday's
+       row, and entity.js:91 already puts a copy button on every row;
+       (2) the v2.0.21 width constraint — the text «كرّر» in row buttons
+       widened dailyLabour 433→451px and the table with it. The
+       .page-actions bar avoids the problem rather than easing it: the
+       actions column is never touched. Wraps EntityPage.render, so it needs
+       pages/entity.js above it. It saves nothing — it only opens the form.
+       Proven by running TESTS/repeat-yesterday-trial.js. (v2.0.29) */
+    'assets/js/repeat-yesterday.js',
+    'assets/js/ref-search-picker.js',
+    'assets/js/form-sections.js',
     'assets/js/version-badge.js'
   ];
   var NEEDED = [

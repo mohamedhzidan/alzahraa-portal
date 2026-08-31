@@ -319,8 +319,119 @@
     return false;
   }
 
+  /* ═══════════════════════════════════════════════════════════════════
+     🔴 searchFold — تطبيع البحث العربي · Arabic search folding
+     أُضيفت ٣٠ أغسطس ٢٠٢٦ لأن منتقي البحث الجديد كان يفشل فشلاً كاملاً على
+     الكتابة الطبيعية: «احمد» و«فاطمه» و«مصطفي» و«ابراهيم» كلها ترجع «لا
+     نتيجة»، ولا يطابق إلا الشكل المهموز الدقيق. السبب أن toLowerCase لا
+     تفعل شيئاً للعربية إطلاقاً.
+     وفي موقع مصري، الكتابة بلا همزة هي **الحالة الطبيعية** لا الاستثناء —
+     أربع من كل خمس كتابات واقعية كانت تُقرأ «لا نتيجة».
+
+     لماذا هنا وليس داخل ملف المنتقي: هذا هو ملف النصّ العربي. تطبيعٌ ثانٍ
+     مكتوب في مكان آخر يتباعد عن هذا، وهو خطأ «التوأم الهشّ» بعينه. أي
+     شاشة تحتاج مطابقة بحث عربي تنادي هذه، ولا تكتب نسختها.
+
+     ⚠️ وهي **ليست** norm() الخاصة بالاستيراد (import.js:317، ونسختها
+     المُعلَنة في import-mapping-plus.js:99). تلك تطابق **عناوين أعمدة**:
+     تحذف ما بين الأقواس، وتُسقط «ال» التعريف، وتمسح كل ما ليس حرفاً أو
+     رقماً — وهي تصرّفات صحيحة لعنوان عمود وخاطئة تماماً لاسم شخص. عملان
+     مختلفان يجوز أن يختلف تطبيعهما؛ ما لا يجوز هو نسختان لنفس العمل.
+
+     🔴 Added 30 Aug 2026 because the new search picker failed completely on
+     ordinary typing: «احمد», «فاطمه», «مصطفي», «ابراهيم» all returned "no
+     match" — only the exact hamza-carrying form matched. The cause is that
+     toLowerCase does nothing whatsoever for Arabic. On an Egyptian site,
+     typing without the hamza IS the normal case, not the exception: four of
+     five realistic typings read "no match".
+
+     Why here and not inside the picker: this is the Arabic text file. A
+     second normaliser written elsewhere drifts away from this one — the
+     fragile-twin mistake exactly. Any screen needing Arabic search matching
+     calls this and never writes its own.
+
+     ⚠️ This is NOT import's norm() (import.js:317, and its declared copy at
+     import-mapping-plus.js:99). That one matches COLUMN HEADINGS: it strips
+     bracketed text, drops the definite article «ال», and deletes everything
+     that is not a letter or digit — all correct for a heading and all wrong
+     for a person's name. Two different jobs may normalise differently; what
+     is not allowed is two copies of the SAME job. */
+  function searchFold(s) {
+    var out = String(s == null ? '' : s);
+    try { out = normalizeProtected(out); } catch (e) { /* NFKC غير متاح — نكمل */ }
+    return out
+      .toLowerCase()                                  /* للاتينية وحدها */
+      .replace(/[ً-ْٰـ]/g, '')    /* تشكيل وتطويل */
+      .replace(/[آأإٱ]/g, 'ا') /* آ أ إ ٱ → ا */
+      .replace(/ة/g, 'ه')                   /* ة → ه */
+      .replace(/ى/g, 'ي')                   /* ى → ي */
+      .replace(/ؤ/g, 'و')                   /* ؤ → و */
+      .replace(/ئ/g, 'ي')                   /* ئ → ي */
+      .replace(/[٠-٩]/g, function (d) {     /* ٠-٩ → 0-9 */
+        return String(d.charCodeAt(0) - 0x0660);
+      })
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+
+  /* ═══════════════════════════════════════════════════════════════════
+     🔴 searchFoldTight — التمريرة الثانية: بلا مسافات إطلاقاً
+     أُضيفت ٣١ أغسطس ٢٠٢٦.
+
+     العطل الذي تمنعه، وقد أُعيد إنتاجه على الملف الحقيقي قبل كتابة سطر
+     واحد: الأسماء المركّبة تُكتب بمسافة وبغير مسافة، والاثنتان صحيحتان.
+     «عبدالله» و«عبد الله» · «عبدالرحمن» و«عبد الرحمن» · «أبو العلا»
+     و«ابوالعلا». searchFold تُوحّد المسافات المتكرّرة إلى مسافة واحدة —
+     وهذا صحيح — لكنها لا تستطيع أن تجسر مسافةً غائبة. فخمس حالات من خمس
+     كانت ترجع «لا نتيجة»، ومنها **«عبد الحي»** — اسم أ. أحمد عبد الحي
+     نفسه، أكثر اسم سيُكتب في هذا البورتال.
+
+     ولماذا دالة ثانية بدل تعديل searchFold: لأن حذف كل المسافات تصرّف
+     خاطئ في مواضع أخرى قد تنادي searchFold لاحقاً، ولأن تعديلها كان
+     سيغيّر سلوكاً قائماً بدل أن يضيف إليه. هذه تبني فوق تلك حرفياً —
+     تناديها ثم تحذف المسافات — فلا يمكن أن تتباعد عنها أبداً. نسخة ثانية
+     من التطبيع مكتوبة بيدٍ أخرى هي خطأ «التوأم الهشّ» بعينه، وتعليق
+     searchFold أعلاه يحرّمه صراحةً.
+
+     ⚠️ القاعدة التي تجعل هذا آمناً: تُستعمل **بالإضافة** إلى searchFold،
+     لا بدلاً منها — الشرط يبقى «القديم أو الجديد». فما كان يظهر يظل
+     يظهر، ولا يمكن لهذه التمريرة أن تُخفي نتيجة واحدة. لذلك هي قرار
+     بناء لا قرار صاحب العمل: لا تغيّر صلاحية أحد ولا تُنقص ما يراه.
+
+     🔴 searchFoldTight — the second pass: no spaces at all.
+     Added 31 Aug 2026.
+
+     The fault it prevents, reproduced against the real file before a line
+     was written: compound Arabic names are written both with and without
+     the space, and both spellings are correct. «عبدالله» / «عبد الله»,
+     «عبدالرحمن» / «عبد الرحمن», «أبو العلا» / «ابوالعلا». searchFold
+     collapses repeated spaces to one — correct — but it cannot bridge a
+     space that was never typed. Five realistic cases out of five returned
+     "no match", among them **«عبد الحي»** — أ. أحمد عبد الحي's own name,
+     the name most often typed in this portal.
+
+     Why a second function rather than changing searchFold: deleting every
+     space is wrong for other callers that may use searchFold later, and
+     editing it would change existing behaviour instead of adding to it.
+     This one is built literally on top of that one — it calls it, then
+     strips the spaces — so the two can never drift apart. A second copy of
+     the normalisation written by another hand is the fragile-twin mistake,
+     which searchFold's own comment above forbids outright.
+
+     ⚠️ The rule that makes this safe: it is used IN ADDITION to
+     searchFold, never instead of it — the condition stays "old OR new".
+     So whatever showed before still shows, and this pass cannot hide a
+     single result. That is why it is a build decision and not an owner
+     question: it changes nobody's authority and removes nothing from
+     anybody's view. */
+  function searchFoldTight(s) {
+    return searchFold(s).replace(/\s+/g, '');
+  }
+
   global.ArabicText = {
     repair: repair,
+    searchFold: searchFold,
+    searchFoldTight: searchFoldTight,
     needsRepair: needsRepair,
     formOf: formOf,
     reversalScore: reversalScore,
