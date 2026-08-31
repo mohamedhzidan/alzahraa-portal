@@ -575,7 +575,7 @@
 
       بدون إضافتها لن يعمل الذكاء الاصطناعي ولا القسمان الجديدان بدون إنترنت.
    --------------------------------------------------------------------------- */
-var CACHE = 'alzahraa-shell-v2.0.28';
+var CACHE = 'alzahraa-shell-v2.0.30';
 
 var SHELL = [
   './', './index.html', './manifest.webmanifest', './robots.txt',
@@ -779,6 +779,18 @@ var SHELL = [
   './assets/js/hr-signals.js',
   /* رقم النسخة في التذييل من الذاكرة الفعلية
      footer version read from the real cache */
+  /* طيّ أقسام النماذج — لا يعمل بلا اتصال إن غاب من هذه القائمة.
+     Form-section folding — does not work offline if missing from this
+     list. (v2.0.29) */
+  /* منتقي البحث في القوائم المرتبطة — لا يعمل بلا اتصال إن غاب من هذه
+     القائمة. Searchable reference picker — does not work offline if
+     missing from this list. (v2.0.29) */
+  /* «كرّر كشف أمس» — لا يعمل بلا اتصال إن غاب من هذه القائمة.
+     Repeat yesterday — does not work offline if missing from this list.
+     (v2.0.29) */
+  './assets/js/repeat-yesterday.js',
+  './assets/js/ref-search-picker.js',
+  './assets/js/form-sections.js',
   './assets/js/version-badge.js',
   /* ─────────────────────────────────────────────────────────────────── */
 
