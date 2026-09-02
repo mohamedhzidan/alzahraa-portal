@@ -575,7 +575,7 @@
 
       بدون إضافتها لن يعمل الذكاء الاصطناعي ولا القسمان الجديدان بدون إنترنت.
    --------------------------------------------------------------------------- */
-var CACHE = 'alzahraa-shell-v2.0.30';
+var CACHE = 'alzahraa-shell-v2.0.31';
 
 var SHELL = [
   './', './index.html', './manifest.webmanifest', './robots.txt',
@@ -594,7 +594,7 @@ var SHELL = [
      القائمة. Stops a full phone blocking sign-in — does not work offline
      if missing from this list. (v2.0.27) */
   './assets/js/offline-db-guard.js', './assets/js/i18n.js',
-  './assets/js/store.js', './assets/js/schema.js',
+  './assets/js/store.js', './assets/js/empty-line-guard.js', './assets/js/schema.js',
 
   /* ── جديد في v2.0.20 · NEW in v2.0.20 ──────────────────────────────── */
   /* حارس محو الرواتب — يمنع عموداً مُقنَّعاً (يصل كـ NULL صريح من عرض
@@ -942,6 +942,11 @@ var SHELL = [
 
   /* NEW in v2.0.26 — زر الكاميرا · the camera button */
   './assets/js/camera-capture.js',
+  /* ── جديد في v2.0.31 · NEW in v2.0.31 — دفعة المخازن · the stores batch ── */
+  './assets/js/item-duplicate-guard.js',
+  './assets/js/line-stock-balance.js',
+  './assets/js/stock-approval-roles.js',
+  './assets/js/stores-reports.js',
 
   './assets/js/app.js'
 ];
