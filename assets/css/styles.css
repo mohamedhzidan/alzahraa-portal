@@ -456,7 +456,77 @@ html[data-theme="dark"] .form-section-title{color:var(--gold-400)}
 .filter-chip.active{background:var(--green-700);color:#fff;border-color:var(--green-700)}
 
 /* ---------- 12. Modal ---------- */
-.modal-host{position:fixed;inset:0;z-index:60;display:grid;place-items:center;padding:18px}
+/* 🔴 عطل حيّ على الهاتف، مُقاس لا مُستنتَج — أُصلح ٢ سبتمبر ٢٠٢٦.
+   أي نموذج فيه جدول سطور كان يدفع زرّ «حفظ» خارج الشاشة تماماً على هاتف،
+   فلا يمكن حفظه إطلاقاً. القياس على متصفح حقيقي عند ٣٧٥×٨١٢:
+     قبل: النافذة عرضها ٧٣٩ داخل شاشة ٣٧٥، وموضعها x = −٣٩٠ ·
+          زرّ الحفظ x = −٣٦٩ · saveVisible = false · والجدول لا ينزلق أصلاً.
+     بعد: النافذة ٣٣٢ عند x = ٢١ · saveVisible = true ·
+          والجدول ينزلق داخلها (٣٠٧ ظاهر من ٧٢٢).
+     وعلى ٱلشاشة العريضة (١٢٨٠): القياسات **متطابقة قبل وبعد** حرفياً.
+
+   🔴 السبب — **صُحّح ٢ سبتمبر بعد أن كان مكتوباً هنا خطأً**، والتصحيح
+   مهمّ لأن الشرح الخاطئ يدفع القارئ التالي إلى «إصلاح» سطر بريء:
+     ❌ كان مكتوباً أن السبب .data-table{min-width:640px}. **ليس هو.**
+        جدول السطور يحمل الصنفين معاً `data-table lines-table`
+        (entity.js:357 و:715)، و.lines-table{min-width:0} في السطر ٤٢٥
+        يأتي **بعده بنفس الأولوية فيغلبه** — فلا أرضية ٦٤٠ على هذا الجدول
+        أصلاً. تغيير السطر ٣٨٦ كان سيغيّر كل جداول القوائم على الشاشة
+        العريضة بلا فائدة، ولن يُصلح الهاتف.
+     ✅ السبب الحقيقي: **لا حلقة في السلسلة تحمل min-width:0.**
+        .modal-host شبكة بمسار **تلقائي** · .modal عرضها 100% من ذلك
+        المسار · .modal-body عنصر flex:1 داخل عمود مرن. والافتراضي في
+        عناصر الشبكة والمرونة هو min-width:auto — أي «لا تصغر تحت عرض
+        محتواك الطبيعي». فعرض محتوى الجدول الطبيعي (تسعة أعمدة كلٌّ فيه
+        حقل .input) يتسرّب صاعداً في السلسلة كلّها ويدفع النافذة إلى ٧٣٩.
+     والدليل القاطع على أن هذا هو السبب: `client == scroll == 722` قبل
+     الإصلاح — أي أن .table-wrap{overflow-x:auto} **لم تكن تنزلق إطلاقاً**،
+     لأنها لم تحصل قط على عرض محدود تنزلق داخله.
+
+   العلاج: minmax(0,1fr) يحبس المسار في عرض الحاوية، وmin-width:0 يسمح
+   للأبناء بالانكماش فيعمل الانزلاق. لا يُمسّ أي عرض ولا أي لون.
+
+   ولماذا في ملف أساسي: العطل نفسه في هذين السطرين، ولا يمكن إصلاحه من
+   ملف يُضاف فوقهما دون تكرارهما — وتكرارهما هو خطأ «التوأم الهشّ».
+   أصغر تغيير ممكن، وهذا هو.
+
+   🔴 A LIVE PHONE BUG, measured not reasoned — fixed 2 Sep 2026.
+   Any form with a line-items table pushed the «حفظ» button completely off
+   screen on a phone, so it could not be saved at all. Real browser, 375×812:
+     BEFORE: modal 739px wide inside a 375px screen at x=−390 ·
+             save at x=−369 · saveVisible false · the table did not scroll.
+     AFTER:  modal 332px at x=21 · saveVisible true ·
+             the table scrolls inside it (307 visible of 722).
+     At 1280px desktop the measurements are IDENTICAL before and after.
+   🔴 CAUSE — CORRECTED 2 Sep after this comment named the wrong line. The
+   correction matters, because a wrong explanation sends the next reader to
+   "fix" an innocent rule:
+     ❌ This used to blame .data-table{min-width:640px}. IT IS NOT THAT.
+        The lines table carries BOTH classes, `data-table lines-table`
+        (entity.js:357 and :715), and .lines-table{min-width:0} at line 425
+        comes LATER with equal specificity, so it WINS — the table has no
+        640px floor at all. Editing line 386 would have changed every
+        desktop list table for nothing and would not have fixed the phone.
+     ✅ THE REAL CAUSE: NO LINK IN THE CHAIN CARRIES min-width:0.
+        .modal-host is a grid with an AUTO track · .modal is width:100% of
+        that track · .modal-body is flex:1 in a flex column. Grid and flex
+        items default to min-width:auto — "never shrink below your own
+        content's intrinsic width". So the table's intrinsic width (nine
+        columns each holding an .input) propagates all the way up the chain
+        and pushes the modal to 739px.
+     The proof that this is the cause: `client == scroll == 722` BEFORE the
+     fix — .table-wrap{overflow-x:auto} was not scrolling AT ALL, because
+     it never had a bounded width to scroll inside.
+   CURE: minmax(0,1fr) pins the track to the container, min-width:0 lets the
+   children shrink so the scrolling works. No width and no colour changes.
+   WHY IN A CORE FILE: the fault IS these two lines. A file layered on top
+   could only restate them, and a second copy of a rule is the fragile-twin
+   mistake. This is the smallest possible change.
+   Screens affected: every one with a lines table — siteAttendance,
+   dailyLabour, payroll, journal, client and sub IPCs, and all four stock
+   documents. Found by TRACK INNOVATOR. */
+.modal-host{position:fixed;inset:0;z-index:60;display:grid;grid-template-columns:minmax(0,1fr);place-items:center;padding:18px}
+.modal-body,.table-wrap{min-width:0}
 .modal-backdrop{position:absolute;inset:0;background:rgba(6,43,32,.48);backdrop-filter:blur(3px)}
 .modal{
   position:relative;background:var(--surface);border-radius:var(--r-lg);
