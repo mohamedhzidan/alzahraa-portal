@@ -647,7 +647,11 @@
       Store.all(m.table).forEach(function (r) {
         if (['pending', 'reviewed'].indexOf(r.status) === -1) return;
         var d = since(r.submittedAt || r.createdAt);
-        if (d < 7) return;
+        /* نفس عائلة NaN التي أُصلحت في alerts.js:139 — سجلّ بلا أي
+           تاريخ يعطي NaN، وNaN < 7 = false فلا يعود الحارس.
+           Same NaN family fixed at alerts.js:139 — a row with no timestamp
+           gives NaN, and NaN < 7 is false so the guard does not return. */
+        if (!(d >= 7)) return;
         out.push(F(d > 21 ? 'high' : 'medium', 'management', m.id, r.id,
           ar() ? 'مستند متوقف في دورة الاعتماد' : 'Document stuck in the approval chain',
           ar() ? (L(m.label) + ' ' + (r.docNo || '') + ' معلّق منذ ' + d + ' يوم بانتظار ' +

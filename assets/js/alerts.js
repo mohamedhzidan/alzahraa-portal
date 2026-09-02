@@ -136,7 +136,23 @@
         if (['pending', 'reviewed'].indexOf(r.status) === -1) return;
         var since = r.submittedAt || r.createdAt;
         var d = daysSince(since);
-        if (d < SETTINGS.docStaleDays) return;
+        /* 🔴 الصيغة موجَبة عمداً، لا سالبة. أُصلح ٢ سبتمبر ٢٠٢٦.
+           كان: `if (d < SETTINGS.docStaleDays) return;`
+           وحين يخلو السجلّ من submittedAt ومن createdAt معاً تصير d قيمة
+           NaN — **وكل مقارنة مع NaN تعطي false**، فلا يعود الحارس، فيمرّ
+           السجلّ ويُطبع للموظفين «معلّق منذ NaN يوم».
+           الصيغة الموجَبة `!(d >= …)` ترشّح NaN **بالبناء**: NaN >= أي رقم
+           = false، فالنفي = true، فيعود الحارس. لا فحص إضافي على NaN،
+           والشرط نفسه هو الذي يحمي.
+           🔴 Positive form on purpose, not negative. Fixed 2 Sep 2026.
+           It was `if (d < SETTINGS.docStaleDays) return;` and when a row has
+           neither submittedAt nor createdAt, d is NaN — and EVERY comparison
+           with NaN is false, so the guard did not return, the row passed,
+           and staff were shown «معلّق منذ NaN يوم».
+           The positive form filters NaN BY CONSTRUCTION: NaN >= anything is
+           false, so the negation is true and the guard returns. No separate
+           NaN test is needed; the condition itself protects. */
+        if (!(d >= SETTINGS.docStaleDays)) return;
         mk(out, d > SETTINGS.docStaleDays * 2 ? 'danger' : 'warn', m.id, m.icon,
           (L(m.label)) + ' ' + (r.docNo || '') + ' معلّق منذ ' + d + ' يوم بانتظار ' +
             (r.status === 'pending' ? 'المراجعة' : 'الاعتماد'),
@@ -155,7 +171,16 @@
         var due = Number(ipc.netDue || 0) - (global.MoneyOwed ? MoneyOwed.collectedOf(ipc.id) : Number(ipc.collectedAmount || 0));
         if (due <= 0.5) return;
         var d = daysSince(ipc.date);
-        if (d < SETTINGS.ipcUncollectedDays) return;
+        /* 🔴 صيغة موجَبة — انظر الشرح الكامل عند الحارس المُصلَح أوّلاً في هذا
+           الملف (مستندات معلّقة). هنا **لا يوجد فحص على وجود ipc.date إطلاقاً**،
+           فمستخلص عميل بلا تاريخ يُعطي NaN ويمرّ ويُطبع «متأخرة NaN يوم» على
+           شاشة موظّف — وهذه شاشة مالية، والعميل هيئة الطرق.
+           🔴 Positive form — full reasoning at the first repaired guard in this
+           file (pending documents). Here there is NO presence check on
+           ipc.date at all, so a client certificate with no date gives NaN,
+           passes, and prints «متأخرة NaN يوم» on a staff screen — and this is
+           a money screen, for هيئة الطرق. */
+        if (!(d >= SETTINGS.ipcUncollectedDays)) return;
         var cust = Store.find('customers', ipc.customer);
         mk(out, 'danger', 'clientIPCs', 'receipt',
           'مستخلص ' + (ipc.docNo || '') + ' لـ«' + (cust ? cust.name : '') + '» لم يُحصّل منذ ' +
@@ -171,7 +196,14 @@
       Store.all('legalDocs').forEach(function (dc) {
         if (!dc.expiryDate || dc.legalStatus === 'closed') return;
         var d = daysUntil(dc.expiryDate);
-        if (d > SETTINGS.contractExpiryDays) return;
+        /* 🔴 صيغة موجَبة. الوجود مفحوص فوق، فالباقي هو **تاريخ مشوّه** يأتي من
+           استيراد أو مسوّدة قديمة — يُعطي NaN فيمرّ. `!(d <= س)` ترشّحه بالبناء،
+           وهي مطابقة تماماً لـ`d > س` في كل رقم حقيقي.
+           🔴 Positive form. Presence is checked above, so what remains is a
+           MALFORMED date from an import or an old draft — it gives NaN and
+           passes. `!(d <= x)` filters it by construction and is identical to
+           `d > x` for every real number. */
+        if (!(d <= SETTINGS.contractExpiryDays)) return;
         mk(out, d < 0 ? 'danger' : (d <= 15 ? 'danger' : 'warn'), 'legalDocs', 'scale',
           d < 0 ? ('«' + dc.title + '» منتهي منذ ' + Math.abs(d) + ' يوم')
                 : ('«' + dc.title + '» ينتهي خلال ' + d + ' يوم'),
@@ -207,7 +239,10 @@
       Store.all('equipmentLogs').forEach(function (lg) {
         if (!lg.nextService) return;
         var d = daysUntil(lg.nextService);
-        if (d > SETTINGS.maintenanceDueDays) return;
+        /* 🔴 صيغة موجَبة — نفس حالة العقود أعلاه: الوجود مفحوص، والمتبقّي تاريخ
+           مشوّه. 🔴 Positive form — same case as the contracts above: presence
+           is checked, what remains is a malformed date. */
+        if (!(d <= SETTINGS.maintenanceDueDays)) return;
         var eq = Store.find('equipment', lg.equipment);
         mk(out, d < 0 ? 'danger' : 'warn', 'equipmentLogs', 'wrench',
           'صيانة «' + (eq ? eq.name : '') + '» ' + (d < 0 ? 'متأخرة ' + Math.abs(d) + ' يوم' : 'مستحقة خلال ' + d + ' يوم'),
@@ -226,7 +261,13 @@
           if (!last || new Date(sc.date) > new Date(last)) last = sc.date;
         });
         var d = last ? daysSince(last) : 999;
-        if (d < SETTINGS.stocktakeOverdueDays) return;
+        /* 🔴 صيغة موجَبة. الحالة «لم يُجرد إطلاقاً» محميّة بالـ999، لكن جرداً
+           **بتاريخ مشوّه** يُعطي NaN فيمرّ ويُطبع «لم يُجرد منذ NaN يوم» — وهذه
+           شاشة أ. أحمد بالذات.
+           🔴 Positive form. The "never counted" case is protected by the 999,
+           but a stock count with a MALFORMED date gives NaN, passes, and
+           prints «لم يُجرد منذ NaN يوم» — and this is أ. أحمد's own screen. */
+        if (!(d >= SETTINGS.stocktakeOverdueDays)) return;
         mk(out, 'warn', 'warehouses', 'clipboard',
           'مخزن «' + wh.name + '» ' + (last ? 'لم يُجرد منذ ' + d + ' يوم' : 'لم يُجرد إطلاقاً'),
           'Warehouse "' + wh.name + '" ' + (last ? 'not counted for ' + d + ' days' : 'has never been counted'),
@@ -259,7 +300,12 @@
         var contractEnd = global.HRSignals ? HRSignals.contractEndOf(e) : e.contractEnd;
         if (e.status !== 'active' || !contractEnd) return;
         var d = daysUntil(contractEnd);
-        if (d > SETTINGS.contractEndingDays) return;
+        /* 🔴 صيغة موجَبة — الوجود مفحوص فوق، والمتبقّي تاريخ عقد مشوّه. وعقود
+           الموظّفين شاشة يقرأها أ. محمد عمارة.
+           🔴 Positive form — presence is checked above, what remains is a
+           malformed contract date. Employee contracts are a screen
+           أ. محمد عمارة reads. */
+        if (!(d <= SETTINGS.contractEndingDays)) return;
         mk(out, d < 0 ? 'danger' : 'warn', 'employees', 'user',
           'عقد «' + e.name + '» ' + (d < 0 ? 'منتهٍ منذ ' + Math.abs(d) + ' يوم' : 'ينتهي خلال ' + d + ' يوم'),
           'Contract for "' + e.name + '" ' + (d < 0 ? 'expired ' + Math.abs(d) + ' days ago' : 'ends in ' + d + ' days'),
@@ -284,7 +330,11 @@
       Store.all('itTickets').forEach(function (tk) {
         if (['open', 'inprogress'].indexOf(tk.ticketStatus) === -1) return;
         var d = daysSince(tk.date);
-        if (d < 3) return;
+        /* 🔴 صيغة موجَبة. ولا فحص على وجود tk.date هنا أيضاً، فتذكرة دعم بلا
+           تاريخ تُطبع «مفتوح منذ NaN يوم».
+           🔴 Positive form. No presence check on tk.date here either, so a
+           support ticket with no date prints «مفتوح منذ NaN يوم». */
+        if (!(d >= 3)) return;
         mk(out, tk.priority === 'urgent' ? 'danger' : 'info', 'itTickets', 'life-buoy',
           'طلب دعم «' + tk.subject + '» مفتوح منذ ' + d + ' يوم',
           'Ticket "' + tk.subject + '" open for ' + d + ' days', tk.id);

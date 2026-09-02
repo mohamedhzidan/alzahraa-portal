@@ -83,10 +83,42 @@
     var d = draft.date || draft.issueDate;
 
     /* التاريخ المستقبلي */
+    /* ═══════════════════════════════════════════════════════════════
+       🔴 المقارنة بالتاريخ المحلّي نصّاً، لا بكائن Date. أُصلح ٢ سبتمبر ٢٠٢٦.
+
+       كان: `new Date(d) > limit`. و`new Date("2026-09-02")` على نصّ
+       بشكل YYYY-MM-DD يُفسَّر **منتصف ليل غرينتش** = الثالثة فجراً
+       بالقاهرة. فبين منتصف الليل والثالثة، تاريخ **اليوم الحقيقي** كان
+       يُحكَم عليه بأنه في المستقبل ويُرفض الحفظ:
+           «لا يمكن تسجيل مستند بتاريخ مستقبلي»
+
+       والنصفان معاً كانا فخّاً مغلقاً: الخانة تُملأ تلقائياً بـ**أمس**
+       (i18n.js، أُصلح)، **ومن يصحّحها إلى اليوم يُرفض حفظه**. أي أن
+       البورتال كان يعاقب من ينتبه للخطأ.
+
+       العلاج: مقارنة نصّين بشكل YYYY-MM-DD — وهي مقارنة صحيحة حرفياً
+       بهذا الشكل — بعد بناء الحدّ من مكوّنات محلّية. لا كائن Date يدخل
+       المقارنة إطلاقاً، فلا مِنطقة زمنية تدخلها.
+
+       🔴 Compare LOCAL DATE STRINGS, never Date objects. Fixed 2 Sep 2026.
+       It was `new Date(d) > limit`, and `new Date("2026-09-02")` on a bare
+       YYYY-MM-DD string parses as UTC MIDNIGHT = 03:00 Cairo. So between
+       midnight and 03:00 the TRUE local date was judged to be in the future
+       and the save was REFUSED.
+       Together the two halves were a closed trap: the box was pre-filled
+       with YESTERDAY (i18n.js, now fixed), and anyone who corrected it to
+       today was REFUSED. The portal punished the person who noticed.
+       The cure compares two YYYY-MM-DD strings — lexicographically correct
+       in that format — with the limit built from local components. No Date
+       object enters the comparison, so no timezone can. */
     if (SETTINGS.blockFutureDates && d && mod.workflow) {
-      var limit = new Date();
-      limit.setDate(limit.getDate() + (SETTINGS.futureDaysAllowed || 0));
-      if (new Date(d) > limit) {
+      var lim = new Date();
+      lim.setDate(lim.getDate() + (SETTINGS.futureDaysAllowed || 0));
+      var lm = String(lim.getMonth() + 1), ld = String(lim.getDate());
+      var limitStr = lim.getFullYear() + '-' +
+                     (lm.length < 2 ? '0' + lm : lm) + '-' +
+                     (ld.length < 2 ? '0' + ld : ld);
+      if (String(d).slice(0, 10) > limitStr) {
         errors.push(L2({
           ar: 'لا يمكن تسجيل مستند بتاريخ مستقبلي (' + I18N.date(d) + ').',
           en: 'A document cannot carry a future date (' + I18N.date(d) + ').'
@@ -126,7 +158,36 @@
     /* الرصيد المخزني السالب */
     if (SETTINGS.blockNegativeStock && mod.lines && mod.lines.stockEffect === 'out' &&
         Array.isArray(draft.lines)) {
-      draft.lines.forEach(function (ln) {
+      /* 🔴 صفوف بنود فارغة (null/undefined) — أُصلح ٢ سبتمبر ٢٠٢٦.
+         كان السطر التالي يقرأ `ln.item` مباشرةً بلا أي حماية. وصفٌّ فارغ
+         واحد يجعل validateSave تُلقي TypeError، وpages/entity.js:852 لا
+         يلفّ النداء بـtry/catch — **فيموت زرّ الحفظ في صمت: لا يحفظ ولا
+         يقول شيئاً**، وهو أسوأ عطل ممكن لأن الإنسان ينصرف وهو يظنّ أنه حفظ.
+         أُعيد إنتاجه قبل كتابة هذا الحارس:
+         `node TESTS/rules-null-line-repro.js` (١٢ نجاح · ٠ فشل).
+         الشاشة لا تنتج صفّاً فارغاً اليوم — entity.js لا يدفع إلا كائنات
+         blankLine() — لكنّ استيراداً أو مسوّدة تالفة يستطيع.
+         **ونحذّر ولا نمنع**، ونسمّي رقم السطر: إسقاط بندٍ من مستند مخزني
+         في صمت هو بالضبط كيف يختلّ الجرد بلا أن يدري أحد. والتحذير لا
+         يمنع حفظ البنود السليمة.
+         🔴 EMPTY LINE ROWS (null/undefined) — fixed 2 Sep 2026.
+         The next line read `ln.item` with no protection. ONE empty row made
+         validateSave throw a TypeError, and pages/entity.js:852 does not
+         wrap the call in try/catch — so THE SAVE BUTTON DIED SILENTLY: it
+         did not save and it did not say anything, the worst possible shape
+         because the person walks away believing they saved.
+         Reproduced BEFORE this guard was written:
+         `node TESTS/rules-null-line-repro.js` (12 passed · 0 failed).
+         The screen cannot produce an empty row today — entity.js only ever
+         pushes blankLine() objects — but an import or a corrupted offline
+         draft can.
+         WE WARN, WE DO NOT BLOCK, and we name the row number: silently
+         dropping a line from a stock document is exactly how a count goes
+         wrong with nobody knowing. The warning never stops the good rows
+         from being saved. */
+      var emptyRows = [];
+      draft.lines.forEach(function (ln, rowIdx) {
+        if (!ln) { emptyRows.push(rowIdx + 1); return; }
         if (!ln.item || !(Number(ln.qty) > 0)) return;
         var avail = 0;
         try { avail = Dashboard.analytics.stockQty(ln.item, draft.warehouse || null); } catch (e) { return; }
@@ -140,6 +201,21 @@
           }));
         }
       });
+
+      /* التحذير يُرفع بعد المرور على كل البنود، فيكون رسالةً واحدة تسمّي
+         كل الأسطر الفارغة بدل رسالة لكل سطر.
+         Raised after the whole pass, so it is ONE message naming every
+         empty row rather than one message per row. */
+      if (emptyRows.length) {
+        warnings.push(L2({
+          ar: 'تجاهلنا ' + I18N.num(emptyRows.length, 0) + ' بنداً فارغاً في هذا المستند (رقم ' +
+              emptyRows.join(' و') + '). البنود المكتوبة لم تتأثّر ويمكنك الحفظ، ' +
+              'لكن راجع المستند: بندٌ فارغ يعني أن سطراً ضاع في الاستيراد أو المسوّدة.',
+          en: 'We skipped ' + emptyRows.length + ' empty line(s) in this document (row ' +
+              emptyRows.join(', ') + '). The written lines are unaffected and you can save, ' +
+              'but check the document: an empty line means a row was lost on import or in the draft.'
+        }));
+      }
     }
 
     /* المبلغ الشاذ */

@@ -344,7 +344,51 @@
         mm = String(dt.getMinutes()).padStart(2, '0');
     return date(iso) + ' ' + hh + ':' + mm;
   }
-  function today() { return new Date().toISOString().slice(0, 10); }
+  /* ═══════════════════════════════════════════════════════════════════
+     🔴 «اليوم» بالتوقيت المحلّي، لا بتوقيت غرينتش. أُصلح ٢ سبتمبر ٢٠٢٦.
+
+     كان: new Date().toISOString().slice(0,10) — وtoISOString **دائماً**
+     بتوقيت غرينتش. والقاهرة غرينتش+٣. فبين منتصف الليل والثالثة فجراً
+     كان البورتال يعطي **تاريخ أمس**.
+
+     قِسته بنفسي الساعة ٠٠:٥٧ بتوقيت القاهرة:
+         today() تعطي : 2026-09-01   ← أمس
+         التاريخ الحقيقي: 2026-09-02
+
+     وهذا يملأ **٢٢ خانة تاريخ** تلقائياً (١٨ في schema.js و٤ في
+     hr-department.js) بتاريخ خاطئ لكل من يعمل بعد منتصف الليل — وكشوف
+     نهاية اليوم ونهاية الشهر تُكتب في ذلك الوقت بالذات.
+
+     ولماذا في ملف أساسي: العطل هو هذا السطر نفسه. ولفّ I18N.today من
+     ملف فوقه كان ممكناً (entity.js:507 ينادي الاسم المُصدَّر، وi18n.js
+     لا تناديها داخلياً — تحقّقتُ) — لكن النصف الثاني من العطل في
+     rules.js لا يُصلَح بلفّ إطلاقاً، وإصلاح عطل واحد بأسلوبين مختلفين
+     يترك المشروع أصعب في الفهم. سطر واحد هنا، وسطر هناك.
+
+     🔴 "Today" in LOCAL time, not UTC. Fixed 2 Sep 2026.
+     It was new Date().toISOString().slice(0,10), and toISOString is ALWAYS
+     UTC. Cairo is UTC+3, so between midnight and 03:00 the portal returned
+     YESTERDAY'S DATE. Measured by me at 00:57 Cairo: today() gave
+     2026-09-01 while the real local date was 2026-09-02.
+     That pre-fills 22 date boxes (18 in schema.js, 4 in hr-department.js)
+     with the wrong day for anyone working after midnight — and end-of-day
+     and month-end sheets are written at exactly that hour.
+     WHY A CORE FILE: the fault IS this line. Wrapping I18N.today from a
+     file above was possible (entity.js:507 calls the exported name and
+     i18n.js never calls it internally — I checked), but the second half of
+     the bug lives in rules.js and cannot be wrapped at all, and fixing one
+     bug in two different styles leaves the project harder to understand.
+     One line here, one line there.
+     Built from local getters rather than a locale string, so no locale
+     setting can change the result. */
+  function today() {
+    var d = new Date();
+    var m = String(d.getMonth() + 1);
+    var day = String(d.getDate());
+    return d.getFullYear() + '-' +
+           (m.length < 2 ? '0' + m : m) + '-' +
+           (day.length < 2 ? '0' + day : day);
+  }
 
   function init() {
     var saved = null;

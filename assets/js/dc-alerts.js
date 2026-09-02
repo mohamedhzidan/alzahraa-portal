@@ -140,7 +140,19 @@
         var due = r[cfg.due];
         if (!due || cfg.done(r)) return;
         var d = daysUntil(due);
-        if (d > WARN_DAYS) return;               /* بعيد بما يكفي — لا داعي للتنبيه بعد */
+        /* 🔴 صيغة موجَبة، لا سالبة — نفس عائلة NaN المُصلَحة في alerts.js يوم
+           ٢ سبتمبر ٢٠٢٦. الوجود مفحوص فوق (`!due`)، فالمتبقّي **تاريخ مشوّه**
+           يأتي من استيراد: يُعطي NaN، وكل مقارنة مع NaN تعطي false، فلا يعود
+           الحارس ويُطبع «الرد متأخر NaN يوم» على شاشة أ. أحمد.
+           `!(d <= س)` مطابقة لـ`d > س` في كل رقم حقيقي، وترشّح NaN بالبناء.
+           🔴 Positive form, not negative — the same NaN family repaired in
+           alerts.js on 2 Sep 2026. Presence is checked above (`!due`), so what
+           remains is a MALFORMED date from an import: it gives NaN, every
+           comparison with NaN is false, the guard does not return, and
+           «الرد متأخر NaN يوم» prints on أ. أحمد's screen.
+           `!(d <= x)` is identical to `d > x` for every real number and
+           filters NaN by construction. */
+        if (!(d <= WARN_DAYS)) return;           /* بعيد بما يكفي — لا داعي للتنبيه بعد */
         mk(out, d < 0 ? 'danger' : 'warn', cfg.id, mod.icon,
           cfg.label.ar + ' ' + (r.docNo || '') + (d < 0
             ? ' — الرد متأخر ' + Math.abs(d) + ' يوم'
@@ -162,7 +174,14 @@
     Store.all(mod.table).forEach(function (r) {
       if (!r.noticeDeadline) return;
       var d = daysUntil(r.noticeDeadline);
-      if (d > WARN_DAYS) return;
+      /* 🔴 صيغة موجَبة — وهذا أخطر الاثنين: نصّ التنبيه نفسه يقول «قد يسقط
+         الحق في المطالبة». تنبيهٌ قانوني يطبع NaN بدل عدد الأيام أسوأ من
+         غياب التنبيه، لأنّه يُقرأ ثمّ يُهمَل.
+         🔴 Positive form — and this is the more serious of the two: the alert's
+         own text says the right to claim may be lost. A legal alert printing
+         NaN instead of a number is worse than no alert, because it gets read
+         and then dismissed. */
+      if (!(d <= WARN_DAYS)) return;
       mk(out, d < 0 ? 'danger' : 'warn', 'correspondence', mod.icon,
         'خطاب ' + (r.docNo || '') + (d < 0
           ? ' — فات موعد الإخطار التعاقدي منذ ' + Math.abs(d) + ' يوم — قد يسقط الحق في المطالبة'

@@ -162,11 +162,59 @@
     b.id = BTN_ID;
     b.type = 'button';
     b.className = 'btn btn-outline btn-sm';
-    b.textContent = L({ ar: '⟳ كرّر كشف أمس', en: '⟳ Repeat yesterday' });
-    b.setAttribute('title', L({
-      ar: 'يفتح كشفاً جديداً مملوءاً من آخر كشف — بلا رقم ولا تاريخ، ولا يُحفظ حتى تضغط حفظ.',
-      en: 'Opens a new sheet filled from the last one — no number, no date, and nothing is saved until you press save.'
-    }));
+
+    /* ═══════════════════════════════════════════════════════════════════
+       🔴 الزرّ يسمّي اليوم الذي وجده فعلاً — أُصلح ١ سبتمبر ٢٠٢٦.
+
+       كان مكتوباً «⟳ كرّر كشف أمس»، والكود لا يجد أمس: `latestVisible`
+       أعلاه تجد **أحدث كشف يراه المستخدم**، ورأس هذا الملف يقول ذلك
+       بلغتين. والجمعة إجازة على هذا العقد، **فالكلمة كاذبة كل يوم سبت**،
+       وبعد العيد (٣+٣ مسجّلة عن أ. محمد عمارة)، وبعد أي توقّف.
+
+       والبيانات التي ينسخها صحيحة — الكلمة وحدها هي الكاذبة. وهذا مستند
+       أجور لنحو ٢٠٠ عامل يومية، وهذا المشروع يعامل ادّعاءً غير مسنود على
+       ورقة أجور كعطل حقيقي: خانات «لا» في إذن الصبّة أُصلحت بنفس المنطق
+       بالضبط.
+
+       العلاج: يقول التاريخ الذي وجده، بالنصّ كما هو مخزَّن — بلا مُنسِّق
+       جديد ولا اسم شهر مُخترَع ولا سؤال عن شكل الأرقام (i18n.js:308:
+       أرقام لاتينية). ولو لم يجد كشفاً سابقاً لا يدّعي شيئاً على الإطلاق.
+
+       🔴 The button names the day it actually found — fixed 1 Sep 2026.
+       It used to read "⟳ Repeat yesterday", and the code does not find
+       yesterday: latestVisible() above finds THE MOST RECENT SHEET THE
+       PERSON CAN SEE, and this file's own header says so in both
+       languages. Friday is the day off on this contract, so the word is
+       false EVERY SATURDAY, and after Eid (3+3, recorded from
+       أ. محمد عمارة), and after any stoppage.
+       The data it copies is right; only the word was false. This is a wage
+       document for ~200 daily labourers, and this project already treats an
+       unsupported claim on a wage paper as a real defect — the «لا»
+       tick-boxes on the pour note were fixed on exactly this reasoning.
+       The cure: say the date it found, verbatim as stored — no new
+       formatter, no invented month name, and no digit-set question
+       (i18n.js:308: Latin digits). With no earlier sheet it claims
+       nothing at all. */
+    var found = null;
+    try { found = latestVisible(moduleId); } catch (e) { found = null; }
+    var foundDate = found && found.date ? String(found.date) : '';
+
+    b.textContent = foundDate
+      ? L({ ar: '⟳ كرّر كشف ' + foundDate, en: '⟳ Repeat sheet of ' + foundDate })
+      : L({ ar: '⟳ كرّر آخر كشف', en: '⟳ Repeat the last sheet' });
+
+    b.setAttribute('title', foundDate
+      ? L({
+          ar: 'يفتح كشفاً جديداً مملوءاً من كشف ' + foundDate + ' — وهو آخر كشف ' +
+              'تراه، وليس بالضرورة كشف أمس. بلا رقم ولا تاريخ، ولا يُحفظ حتى تضغط حفظ.',
+          en: 'Opens a new sheet filled from the sheet of ' + foundDate + ' — the last ' +
+              'one you can see, not necessarily yesterday. No number, no date, and ' +
+              'nothing is saved until you press save.'
+        })
+      : L({
+          ar: 'لا يوجد كشف سابق تراه — اضغط لتعرف، أو ابدأ بكشف جديد.',
+          en: 'There is no earlier sheet you can see — press to check, or start a new one.'
+        }));
     b.addEventListener('click', function () { repeat(moduleId); });
     nb.parentNode.insertBefore(b, nb);
     return b;

@@ -244,12 +244,54 @@
         }
       });
 
-      /* الافتراضي: القسم الأول مفتوح، والباقي مطويّ. أي خانة مطلوبة خارج
-         القسم الأول محميّة بحارس الالتقاط أدناه — لا بهذا الاختيار.
-         Default: first section open, the rest folded. Any required box
-         outside the first section is protected by the capture guard below,
-         NOT by this choice. */
-      if (idx > 0) {
+      /* ═══════════════════════════════════════════════════════════════
+         🔴 الافتراضي: القسم الأول مفتوح، **وأي قسم فيه خانة مطلوبة**.
+         أُصلح ١ سبتمبر ٢٠٢٦.
+
+         ما كان هنا: `if (idx > 0)` وحدها، أي «الأول مفتوح والباقي مطويّ».
+         وكان التعليق يقول إن الخانات المطلوبة محميّة بحارس الالتقاط —
+         وهو صحيح، الحارس يفتح كل الأقسام عند الحفظ ويسمّي الناقص، فلا
+         يعلق أحد. لكنّ الخطّة المكتوبة كانت تَعِد بشيء آخر: **صفر خانة
+         مطلوبة مخفيّة عند الفتح، بالبناء لا بالإنقاذ.** والمشحون كان
+         الخيار الأبسط، وسجلّي أنا قال إن المشحون هو الخيار الآخر — وكان
+         ذلك غير صحيح، أمسكه المنسّق قبل أن يصل إلى صاحب العمل كحقيقة،
+         وقاسه TRACK ENHANCER على الكود المشحون: **خانتان مطلوبتان مخفيّتان
+         عند فتح شاشة «طلب فحص أعمال» — نوع العمل وبند العمل.**
+
+         الفرق عملياً: بدل أن يملأ ما يراه ثم يُرفض حفظه ثم تنفتح الأقسام
+         أمامه، يرى من البداية كل ما يجب أن يملأه. ضغطة ضائعة أقلّ في كل
+         مستند، ومهندسو المواقع على هواتفهم من ١ سبتمبر.
+
+         🔴 Default: the first section open, AND any section holding a
+         must-fill box. Fixed 1 Sep 2026.
+         What was here: `if (idx > 0)` alone — first open, rest folded. The
+         old comment said required boxes are protected by the capture guard,
+         and that is true: on save it opens every section and names what is
+         missing, so nobody gets stuck. But the written plan promised
+         something else — ZERO required boxes hidden at open, BY
+         CONSTRUCTION rather than by rescue. What shipped was the simpler
+         option, and my own handover recorded the shipped default as the
+         other one. That was false; the coordinator caught it before it
+         reached the owner as fact, and TRACK ENHANCER measured it on the
+         shipped code: TWO required boxes hidden on opening «طلب فحص أعمال»
+         — نوع العمل and بند العمل.
+         In practice: instead of filling what he can see, being refused, and
+         then watching sections open, he sees everything he must fill from
+         the start. One wasted press fewer per document — and site engineers
+         are on phones from 1 September.
+
+         ⚠️ العلامة هي `.req` التي يرسمها entity.js:599 من `f.required`
+         نفسها — أي الأثر المرسوم لكون الحقل مطلوباً، لا نسخة ثانية من
+         القاعدة. وحقول السطور تعيش في #linesWrap خارج هذه الشبكات، فلا
+         تدخل في الحساب.
+         ⚠️ The marker is the `.req` span entity.js:599 draws from
+         `f.required` itself — the rendered artifact of being required, not
+         a second copy of the rule. Line-item fields live in #linesWrap,
+         outside these grids, so they do not count. */
+      var hasRequired = 0;
+      try { hasRequired = entry.grid.querySelectorAll('.req').length; } catch (e) { hasRequired = 0; }
+
+      if (idx > 0 && !hasRequired) {
         entry.section.classList.add(CLOSED);
         entry.title.setAttribute('aria-expanded', 'false');
       }

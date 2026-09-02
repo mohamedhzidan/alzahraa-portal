@@ -173,14 +173,45 @@
       buttons: [
         {
           label: L({ ar: 'عناوين (كالمعتاد)', en: 'Headers (as usual)' }), cls: 'btn-outline',
-          onClick: function () { origPreview.apply(callContext, [moduleId, rows, manualCols]); }
+          /* 🔴 التأجيل مقصود — أُصلح ٢ سبتمبر ٢٠٢٦، والبوّابة الثالثة أثبته
+             على الشاشة. origPreview يفتح نافذة المعاينة عبر UI.modal، ونحن
+             نناديه من داخل onClick لزرٍّ في نافذة أخرى. وui.js:124 ينفّذ
+             closeModal() بمجرّد عودة onClick ما لم يكن keepOpen===true.
+             والنافذتان تتشاركان #modalHost — **فكانت المعاينة تُفتح وتُغلق
+             في الضغطة نفسها، فلا يظهر للإنسان شيءٌ إطلاقاً: لا معاينة، ولا
+             رسالة، ولا خطأ.** يضغط «عناوين (كالمعتاد)» فلا يحدث شيء.
+             هذا هو نفس العطل الذي أُصلح في import.js في هذه الدفعة، في
+             الملف الذي يلفّه. ونفس العلاج الواحد: setTimeout(…, 60) —
+             النمط الموجود أصلاً عند import.js:864.
+             🔴 The deferral is deliberate — fixed 2 Sep 2026, proven on
+             screen by gate 3. origPreview opens the preview through
+             UI.modal, and we call it from inside another window's onClick.
+             ui.js:124 runs closeModal() as soon as onClick returns unless
+             keepOpen===true, and both windows share #modalHost — so the
+             preview was OPENED AND CLOSED IN THE SAME CLICK and the person
+             saw NOTHING AT ALL: no preview, no message, no error. They
+             press «Headers (as usual)» and nothing happens.
+             It is the identical fault cured in import.js in this same
+             batch, in the file that wraps it. Same single cure:
+             setTimeout(…, 60), the pattern already at import.js:864.
+             Proven by TESTS/import-headerless-visible-trial.js. */
+          onClick: function () {
+            setTimeout(function () {
+              origPreview.apply(callContext, [moduleId, rows, manualCols]);
+            }, 60);
+          }
         },
         {
           label: L({ ar: 'بيانات — احتفظ بالصف', en: 'Data — keep the row' }), cls: 'btn-primary',
+          /* نفس التأجيل ونفس السبب — الزرّان كلاهما يفتح المعاينة من داخل
+             onClick. Same deferral, same reason — both buttons open the
+             preview from inside an onClick. */
           onClick: function () {
             var width = (rows[0] || []).length;
             var corrected = [syntheticHeaders(width)].concat(rows);
-            origPreview.apply(callContext, [moduleId, corrected, manualCols]);
+            setTimeout(function () {
+              origPreview.apply(callContext, [moduleId, corrected, manualCols]);
+            }, 60);
           }
         }
       ]

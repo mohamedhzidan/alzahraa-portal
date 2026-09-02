@@ -880,12 +880,74 @@
     var done = 0, failed = 0;
     var u = global.Auth && Auth.current();
 
-    list.forEach(function (r) {
+    /* ═══════════════════════════════════════════════════════════════
+       🔴 البابُ الثاني · THE SECOND DOOR — أُضيف ٢ سبتمبر ٢٠٢٦
+       ───────────────────────────────────────────────────────────────
+       منعُ تكرار الأصناف كان يعمل حين **يكتب** الإنسان فقط: الحارس يعلّق
+       نفسه على Rules.validateSave، وهذا الملف كان ينادي Store.create
+       مباشرةً ولا ينادي validateSave إطلاقاً. **وقائمة أصناف أ. أحمد
+       الحقيقية قادمة بجدول بيانات، لا بالكتابة** — أي أنّ طلبه الأول كان
+       معطَّلاً على المسار الذي تسلكه بياناته فعلاً.
+       صاحب العمل قال «ارفض التكرار». والرفض يعني البابين، لا باباً واحداً.
+
+       ولا نتجاوز صفّاً في صمت أبداً: كلّ صفّ مرفوض يُذكر باسمه وبرقمه
+       وبالسبب. تجاوزٌ صامت أثناء استيراد قائمة أصنافه الحقيقية أسوأ من
+       التكرار نفسه — نفس قاعدة الصفّ الفارغ: نتخطّى ونقول، لا نبتلع.
+
+       🔴 THE SECOND DOOR. The duplicate block only worked when a human
+       TYPED: the guard hooks Rules.validateSave, and this file called
+       Store.create directly and never called validateSave at all. And
+       أ. أحمد's real item list arrives as a SPREADSHEET, not by typing —
+       so his number-one ask was inert on the path his real data takes.
+       The owner said "refuse duplicates". Refuse means BOTH doors.
+
+       And no row is ever skipped silently: every refused row is named,
+       numbered and given its reason. A silent skip during the import of
+       his real item list would be worse than the duplicate itself — the
+       same rule as the empty-line guard: skip and SAY, never swallow.
+       ═══════════════════════════════════════════════════════════════ */
+    var skipped = [];
+
+    /* اسمٌ يقرأه إنسان، لا معرّف داخلي · a name a human reads, never an id */
+    function labelOf(rec) {
+      return String(rec.name || rec.docNo || rec.code || rec.title || '').trim() ||
+        L({ ar: '(بلا اسم)', en: '(unnamed)' });
+    }
+
+    list.forEach(function (r, rowIdx) {
       try {
         var rec = Object.assign({}, r.rec);
         if (mod.workflow) { rec.status = 'draft'; rec.trail = []; }
-        if (mod.docPrefix && !rec.docNo && Store.nextDocNo) rec.docNo = Store.nextDocNo(mod.docPrefix);
         if (!rec.site && u && u.site) rec.site = u.site;
+
+        /* الفحص **قبل** حجز رقم المستند عمداً: صفٌّ مرفوض يجب ألّا يستهلك
+           رقماً ويترك فجوة في تسلسل المستندات.
+           Validated BEFORE a document number is reserved, deliberately: a
+           refused row must not burn a number and leave a hole in the
+           sequence. */
+        if (global.Rules && Rules.validateSave) {
+          var verdict = null;
+          try { verdict = Rules.validateSave(mod, rec, null); }
+          catch (e) {
+            /* الحارس نفسه انهار — نفشل **مفتوحين**: نستورد الصفّ بدل أن
+               نرفض بيانات سليمة بسبب عطل عندنا، ونقول ذلك.
+               The guard itself broke — fail OPEN: import the row rather
+               than refuse sound data because of a fault of ours, and say
+               so rather than hide it. */
+            console.error('[import] validateSave threw; row imported unchecked', e);
+            verdict = null;
+          }
+          if (verdict && verdict.errors && verdict.errors.length) {
+            skipped.push({
+              row: rowIdx + 1,
+              label: labelOf(rec),
+              why: String(verdict.errors[0])
+            });
+            return;
+          }
+        }
+
+        if (mod.docPrefix && !rec.docNo && Store.nextDocNo) rec.docNo = Store.nextDocNo(mod.docPrefix);
         /* ٢٦ أغسطس ٢٠٢٦ — إصلاح: كان الاسم importedAt بلا شرطة سفلية،
            فكان store.js يرسله إلى قاعدة البيانات ضمن بقية الحقول. ولا
            يوجد عمود بهذا الاسم في أي جدول، فترفض قاعدة البيانات الصف
@@ -905,9 +967,82 @@
       } catch (e) { failed++; console.error('[import] row failed', e); }
     });
 
-    UI.toast(L({ ar: 'استُورد ' + done + ' صف' + (failed ? ' · فشل ' + failed : '') + '. الكل كمسودة.',
-                 en: done + ' rows imported' + (failed ? ' · ' + failed + ' failed' : '') + '. All as drafts.' }),
-             failed ? 'warn' : 'success', 7000);
+    UI.toast(L({ ar: 'استُورد ' + done + ' صف' + (failed ? ' · فشل ' + failed : '') +
+                     (skipped.length ? ' · رُفض ' + skipped.length : '') + '. الكل كمسودة.',
+                 en: done + ' rows imported' + (failed ? ' · ' + failed + ' failed' : '') +
+                     (skipped.length ? ' · ' + skipped.length + ' refused' : '') + '. All as drafts.' }),
+             (failed || skipped.length) ? 'warn' : 'success', 7000);
+
+    /* 🔴 الرفض يُعرَض في نافذة، لا في رسالة عابرة تختفي بعد ثوانٍ. الصفوف
+       المرفوضة هي بالضبط ما يحتاج أن يعود إليه ويصلحه في ملفه، فلا يجوز
+       أن تمرّ في toast يزول قبل أن يقرأه.
+       🔴 Refusals get a WINDOW, not a message that fades after seconds.
+       The refused rows are exactly what he must go back and fix in his
+       file, so they must not vanish in a toast he did not finish reading. */
+    /* 🔴 setTimeout مقصود، وليس زينة — أُصلح ٢ سبتمبر ٢٠٢٦ بعد أن أمسكته
+       البوّابة الثالثة (M-REFUSAL-INVISIBLE).
+       هذه الدالّة تُنادى من داخل onClick لزرّ «استورد» في نافذة المعاينة،
+       وui.js:124 ينفّذ closeModal() بمجرّد عودة onClick ما لم يكن
+       keepOpen===true أو يُعِد المعالج false. والنافذتان تتشاركان
+       #modalHost — فكانت نافذة الرفض **تُفتح ثمّ تُغلق في الضغطة نفسها**،
+       ولا يبقى إلّا فقاعة تختفي بعد سبع ثوانٍ تقول «رُفض ١»: عددٌ بلا أسماء.
+       أي أنّ أ. أحمد كان سيستورد قائمته الحقيقية، تُتخطّى صفوف، **ولا
+       سبيل له إلى معرفة أيّها** — وهو بالضبط التخطّي الصامت الذي قلنا إنه
+       أسوأ من التكرار نفسه.
+
+       ولماذا setTimeout لا `return false`: الأخيرة تُبقي نافذة **المعاينة**
+       مفتوحة أيضاً، ونحن نريدها أن تُغلق — الاستيراد تمّ. فالتأجيل يترك
+       closeModal يُغلق المعاينة أوّلاً، ثمّ تُفتح نافذة الرفض في
+       #modalHost الخالي.
+       ونفس النمط بالضبط موجود في هذا الملف عند :864 لزرّ «⇄ تعديل ربط
+       الأعمدة» — لم أخترع علاجاً ثالثاً.
+
+       🔴 The setTimeout is deliberate, not decoration — fixed 2 Sep 2026
+       after gate 3 caught it (M-REFUSAL-INVISIBLE). This function is called
+       from inside the preview's «استورد» onClick, and ui.js:124 runs
+       closeModal() as soon as onClick returns unless keepOpen===true or the
+       handler returns false. Both windows share #modalHost — so the refusal
+       window was OPENED AND CLOSED AGAIN INSIDE THE SAME CLICK, leaving only
+       a toast fading after 7 seconds saying «رُفض 1»: a count with no names.
+       أ. أحمد would have imported his real item list, had rows skipped, and
+       had NO WAY to find out which — the silent skip we called worse than
+       the duplicate.
+       Why setTimeout and not `return false`: that would keep the PREVIEW
+       window open too, and we want it closed — the import is done. Deferring
+       lets closeModal close the preview first, then the refusal opens into an
+       empty #modalHost.
+       The identical pattern is already in this file at :864 for the
+       «⇄ تعديل ربط الأعمدة» button. No third cure was invented.
+       Proven on screen by TESTS/import-duplicate-door-trial.js section E,
+       which asserts #modalHost.hidden === false — not merely that the window
+       was constructed. */
+    if (skipped.length && global.UI && UI.modal) {
+      var rowsHtml = '';
+      skipped.forEach(function (s) {
+        rowsHtml += '<tr><td>' + esc(String(s.row)) + '</td><td>' + esc(s.label) +
+          '</td><td>' + esc(s.why) + '</td></tr>';
+      });
+      setTimeout(function () {
+      UI.modal({
+        title: L({ ar: 'صفوف لم تُستورد — ' + skipped.length,
+                   en: skipped.length + ' rows were not imported' }),
+        size: 'wide',
+        body: '<p>' + esc(L({
+          ar: 'استُورد الباقي بنجاح. الصفوف التالية رُفضت ولم تُكتب، ' +
+              'وسببُ كلٍّ منها بجانبه. صحّحها في ملفك ثمّ استورد الملف مرّة أخرى — ' +
+              'الصفوف التي نجحت لن تتكرّر لأنها ستُرفض بدورها.',
+          en: 'Everything else imported. These rows were refused and not written, ' +
+              'each with its reason. Fix them in your file and import again — the rows ' +
+              'that already succeeded will not duplicate, because they will be refused in turn.'
+        })) + '</p><div class="table-wrap"><table class="data-table"><thead><tr>' +
+          '<th>' + esc(L({ ar: 'رقم الصف', en: 'Row' })) + '</th>' +
+          '<th>' + esc(L({ ar: 'الاسم', en: 'Name' })) + '</th>' +
+          '<th>' + esc(L({ ar: 'السبب', en: 'Reason' })) + '</th>' +
+          '</tr></thead><tbody>' + rowsHtml + '</tbody></table></div>',
+        buttons: [{ label: L({ ar: 'تمام', en: 'OK' }), cls: 'btn-primary' }]
+      });
+      }, 60);   /* نفس تأخير :864 في هذا الملف · same delay as :864 above */
+    }
     if (global.App && App.refresh) App.refresh();
   }
 

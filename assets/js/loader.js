@@ -29,6 +29,21 @@
     'assets/js/offline-db-guard.js',
     'assets/js/i18n.js',
     'assets/js/store.js',
+    /* 🔴 حارس البنود الفارغة — مباشرة بعد store.js وقبل أي قارئ للبنود.
+       يلفّ Store.all وStore.find، فـstore.js يجب أن يكون موجوداً؛ وأي ملف
+       يقرأ `lines` يجب أن يأتي **بعده**، وأهمّهم pages/entity.js (سطر ٢٧٧)
+       الذي ينهار على صفّ فارغ عند الرسم وهو ملف للقراءة فقط لا نعدّله.
+       صفٌّ فارغ واحد كان يُسقط أربعة قرّاء ويفتح المستند بلا أي بند —
+       صفر بند مرسوم من اثنين محفوظَين، بلا رسالة.
+       🔴 Empty-line guard — immediately after store.js and before every
+       reader of `lines`. It wraps Store.all/Store.find, so store.js must
+       exist first; and anything reading `lines` must come AFTER it, above
+       all pages/entity.js (line 277), which crashes on an empty row while
+       drawing and is a read-only file we do not edit.
+       One empty row broke four readers and opened the document with NO
+       lines at all — 0 drawn out of 2 stored, and no message.
+       Proven by `node TESTS/empty-line-guard-trial.js`. (v2.0.31) */
+    'assets/js/empty-line-guard.js',
     /* يمنع محو الرواتب حين يُعاد حفظ عمود مُقنَّع (عرض portal_employees يُعيد
        الأعمدة المخفية عن hr_manager كـ NULL صريح، لا يحذفها) — مباشرة بعد
        store.js ولا شيء قبل schema.js/auth.js، لأنه لا يعتمد عليهما ويجب أن
@@ -728,6 +743,58 @@
     'assets/js/repeat-yesterday.js',
     'assets/js/ref-search-picker.js',
     'assets/js/form-sections.js',
+
+    /* 🔴 دفعة المخازن — طلبات أ. أحمد السيد سليمان الثلاثة (كتيّب ١ سبتمبر).
+       item-duplicate-guard.js يلفّ Rules.validateSave، فيحتاج rules.js
+       فوقه، وarabic-text.js لتوحيد أسماء الأصناف العربية. وهو بعد
+       stock-in-transit.js الذي يلفّ نفس الدالة — السلسلة تُنادي الأصل
+       أولاً في كل حلقة، فلا يُفقد فحص.
+       line-stock-balance.js يقرأ Dashboard.analytics.stockQty، فيحتاج
+       pages/dashboard.js فوقه، ويراقب #linesWrap الذي يرسمه pages/entity.js.
+       🔴 The stores batch — أ. Ahmed's three asks (booklet, 1 Sep 2026).
+       item-duplicate-guard.js wraps Rules.validateSave, so it needs
+       rules.js above it, and arabic-text.js to fold Arabic item names. It
+       sits AFTER stock-in-transit.js, which wraps the same function — each
+       link calls the original first, so no check is lost.
+       line-stock-balance.js reads Dashboard.analytics.stockQty, so it needs
+       pages/dashboard.js above it, and watches #linesWrap, which
+       pages/entity.js draws. (v2.0.31) */
+    'assets/js/item-duplicate-guard.js',
+    'assets/js/line-stock-balance.js',
+
+    /* 🔴 من يعتمد مستندات المخازن — الطبقة الأولى من ثلاث. يحتاج auth.js
+       فوقه لأنه يضيف إلى Auth.ROLES مباشرةً (وهو نفس الكائن الذي تقرأه
+       permsFor، مُثبَت بالتشغيل لا مفترَضاً).
+       🔴 وحده لا يكفي: بدون 1-SUPABASE/55-STOCK-APPROVAL-ROLES.sql يظهر
+       الزرّ وتُرفض الضغطة برسالة «Approval not allowed». الطبقتان تُرفعان
+       وتُشغَّلان معاً، أبداً واحدة دون الأخرى.
+       🔴 Who may approve a stores document — layer 1 of 3. Needs auth.js
+       above it: it adds to Auth.ROLES directly, which is the same object
+       permsFor reads (proven by running, not assumed).
+       🔴 It is NOT enough alone: without
+       1-SUPABASE/55-STOCK-APPROVAL-ROLES.sql the button appears and the
+       press is refused with "Approval not allowed". The two layers go
+       together, never one without the other. (v2.0.31) */
+    'assets/js/stock-approval-roles.js',
+
+    /* 🔴 تقارير المخازن الثلاثة التي طلبها أ. أحمد بالاسم وبأعمدته.
+       زرّ في مجموعة المخازن، لا تبويب في «التقارير» — قِسْتُ أن دور أمين
+       المخزن لا يُسمح له بأي تقرير من الخمسة، وreport-access.js يحذف زرّ
+       التقارير أصلاً لمن لا تقرير له، فالتبويب كان سيكون غير مرئي له.
+       يحتاج pages/entity.js فوقه (يلفّ render لطريقه وحده)، ويحتاج
+       lookup-loader.js (:484) وإلّا ظهر «مركز التكلفة» معرّفاً خاماً —
+       دور أمين المخزن معه lookup فقط على بنود التكلفة.
+       🔴 The three stores reports أ. Ahmed asked for by name, with his
+       columns. A button in the STORES menu group, not a Reports tab — I
+       measured that the storekeeper role is allowed none of the five
+       reports, and report-access.js removes the Reports button entirely
+       for such a role, so a tab would have been invisible to him.
+       Needs pages/entity.js above it (wraps render for its own route
+       only), and needs lookup-loader.js (:484) or the cost-centre column
+       renders a RAW ID — the storekeeper holds only `lookup` on cost
+       items. (v2.0.31) */
+    'assets/js/stores-reports.js',
+
     'assets/js/version-badge.js'
   ];
   var NEEDED = [
