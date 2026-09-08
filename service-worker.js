@@ -575,7 +575,7 @@
 
       بدون إضافتها لن يعمل الذكاء الاصطناعي ولا القسمان الجديدان بدون إنترنت.
    --------------------------------------------------------------------------- */
-var CACHE = 'alzahraa-shell-v2.0.31';
+var CACHE = 'alzahraa-shell-v2.0.32';
 
 var SHELL = [
   './', './index.html', './manifest.webmanifest', './robots.txt',
@@ -818,7 +818,7 @@ var SHELL = [
   './assets/js/dc-requests.js',
   './assets/js/save-guard.js',
   './assets/js/access-check.js',
-  './assets/js/audit-trail.js',
+  './assets/js/audit-trail.js', './assets/js/delete-honesty.js',
   './assets/js/sites.js',
   /* يصحّح تسريب قائمة «الموقع» (سوهاج تصل للروبيكي) وعطلاً كامناً في اطّلاع
      القرين/المكتب — رقم CACHE لم يُرفع لهذا الملف عمداً، يُجمَّع مع الدفعة
@@ -936,7 +936,7 @@ var SHELL = [
   /* المرفقات من داخل نموذج التعديل — لا يعمل بلا اتصال إن غاب من هذه
      القائمة. Attachments from inside the edit form — does not work offline
      if missing from this list. (v2.0.28) */
-  './assets/js/attach-from-form.js',
+  './assets/js/attach-from-form.js', './assets/js/attach-before-save.js',
   './assets/js/amount-in-words.js',
   './assets/js/checkbox-three-states.js',
 
