@@ -908,6 +908,16 @@
        ═══════════════════════════════════════════════════════════════ */
     var skipped = [];
 
+    /* صفوف رُفضت لقاعدة (تكرار مثلاً) تختلف عن صفوف لم تُكتب أصلاً — والفرق
+       ليس تصنيفاً، بل **فعلان مختلفان**: الأولى يُصلحها في ملفه، والثانية
+       يعيد استيرادها كما هي عند عودة الاتصال. فخلطهما يعطيه نصيحة خاطئة.
+       Rows refused by a RULE (a duplicate) are not the same as rows that
+       were never written. The difference is not a category, it is TWO
+       DIFFERENT ACTIONS: the first he fixes in his file, the second he
+       simply imports again once he has a connection. Merging them would
+       give him the wrong instruction. */
+    var notSaved = [];
+
     /* اسمٌ يقرأه إنسان، لا معرّف داخلي · a name a human reads, never an id */
     function labelOf(rec) {
       return String(rec.name || rec.docNo || rec.code || rec.title || '').trim() ||
@@ -962,16 +972,66 @@
            reported success. The underscore makes store.js's clean()
            strip it before sending, and nothing anywhere reads it. */
         rec._importedAt = new Date().toISOString();
-        Store.create(mod.table, rec);
+
+        /* 🔴 القيمة المُعادة تُفحَص — أُصلح ٣ سبتمبر ٢٠٢٦.
+           store.js:385 يُعيد `null` حين تُرفض الكتابة وهو غير متّصل:
+               if (!writableOnline() && !offlineAllowed(table,'insert',row))
+                   { notifyBlocked(); return null; }
+           وكان هذا السطر ينادي Store.create ويرمي القيمة المُعادة، ثم
+           يزيد done — **فيُقال له «استُورد صفّان» ولم يُكتب صفٌّ واحد.**
+           قِيسَ في TESTS/silent-write-family-repro.js: صفر صفّ على الخادم،
+           والرسالة خضراء.
+           ولماذا يخصّ هذا أ. أحمد بالذات: «الأصناف» ليست شاشة سير عمل
+           وليست في OFFLINE_SAFE، فاستيراد قائمته الحقيقية من موقعٍ بلا
+           شبكة يُرفض **صفّاً صفّاً — القائمة كلّها**، لا حالة نادرة. ومن
+           يُقال له «استُورد ٢٠٠ صف» لا يعود ليتحقّق.
+           🔴 THE RETURN VALUE IS NOW CHECKED — fixed 3 Sep 2026.
+           store.js:385 returns null when a write is refused offline. This
+           line called Store.create, threw the return away and incremented
+           done — so he was told "2 rows imported" when not one row was
+           written. Measured in TESTS/silent-write-family-repro.js: zero
+           rows on the server, message in success green.
+           Why it is أ. أحمد's problem specifically: `items` is neither a
+           workflow module nor in OFFLINE_SAFE, so importing his real list
+           from a site with no signal is refused ROW BY ROW — the whole
+           list, not an edge case. A person told "200 rows imported" does
+           not go back and check. */
+        var written = Store.create(mod.table, rec);
+        if (!written) {
+          notSaved.push({
+            row: rowIdx + 1,
+            label: labelOf(rec),
+            why: L({
+              ar: 'لم يُحفَظ — يحتاج اتصالاً بالإنترنت. أعد الاستيراد بعد عودة الاتصال.',
+              en: 'Not saved — needs an internet connection. Import again once you are back online.'
+            })
+          });
+          return;
+        }
         done++;
       } catch (e) { failed++; console.error('[import] row failed', e); }
     });
 
-    UI.toast(L({ ar: 'استُورد ' + done + ' صف' + (failed ? ' · فشل ' + failed : '') +
-                     (skipped.length ? ' · رُفض ' + skipped.length : '') + '. الكل كمسودة.',
-                 en: done + ' rows imported' + (failed ? ' · ' + failed + ' failed' : '') +
-                     (skipped.length ? ' · ' + skipped.length + ' refused' : '') + '. All as drafts.' }),
-             (failed || skipped.length) ? 'warn' : 'success', 7000);
+    /* 🔴 «استُورد N» تعني الآن N كُتبت فعلاً — لا N حاولنا كتابتها.
+       ولو لم يُكتب شيء إطلاقاً فالرسالة ليست خضراء بحال: الأخضر هو الصوت
+       المطمئن، وهو الذي يُقرأ ويُصدَّق، فلا يجوز أن يقول «تمّ» ولا شيء تمّ.
+       🔴 «استُورد N» now means N were actually WRITTEN, not N attempted.
+       And if nothing was written the message is never green: green is the
+       reassuring voice, it is the one that gets read and believed, and it
+       must not say "done" when nothing was done. */
+    var wroteNothing = done === 0 && (notSaved.length > 0 || failed > 0);
+    UI.toast(L({ ar: (wroteNothing ? '⛔ لم يُحفَظ أي صف. ' : 'استُورد ' + done + ' صف') +
+                     (failed ? ' · فشل ' + failed : '') +
+                     (skipped.length ? ' · رُفض ' + skipped.length : '') +
+                     (notSaved.length ? ' · ' + notSaved.length + ' لم تُحفَظ (بلا اتصال)' : '') +
+                     (wroteNothing ? '' : '. الكل كمسودة.'),
+                 en: (wroteNothing ? '⛔ Nothing was saved. ' : done + ' rows imported') +
+                     (failed ? ' · ' + failed + ' failed' : '') +
+                     (skipped.length ? ' · ' + skipped.length + ' refused' : '') +
+                     (notSaved.length ? ' · ' + notSaved.length + ' not saved (no connection)' : '') +
+                     (wroteNothing ? '' : '. All as drafts.') }),
+             (wroteNothing ? 'error' : ((failed || skipped.length || notSaved.length) ? 'warn' : 'success')),
+             wroteNothing ? 12000 : 7000);
 
     /* 🔴 الرفض يُعرَض في نافذة، لا في رسالة عابرة تختفي بعد ثوانٍ. الصفوف
        المرفوضة هي بالضبط ما يحتاج أن يعود إليه ويصلحه في ملفه، فلا يجوز
@@ -1016,27 +1076,53 @@
        Proven on screen by TESTS/import-duplicate-door-trial.js section E,
        which asserts #modalHost.hidden === false — not merely that the window
        was constructed. */
-    if (skipped.length && global.UI && UI.modal) {
+    if ((skipped.length || notSaved.length) && global.UI && UI.modal) {
       var rowsHtml = '';
+      /* المجموعتان في جدول واحد، وعمودٌ يقول أيّ فعلٍ يخصّ كل صفّ — لأن
+         «أصلحه في ملفك» و«أعد الاستيراد كما هو» نصيحتان مختلفتان، وخلطهما
+         يُرسله إلى العمل الخطأ.
+         Both groups in one table, with a column saying which ACTION each row
+         needs — "fix it in your file" and "import it again unchanged" are
+         different instructions, and merging them sends him to the wrong
+         work. */
       skipped.forEach(function (s) {
         rowsHtml += '<tr><td>' + esc(String(s.row)) + '</td><td>' + esc(s.label) +
+          '</td><td>' + esc(L({ ar: 'صحّحه في ملفك', en: 'Fix it in your file' })) +
           '</td><td>' + esc(s.why) + '</td></tr>';
+      });
+      notSaved.forEach(function (s) {
+        rowsHtml += '<tr><td>' + esc(String(s.row)) + '</td><td>' + esc(s.label) +
+          '</td><td><strong>' + esc(L({ ar: 'أعد الاستيراد كما هو', en: 'Import again unchanged' })) +
+          '</strong></td><td>' + esc(s.why) + '</td></tr>';
       });
       setTimeout(function () {
       UI.modal({
-        title: L({ ar: 'صفوف لم تُستورد — ' + skipped.length,
-                   en: skipped.length + ' rows were not imported' }),
+        title: L({ ar: 'صفوف لم تُستورد — ' + (skipped.length + notSaved.length),
+                   en: (skipped.length + notSaved.length) + ' rows were not imported' }),
         size: 'wide',
-        body: '<p>' + esc(L({
-          ar: 'استُورد الباقي بنجاح. الصفوف التالية رُفضت ولم تُكتب، ' +
-              'وسببُ كلٍّ منها بجانبه. صحّحها في ملفك ثمّ استورد الملف مرّة أخرى — ' +
-              'الصفوف التي نجحت لن تتكرّر لأنها ستُرفض بدورها.',
-          en: 'Everything else imported. These rows were refused and not written, ' +
-              'each with its reason. Fix them in your file and import again — the rows ' +
-              'that already succeeded will not duplicate, because they will be refused in turn.'
-        })) + '</p><div class="table-wrap"><table class="data-table"><thead><tr>' +
+        body: '<p>' + esc(
+          done > 0
+            ? L({ ar: 'استُورد ' + done + ' صفاً بنجاح. الصفوف التالية لم تُكتب، وبجانب كل ' +
+                      'صفّ ما يجب عمله بالضبط.',
+                  en: done + ' row(s) imported successfully. The rows below were not written, ' +
+                      'and beside each one is exactly what to do.' })
+            : L({ ar: '⛔ لم يُكتب أي صف إطلاقاً. بجانب كل صفّ ما يجب عمله بالضبط.',
+                  en: '⛔ Not one row was written. Beside each row is exactly what to do.' })
+        ) + '</p>' +
+          (notSaved.length
+            ? '<p>' + esc(L({
+                ar: 'الصفوف المكتوب بجانبها «أعد الاستيراد كما هو» لم يُرفَض شيءٌ فيها — ' +
+                    'الجهاز لم يكن متّصلاً وقتها. لا تُغيّر شيئاً في ملفك: افتح الاستيراد ' +
+                    'مرّة أخرى بعد عودة الاتصال بنفس الملف.',
+                en: 'The rows marked "Import again unchanged" were not rejected for any reason ' +
+                    'in them — the device was offline at the time. Change nothing in your file: ' +
+                    'open Import again with the same file once you are back online.'
+              })) + '</p>'
+            : '') +
+          '<div class="table-wrap"><table class="data-table"><thead><tr>' +
           '<th>' + esc(L({ ar: 'رقم الصف', en: 'Row' })) + '</th>' +
           '<th>' + esc(L({ ar: 'الاسم', en: 'Name' })) + '</th>' +
+          '<th>' + esc(L({ ar: 'ما تعمله', en: 'What to do' })) + '</th>' +
           '<th>' + esc(L({ ar: 'السبب', en: 'Reason' })) + '</th>' +
           '</tr></thead><tbody>' + rowsHtml + '</tbody></table></div>',
         buttons: [{ label: L({ ar: 'تمام', en: 'OK' }), cls: 'btn-primary' }]

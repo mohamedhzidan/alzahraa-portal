@@ -29,6 +29,7 @@
     'assets/js/offline-db-guard.js',
     'assets/js/i18n.js',
     'assets/js/store.js',
+
     /* 🔴 حارس البنود الفارغة — مباشرة بعد store.js وقبل أي قارئ للبنود.
        يلفّ Store.all وStore.find، فـstore.js يجب أن يكون موجوداً؛ وأي ملف
        يقرأ `lines` يجب أن يأتي **بعده**، وأهمّهم pages/entity.js (سطر ٢٧٧)
@@ -516,6 +517,19 @@
     'assets/js/creator-name-fill.js',
     /* يحوّل الحذف إلى إلغاء موثّق ويسجّل كل تغيير على الخادم */
     'assets/js/audit-trail.js',
+    /* 🔴 صدق الحذف — **بعد audit-trail.js حتماً**، لأن ذاك يستبدل
+       Store.destroy بالكامل بـcancelRecord (:258). فلو حُمِّل قبله للفّ
+       دالّة store.js الأصلية، ثم استبدلها audit-trail بعده — فيختفي لافّنا
+       تماماً ولا يشتكي أحد. عطلٌ صامت بترتيبٍ خاطئ، وهو نفس الفخّ الذي
+       يحرسه ترتيب attach-before-save.js.
+       🔴 Delete honesty — MUST come AFTER audit-trail.js, which REPLACES
+       Store.destroy outright with cancelRecord (:258). Loaded before it, we
+       would wrap store.js's original and audit-trail would then replace the
+       whole thing — our wrapper would vanish and nobody would complain. A
+       silent fault from order alone, the same trap attach-before-save.js's
+       position guards against.
+       Proven by TESTS/delete-honesty-trial.js. (v2.0.32) */
+    'assets/js/delete-honesty.js',
     /* أرقام المستندات الحقيقية لكل الأقسام — آخر ملف يلفّ Store.create،
        بعد audit-trail.js حتماً، ويحتاج Auth.client() ليسأل الخادم عن
        الرقم الذي أصدره فعلاً.
@@ -690,6 +704,20 @@
        panelHTML/wirePanel) and entity.js (it reads data-record-id) — both
        far above. (v2.0.28) */
     'assets/js/attach-from-form.js',
+    /* 🔴 الإرفاق قبل الحفظ — **بعد** attach-from-form.js حتماً، لأن ذاك هو
+       الذي يستدعيه في فرع السجلّ الجديد. ولو حُمِّل قبله لكان global.
+       AttachBeforeSave غير موجود لحظة الاستدعاء الأول، فتظهر رسالة «احفظ
+       أولاً» القديمة ولا يشتكي أحد — عطلٌ صامت بترتيبٍ خاطئ.
+       ويلفّ Store.create أيضاً، فلا بدّ أن يأتي بعد store.js (وهو كذلك
+       بفارق مئات الأسطر).
+       🔴 Attach-before-save — MUST come AFTER attach-from-form.js, which is
+       what calls into it on the new-record branch. Loaded before it,
+       global.AttachBeforeSave would not exist at the first call, the old
+       "save first" message would appear and nobody would complain — a
+       silent fault caused purely by order. It also wraps Store.create, so it
+       must follow store.js (it does, by hundreds of lines).
+       Proven by TESTS/attach-before-save-trial.js. (v2.0.32) */
+    'assets/js/attach-before-save.js',
     /* رقم النسخة في تذييل الصفحة من الذاكرة الفعلية — آخر ملف عمداً،
        فحص رفعة محمد زيدان */
     /* 🔴 طيّ أقسام النماذج — يجب أن يأتي بعد screen-behaviour.js

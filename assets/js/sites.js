@@ -152,13 +152,42 @@
     if (!u || !global.Auth.isAdmin || !Auth.isAdmin()) return;   /* admin only */
     var existing = Store.all('sites') || [];
     if (existing.length) return;
+    /* 🔴 القيمة المُعادة تُفحَص — أُصلح ٣ سبتمبر ٢٠٢٦.
+       store.js:385 يُعيد null حين تُرفض الكتابة وهو غير متّصل، و«المواقع»
+       ليست شاشة سير عمل وليست في OFFLINE_SAFE — قِسته: بلا اتصال يُعيد
+       null. وكان هذا الجزء يرمي القيمة ثم يقول «أُنشئت مواقع الشركة
+       الأربعة» **بالأخضر** ولم يُنشأ ولا واحد.
+       ومتى يقع ذلك: مديرُ نظام يفتح جهازاً جديداً (أو ذاكرة مُفرَغة) **بلا
+       اتصال** — فتكون قائمة المواقع فارغة، فتعمل هذه الدالّة، فتُرفض
+       الأربعة. ثم كل شاشة مربوطة بموقع تصير بلا مواقع، وقد قيل له إنها
+       أُنشئت. ليس ضياع عمل — لكنّه نفس الكذب الأخضر بعينه.
+       🔴 THE RETURN IS NOW CHECKED — fixed 3 Sep 2026.
+       store.js:385 returns null when a write is refused offline, and `sites`
+       is neither a workflow module nor in OFFLINE_SAFE — measured: offline
+       it returns null. This block threw the return away and then said «four
+       company sites created» IN GREEN with not one created.
+       When it happens: an ADMIN opening a fresh device (or cleared cache)
+       WHILE OFFLINE — the sites list is empty, this function runs, and all
+       four are refused. Every site-scoped screen then has no sites, and he
+       was told they were made. Not lost work, but the same green lie. */
+    var made = 0, refused = 0;
     SEED.forEach(function (s) {
-      try { Store.create('sites', Object.assign({}, s)); }
-      catch (e) { console.warn('sites.js: could not create ' + s.code, e); }
+      try {
+        if (Store.create('sites', Object.assign({}, s))) made++;
+        else refused++;
+      } catch (e) { refused++; console.warn('sites.js: could not create ' + s.code, e); }
     });
-    console.info('sites.js: created the four company sites.');
+    console.info('sites.js: created ' + made + ' of ' + SEED.length + ' company sites.');
     if (global.UI && UI.toast) {
-      UI.toast('أُنشئت مواقع الشركة الأربعة. عدّلها من شاشة «المواقع والفروع».', 'success', 6000);
+      if (made === SEED.length) {
+        UI.toast('أُنشئت مواقع الشركة الأربعة. عدّلها من شاشة «المواقع والفروع».', 'success', 6000);
+      } else if (made === 0) {
+        UI.toast('⛔ لم تُنشأ مواقع الشركة — الجهاز غير متّصل بالإنترنت. ' +
+                 'افتح البورتال مرة أخرى بعد عودة الاتصال وستُنشأ تلقائياً.', 'error', 12000);
+      } else {
+        UI.toast('أُنشئ ' + made + ' موقع من ' + SEED.length + ' فقط — الباقي يحتاج اتصالاً. ' +
+                 'افتح البورتال مرة أخرى بعد عودة الاتصال.', 'warn', 12000);
+      }
     }
   }
 

@@ -195,7 +195,39 @@
   async function injectIntoForm() {
     try {
       var ctx = savedRecordForm();
-      if (!ctx) { honestNewRecordNote(); return; }
+      if (!ctx) {
+        /* 🔴 ٢ سبتمبر ٢٠٢٦ — سجلّ جديد: لم تعد الرسالة «احفظ أولاً» هي
+           الجواب. المالك طلب مرّتين أن يُرفق من لحظة فتح النموذج، فبُني ذلك
+           في attach-before-save.js وهو يبني لوحته هنا.
+           ونفوّض ولا ننسخ: ملفّان يكتبان في #modalBody لغرضٍ واحد يتصارعان،
+           وهو الفخّ الذي يفحصه المدقّق. وإن غاب ذلك الملف تعود الرسالة
+           القديمة حرفياً — فحذفه يُعيد السلوك السابق تماماً، وهي القاعدة
+           الإضافية بعينها.
+           🔴 2 Sep 2026 — on a NEW record "save first" is no longer the
+           answer. The owner asked twice to attach from the moment the form
+           opens; that is built in attach-before-save.js, which draws its
+           panel here.
+           We DELEGATE rather than duplicate: two files writing into
+           #modalBody for one purpose fight each other, which is the trap the
+           integrator checks for. If that file is absent the old message
+           returns verbatim — so deleting it restores the previous behaviour
+           exactly, which is the additive rule itself. */
+        /* 🔴 `form` ليس في هذا النطاق — هو محلّي داخل savedRecordForm،
+           وهي أعادت null أصلاً. أمسكتُ ذلك بقراءة تعديلي قبل تشغيله؛ لو مرّ
+           لألقى ReferenceError وأسقط اللوحة كلّها بصمت.
+           🔴 `form` is NOT in scope here — it is local to savedRecordForm,
+           which has just returned null. Caught by reading my own edit before
+           running it; left in, it would have thrown a ReferenceError and
+           killed the whole panel silently. */
+        var absForm = document.getElementById('entForm');
+        var absMod = absForm && absForm.getAttribute && absForm.getAttribute('data-module');
+        if (global.AttachBeforeSave && absMod &&
+            AttachBeforeSave.renderNewRecordPanel(absMod, document.getElementById('modalBody'))) {
+          return;
+        }
+        honestNewRecordNote();
+        return;
+      }
       if (document.getElementById(PANEL_ID)) return;   /* موجودة أصلاً */
       if (!global.Attachments || typeof Attachments.panelHTML !== 'function') return;
 
