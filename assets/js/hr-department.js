@@ -107,15 +107,46 @@
         { formula: function (r) {
             var n = Number(r.instalments) || 1;
             return n > 0 ? (Number(r.amount) || 0) / n : 0;
-          }, section: SEC.plan }),
+          }, calcAs: 'money', section: SEC.plan }),
       F('startPeriod', 'يبدأ الخصم من شهر', 'First deduction period', 'text',
         { section: SEC.plan, help: { ar: 'مثال: ٢٠٢٦-٠٩', en: 'e.g. 2026-09' } }),
+      /* 🔴 `calcAs: 'money'` على حقل مكتوب هنا بنوع 'money' — وليس خطأ.
+         `advance-balance.js:202-203` (حيّ، ومُحمَّل في loader.js:237) **يحوّل
+         هذا الحقل وقت التشغيل** إلى `type:'calc'` بصيغة دالّة، ليصدق ما تحته:
+         «يُحدَّث تلقائياً من مسير الرواتب». فيمرّ عندئذٍ على لافّة
+         `calc-formulas.js`، وبلا هذا الوسم يُطبَع **٤٬٥٠٠ بلا «ج.م»** — مبلغ
+         نقديّ عارٍ بجوار ثلاثة صناديق تحمل العملة، على الشاشة **وعلى إذن
+         السلفة المطبوع**.
+
+         🔴 وهذا بالضبط ما عجز إحصاؤنا عن رؤيته: بحثنا عن `formula: function`
+         داخل ملفّ التعريف فوجدنا ثمانية. **الحقل التاسع لا يُعرَّف هنا كـcalc
+         إطلاقاً — ملفٌّ آخر يحوّله عند التحميل.** إحصاءٌ ساكنٌ للتعريفات لا
+         يرى ما يصنعه ملفٌّ آخر وقت التشغيل. الإحصاء الصحيح يُحمّل السلسلة
+         كاملة ويعدّ تسعة.
+         **والوسم يبقى** لأن ذلك الملف يعيد إسناد `.type` و`.formula` و`.help`
+         فقط على **الكائن نفسه** — مقيسٌ، لا مُستنتَج.
+
+         🔴 `calcAs: 'money'` on a field declared here as type 'money' — not a
+         mistake. `advance-balance.js:202-203` (live, wired at loader.js:237)
+         CONVERTS THIS FIELD AT RUNTIME to `type:'calc'` with a function
+         formula, so its own help text finally becomes true. It therefore
+         passes through the `calc-formulas.js` wrapper, and without this flag
+         it prints **4,500 with no «ج.م»** — a bare sum of money beside three
+         boxes that still carry the currency, on screen AND on the PRINTED
+         advance voucher.
+         🔴 This is exactly what our census could not see: we grepped
+         `formula: function` in the declaring file and found EIGHT. The ninth
+         is never declared as calc here — another file converts it at load
+         time. A STATIC CENSUS OF DECLARATIONS CANNOT SEE A RUNTIME
+         CONVERSION; the full-chain census that loads all of loader.js finds
+         nine. The flag SURVIVES because that file reassigns only `.type`,
+         `.formula` and `.help` on the SAME object — measured, not reasoned. */
       F('repaid', 'المسدَّد حتى الآن', 'Repaid so far', 'money',
-        { readonly: true, section: SEC.plan,
+        { readonly: true, calcAs: 'money', section: SEC.plan,
           help: { ar: 'يُحدَّث تلقائياً من مسير الرواتب', en: 'Updated automatically from payroll' } }),
       F('outstanding', 'المتبقي', 'Outstanding', 'calc',
         { formula: function (r) { return (Number(r.amount) || 0) - (Number(r.repaid) || 0); },
-          section: SEC.plan }),
+          calcAs: 'money', section: SEC.plan }),
       F('settled', 'مسدَّدة بالكامل', 'Fully settled', 'checkbox', { section: SEC.plan }),
 
       F('requestedBy', 'طلبها', 'Requested by', 'ref',
@@ -199,7 +230,7 @@
               if (r[k] === 'received' || r[k] === 'copy') have++;
             });
             return need ? Math.round(have / need * 100) : 100;
-          }, section: SEC.main }),
+          }, calcAs: 'percent', section: SEC.main }),
       F('fileLocation', 'مكان الملف الورقي', 'Paper file location', 'text', { section: SEC.extra }),
       F('notes', 'ملاحظات', 'Notes', 'textarea', { section: SEC.extra, full: true })
     ]
@@ -353,7 +384,7 @@
         F('lineTotal', 'الإجمالي', 'Line total', 'calc',
           { formula: function (l) {
               return (Number(l.days) || 0) * (Number(l.dayRate) || 0) + (Number(l.overtime) || 0);
-            } }),
+            }, calcAs: 'money' }),
         F('signature', 'استلم بتوقيع', 'Signed for receipt', 'checkbox')
       ],
       totals: [{ label: { ar: 'إجمالي الكشف', en: 'Sheet total' }, field: 'lineTotal', target: 'totalAmount' }]

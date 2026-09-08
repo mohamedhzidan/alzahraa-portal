@@ -34,7 +34,13 @@
      hr-department.js:245  presentCount      عدد الحاضرين
      hr-department.js:249  absentCount       عدد الغائبين
      hr-department.js:293  workerCount       عدد العمال
-     hr-department.js:311  lineTotal         إجمالي العامل الواحد ← الأخطر
+     hr-department.js:353  lineTotal         إجمالي العامل الواحد ← الأخطر
+       (كان مكتوباً هنا «:311» وهو رقم عَتِق — انزاح مع تعديلات لاحقة. صُحّح
+        في ٧ سبتمبر ٢٠٢٦ بعد التحقّق بالتشغيل. رقمٌ في ملاحظة يعفن؛ الأمر
+        الذي يجده لا يعفن:  grep -n "F('lineTotal'" portal/assets/js/hr-department.js
+        was written here as «:311», a stale number that drifted with later
+        edits. Corrected 7 Sept 2026, verified by running. A number in a note
+        rots; the command that finds it does not.)
 
    أثره بالعربي الواضح:
    · «المتبقي» على كل سلفة = صفر → كل سلفة تبدو مسدَّدة بالكامل.
@@ -127,9 +133,102 @@
      ═══════════════════════════════════════════════════════════════════ */
   var origDisplay = UI.displayValue;
 
+  /* ── 🔴 عطل «عدد الحاضرين ٥٫٠٠ ج.م» — كان حيّاً وعلى الورق ────────────
+     كان هذا السطر يطبع **كل** حقل صيغته دالّة على أنه نقود، بلا سؤال عمّا
+     يمثّله الحقل. فكانت شاشات أ. محمد عمارة تقول:
+         «نسبة الاكتمال ١ ج.م»   «عدد الحاضرين ٥٫٠٠ ج.م»
+     والأسوأ أنه على **كشف حضور الموقع اليومي المطبوع** — ورقة تُملأ وتُوقَّع
+     وتُحفَظ. **الخطأ على الورق يخرج من المبنى ويصير هو السجلّ، ولا يبلغه أيّ
+     رفع جديد.** وهو العطل الوحيد في هذا المشروع الذي لا يمكن إصلاحه بأثر رجعي.
+
+     العلاج: **الحقل هو الذي يعلن أنه نقود.** والافتراضُ «عادي» عمداً:
+     · عدّادٌ يُعرض عادياً = صحيح
+     · عدّادٌ يُعرض بالجنيه = هراء
+     فحقلٌ جديد يُنسى وسمُه يظهر **عادياً**، وهو الفشل الآمن. العكس — أن يكون
+     الافتراض «نقود» — هو بالضبط ما أوصلنا إلى هنا.
+
+     🔴 لا نُفهرِس بالأسماء إطلاقاً: وحدتان قد تحملان حقلاً اسمه `outstanding`
+     ومعناهما مختلف، والمفتاحُ بالاسم هو كيف يتوقّف فحصٌ عن المطابقة بصمت.
+
+     🔴 THE «عدد الحاضرين 5.00 ج.م» BUG — it was LIVE, and it was ON PAPER.
+     This line printed EVERY function-formula field as money without ever
+     asking what the field represents, so أ. محمد عمارة's screens read
+     «نسبة الاكتمال ١ ج.م» and «عدد الحاضرين ٥٫٠٠ ج.م» — a percentage and a
+     head-count, priced in Egyptian pounds. Worst of all it reached the
+     PRINTED daily site attendance sheet, which is filled in, signed and
+     filed. A WRONG CELL ON PAPER LEAVES THE BUILDING AND BECOMES THE RECORD;
+     no redeploy can reach it. It is the one defect here that cannot be fixed
+     backwards.
+
+     THE CURE: the FIELD declares that it is money. The default is PLAIN, on
+     purpose — a count shown plain is correct, a count shown in pounds is
+     nonsense — so a new field whose flag is forgotten renders PLAIN, which is
+     the safe failure. Defaulting to money is exactly what produced this bug.
+
+     🔴 NEVER key on field NAMES: two modules could each hold a field called
+     `outstanding` meaning different things, and name-keying is how a check
+     silently stops matching.
+
+     🔴 ثلاث حالات، لا اثنتان. ولو كان الوسم منطقياً (نعم/لا) لما استطاع
+     التعبير عن «نسبة الاكتمال»، ولانتهينا بنصف إصلاح يمرّ لأن الفحص اخضرّ:
+     نسبةٌ تُعرض رقماً عارياً «٣٨» أفضل من «٣٨ ج.م» وما زالت **غير صحيحة**.
+     · calcAs:'money'   → نقود، كما كان بالضبط          (٣ حقول)
+     · calcAs:'percent' → نسبة مئوية «٣٨٪»               (حقل واحد)
+     · بلا وسم          → رقم عادي — وهو الافتراض الآمن  (٤ حقول)
+
+     🔴 لا نُعيد التوجيه إلى `origDisplay` للحقول غير النقدية: `ui.js:199-200`
+     يعالج `case 'calc'` **بنفس طريقة النقود**، فالرجوع إليه لا يغيّر شيئاً.
+     أوّل نسخة من هذا الإصلاح فعلت ذلك بالضبط و**لم تكن تفعل شيئاً على
+     الإطلاق** — أمسكتُها بقراءة ui.js قبل تشغيل أي فحص.
+
+     ولا نكتب مُنسِّقاً جديداً: `I18N.money(v, false)` (i18n.js:315-317) يُعيد
+     **نفس الرقم بنفس الفواصل ونفس المنازل، بلا كلمة العملة**. فالشكل لا
+     يتغيّر حرفاً واحداً، وتسقط العملة وحدها.
+
+     🔴 THREE states, not two. A boolean flag could not express «نسبة
+     الاكتمال», and we would have shipped a half-fix that passes because the
+     test went green: a percentage rendered bare as «38» is better than
+     «38 ج.م» and is STILL NOT RIGHT.
+     · calcAs:'money'   → money, exactly as before        (3 fields)
+     · calcAs:'percent' → a percentage, «38%»             (1 field)
+     · unflagged        → a plain number — the SAFE default (4 fields)
+
+     🔴 We do NOT delegate non-money calc fields to `origDisplay`:
+     `ui.js:199-200` handles `case 'calc'` AS MONEY TOO, so falling back
+     changes nothing. THE FIRST VERSION OF THIS FIX DID EXACTLY THAT AND DID
+     NOTHING AT ALL — caught by reading ui.js before running any check.
+
+     And no new formatter is written: `I18N.money(v, false)` (i18n.js:315-317)
+     returns the SAME number, same separators, same decimals, with no currency
+     word. The format is untouched; only the currency goes.
+
+     نقود · money:   instalmentAmount · outstanding · lineTotal
+     نسبة · percent: completeness
+     عادي · plain:   presentCount · absentCount · workerCount · missingCount */
   UI.displayValue = function (f, rec) {
     if (!isFnFormula(f)) return origDisplay.apply(UI, arguments);
-    return '<span class="money">' + I18N.money(UI.computeValue(f, rec)) + '</span>';
+    var v = UI.computeValue(f, rec);
+    if (f.calcAs === 'money') return '<span class="money">' + I18N.money(v) + '</span>';
+    /* الصيغة تُعيد ٠..١٠٠ بالفعل (Math.round(have/need*100))، فلا ضرب هنا.
+       The formula already returns 0..100, so no multiplication here. */
+    if (f.calcAs === 'percent') return '<span class="num">' + I18N.pct(v, 0) + '</span>';
+    /* 🔴 `I18N.num(v)` وليس `I18N.money(v, false)`. أوّل نسخة استعملت الثانية
+       فطبعت «عدد العمال ٣٫٠٠» — بلا عملة، نعم، لكن **عدّاداً بمنزلتين
+       عشريتين**. أزال ذلك «ج.م» وترك الحقل غير صحيح، وهو نصف الإصلاح الذي
+       يمرّ لأن الفحص اخضرّ. `num` افتراضُه صفر منازل (i18n.js:312) فيعطي «٣».
+       ⚠️ وهو **يُقرِّب**: `num(2.5)` = «٣». الحقول الأربعة الحالية أعداد
+       صحيحة (حاضرون · غائبون · عمّال · مستندات ناقصة)، فالتقريب لا يمسّها.
+       أيّ حقل مستقبليّ يحتاج كسوراً **يجب أن يعلن نفسه**.
+       🔴 `I18N.num(v)`, NOT `I18N.money(v, false)`. The first version used the
+       latter and printed «عدد العمال 3.00» — no currency, true, but A COUNT
+       WITH TWO DECIMAL PLACES. It removed «ج.م» and left the field still
+       wrong: the half-fix that ships because the test went green. `num`
+       defaults to zero decimals (i18n.js:312), giving «3».
+       ⚠️ It ROUNDS: `num(2.5)` = «3». All four current fields are whole
+       counts (present · absent · workers · missing documents), so rounding
+       cannot touch them. Any future field needing decimals MUST declare
+       itself rather than rely on this default. */
+    return '<span class="num">' + I18N.num(v) + '</span>';
   };
 
   /* ═══════════════════════════════════════════════════════════════════

@@ -25,6 +25,51 @@
       { upTo: Infinity, roles: ['gm', 'admin'] }
     ],
 
+    /* ١-ب · أدوار تعتمد **وحدة بعينها** فوق الشرائح أعلاه
+       ═══════════════════════════════════════════════════════════════════
+       🔴 لماذا وُجد هذا الجدول أصلاً — عطل شُحن في ٢ سبتمبر ولم يعمل يوماً:
+       أعطينا `project_manager` حقّ اعتماد «أذون الصرف» في auth.js (الطبقة
+       الأولى) وشحنّاه، لكن الشرائح أعلاه **module-agnostic**: تُرجع الأدوار
+       بالمبلغ وحده. و`project_manager` ليس في أيّ شريحة. فكان مدير الموقع
+       يضغط «اعتماد» على إذن صرف بأي قيمة أكبر من صفر ويُرفض:
+           «قيمة هذا المستند ٥٠٠ تتجاوز حدّ اعتمادك…»
+       طوال خمسة أيام، وكلّنا نظنّ الأمر يعمل.
+
+       🔴 ولماذا لم تمسكه بوّابتنا: **فحصُنا استعمل مبلغ صفر.** و`:280`
+       أدناه هو `if (amt > 0)` — فالصفر يتخطّى الفحص كلّه ويخضرّ على الكود
+       المعطوب. **الأداة وافقت العطل.** فصار شرطاً دائماً: أيّ تجربة اعتماد
+       تستعمل مبلغاً **غير صفريّ**.
+
+       🔴 ولماذا جدولٌ منفصل بدل توسيع الشريحة: الشرائح مشتركة بين كل
+       الوحدات (`requiredRolesFor` لا تعرف الوحدة، و`inspector.js:215`
+       يقرأ الحدّ نفسه). فتوسيعُها كان سيمنح `project_manager` اعتماد **كل**
+       مستند تحت ١٠٠٬٠٠٠ في المشروع كلّه — منح سلطة مالية في مكان لم يطلبه
+       أحد، وهو **أسوأ من العطل**. هذا الجدول مفتاحه مُعرّف الوحدة، فلا
+       تتحرّك أيّ وحدة أخرى حرفاً واحداً.
+
+       والحدّ الأعلى يبقى كما هو: فوق ١٠٠٬٠٠٠ لا يعتمد إلّا gm/admin.
+
+       🔴 WHY THIS TABLE EXISTS — a fault shipped 2 Sept that NEVER worked:
+       `project_manager` was granted approval of stock issues in auth.js
+       (layer 1) and shipped, but the bands above are MODULE-AGNOSTIC — they
+       return roles by AMOUNT alone, and `project_manager` is in neither band.
+       So the site manager pressed «اعتماد» on any issue worth more than zero
+       and was refused, for five days, while we all believed it worked.
+       🔴 WHY OUR GATE MISSED IT: the probe used amount ZERO, and `:280` is
+       `if (amt > 0)` — so zero skips the check entirely and goes GREEN on the
+       broken path. THE INSTRUMENT AGREED WITH THE FAULT. Standing condition
+       from now on: every approval trial uses a NON-ZERO amount.
+       🔴 WHY A SEPARATE TABLE INSTEAD OF WIDENING THE BAND: the bands are
+       shared by every module (`requiredRolesFor` does not know the module,
+       and `inspector.js:215` reads the same threshold). Widening would grant
+       `project_manager` approval of EVERY document under 100,000 across the
+       whole portal — money authority nobody asked for, WORSE THAN THE BUG.
+       This table is keyed by module id, so no other module moves one letter.
+       The upper band is untouched: above 100,000 stays gm/admin.           */
+    moduleApprovers: {
+      stockIssues: { upTo: 100000, roles: ['project_manager'] }
+    },
+
     /* ٢ · الفترات المالية المقفلة — لا يُقبل مستند بتاريخ قبل هذا اليوم
        اتركها '' لتعطيل القفل. مثال: '2026-01-01'                       */
     periodLockedBefore: '',
@@ -56,12 +101,26 @@
   function money(v) { return I18N.money(v); }
 
   /* الدور المطلوب لاعتماد مبلغ معيّن */
-  function requiredRolesFor(amount) {
+  /* moduleId اختياريّ — النداء بوسيط واحد يُعطي سلوك اليوم حرفاً بحرف، فأيّ
+     مستدعٍ خارجيّ قائم لا يتأثّر. ولا نعدّل المصفوفة الأصلية أبداً:
+     `concat` تُنشئ مصفوفة جديدة، فـ`SETTINGS.approvalLimits` تبقى كما هي —
+     لو دفعنا داخلها لتراكمت الأدوار مع كل نداء وتسرّبت إلى كل الوحدات.
+     moduleId is OPTIONAL — calling with one argument gives today's behaviour
+     letter for letter, so any existing external caller is unaffected. And the
+     original array is NEVER mutated: `concat` builds a new one, so
+     `SETTINGS.approvalLimits` stays intact. Pushing into it would accumulate
+     roles on every call and leak them into every module. */
+  function requiredRolesFor(amount, moduleId) {
     var a = Math.abs(Number(amount) || 0);
+    var base = SETTINGS.approvalLimits[SETTINGS.approvalLimits.length - 1].roles;
     for (var i = 0; i < SETTINGS.approvalLimits.length; i++) {
-      if (a <= SETTINGS.approvalLimits[i].upTo) return SETTINGS.approvalLimits[i].roles;
+      if (a <= SETTINGS.approvalLimits[i].upTo) { base = SETTINGS.approvalLimits[i].roles; break; }
     }
-    return SETTINGS.approvalLimits[SETTINGS.approvalLimits.length - 1].roles;
+    var extra = moduleId && SETTINGS.moduleApprovers && SETTINGS.moduleApprovers[moduleId];
+    if (extra && a <= extra.upTo) {
+      return base.concat(extra.roles.filter(function (r) { return base.indexOf(r) === -1; }));
+    }
+    return base;
   }
 
   function amountOf(mod, rec) {
@@ -278,7 +337,10 @@
     if (action === 'approve' && mod.amountField) {
       var amt = amountOf(mod, rec);
       if (amt > 0) {
-        var allowed = requiredRolesFor(amt);
+        /* تمرير مُعرّف الوحدة — بدونه تعود الشريحة المشتركة وحدها ويبقى
+           العطل قائماً. Pass the module id; without it only the shared band
+           is consulted and the fault remains. */
+        var allowed = requiredRolesFor(amt, mod && mod.id);
         if (allowed.indexOf(u.role) === -1) {
           errors.push(L2({
             ar: 'قيمة هذا المستند ' + money(amt) + ' تتجاوز حدّ اعتمادك. ' +
@@ -304,8 +366,12 @@
     var amt = amountOf(mod, rec);
     if (!amt) return null;
     return L2({
-      ar: 'حسب قيمة المستند (' + money(amt) + ') يعتمده: ' + roleLabels(requiredRolesFor(amt)),
-      en: 'Given its value (' + money(amt) + ') this is approved by: ' + roleLabels(requiredRolesFor(amt))
+      /* الشاشة يجب أن تقول الحقيقة نفسها التي تفرضها البوّابة — لو ذكرت
+         أدواراً أقلّ لظنّ مدير الموقع أنه غير مخوَّل وهو مخوَّل.
+         The screen must state the SAME truth the gate enforces; naming fewer
+         roles would tell the site manager he is not allowed when he is. */
+      ar: 'حسب قيمة المستند (' + money(amt) + ') يعتمده: ' + roleLabels(requiredRolesFor(amt, mod && mod.id)),
+      en: 'Given its value (' + money(amt) + ') this is approved by: ' + roleLabels(requiredRolesFor(amt, mod && mod.id))
     });
   }
 
