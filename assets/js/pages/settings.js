@@ -472,7 +472,37 @@
 
     h += '<div class="form-section mt-2"><div class="form-section-title">' +
       L({ ar: 'حصر المستخدم على مشروعات محددة', en: 'Restrict user to specific projects' }) + '</div>' +
-      '<p class="field-hint mb-2">' + L({ ar: 'اترك الكل بدون تحديد ليرى جميع المشروعات.', en: 'Leave all unchecked to allow every project.' }) + '</p>';
+      /* ⚠️ تصحيح نصّ فقط — ١٠ سبتمبر ٢٠٢٦. لا تُغيَّر أي صلاحية هنا.
+         العبارة القديمة كانت: «اترك الكل بدون تحديد ليرى جميع المشروعات.»
+         وهي عكس ما يفعله الكود اليوم. auth.js:993-995 يقول ذلك بنفسه:
+         «قبل التعديل: ترك خانات المشاريع فارغة كان يعني كل المشاريع. الآن
+         يعني لا شيء. الوصول لكل المشاريع يحتاج تفعيلاً صريحاً.» و
+         Auth.scopeRows (auth.js:1018-1020) يفشل مغلقاً: بلا مشروعات محدَّدة
+         لا يرى الشخص إلا السجلات غير المرتبطة بأي مشروع.
+         والاستثناء: GLOBAL_PROJECT_ROLES (auth.js:997) — admin, gm, auditor,
+         finance_manager, hr, hr_manager, legal — هؤلاء يرون كل المشاريع
+         بحكم دورهم، فالعبارة القديمة كانت صحيحة لهم وحدهم.
+         العطل الذي يمنعه هذا النص: من يُنشئ حساباً يقرأ العبارة، يترك
+         الخانات فارغة ظنّاً أنه يمنح الوصول الكامل، فيدخل الشخص الجديد
+         فيجد شاشاته فارغة بلا أي رسالة خطأ.
+
+         ⚠️ WORDING FIX ONLY — 10 September 2026. No permission is changed.
+         The old sentence said "Leave all unchecked to allow every project",
+         which is the opposite of what the code does. auth.js:993-995 says so
+         itself: leaving the boxes empty used to mean every project and NOW
+         MEANS NOTHING; full access needs explicit enabling. Auth.scopeRows
+         (auth.js:1018-1020) fails closed — with no projects ticked a person
+         sees only records tied to no project at all. The exception is
+         GLOBAL_PROJECT_ROLES (auth.js:997) — admin, gm, auditor,
+         finance_manager, hr, hr_manager, legal — who see every project by
+         virtue of their role, and for whom the old sentence was true.
+         THE BUG THIS TEXT PREVENTS: whoever creates an account reads the old
+         line, leaves the boxes empty believing that grants full access, and
+         the new person logs in to empty screens with no error at all. */
+      '<p class="field-hint mb-2">' + L({
+        ar: 'حدِّد المشروعات التي يعمل عليها هذا الشخص. المديرون وأصحاب الصلاحية على مستوى الشركة يرون كل المشروعات دائماً؛ أما بقية الأدوار فإن تركت الخانات فارغة لن ترَ إلا السجلات غير المرتبطة بمشروع.',
+        en: 'Tick the projects this person works on. Managers and company-wide roles always see every project; for every other role, leaving the boxes empty means they see only records not tied to any project.'
+      }) + '</p>';
     projects.forEach(function (p) {
       var on = (u.projects || []).indexOf(p.id) !== -1;
       h += '<label class="check-row"><input type="checkbox" data-up="' + UI.attr(p.id) + '"' + (on ? ' checked' : '') + '> ' + UI.esc(p.name) + '</label>';
