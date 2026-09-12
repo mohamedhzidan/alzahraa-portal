@@ -171,15 +171,57 @@
   }
 
   /* تواريخ إكسل مخزّنة كأرقام. اليوم ١ = ١٩٠٠/١/١، مع خطأ الكبيسة الشهير
-     الذي يجعل نقطة الصفر ١٨٩٩/١٢/٣٠. Excel stores dates as numbers. */
+     الذي يجعل نقطة الصفر ١٨٩٩/١٢/٣٠. Excel stores dates as numbers.
+     🔴 ١١ سبتمبر ٢٠٢٦ (وكيل الأخطاء، إكسل الموارد البشرية): الجزء الكسري هو
+     الوقت داخل اليوم. Math.round كان يدفع «2026-09-06 14:24» (46271.6) إلى
+     ٧ سبتمبر — حضورٌ يهبط في اليوم الخطأ بصمت. Math.floor يُبقي اليوم كما كُتب.
+     🔴 11 Sept 2026 (bug-reporter, HR Excel): the fraction is the time of
+     day. Math.round pushed «2026-09-06 14:24» (46271.6) to 7 Sept — an
+     attendance landing on the wrong day, silently. Math.floor keeps the day
+     exactly as typed. */
   function excelDate(serial) {
-    var ms = Date.UTC(1899, 11, 30) + Math.round(serial) * 86400000;
+    var ms = Date.UTC(1899, 11, 30) + Math.floor(serial) * 86400000;
     var d = new Date(ms);
     if (isNaN(d.getTime())) return null;
     function two(x) { return (x < 10 ? '0' : '') + x; }
     return d.getUTCFullYear() + '-' + two(d.getUTCMonth() + 1) + '-' + two(d.getUTCDate());
   }
+  /* خلية وقت وحده (08:00 = 0.3333، أو 46271.3333 بتنسيق وقت فقط) → «08:00».
+     كانت تمرّ عبر excelDate فتخرج «1899-12-30» — تاريخاً لا وقتاً. الثواني تُكتب
+     فقط إن لم تكن صفراً. الجزء الأكبر من يوم (مدد [h]:mm) يُطوى داخل اليوم.
+     A TIME-ONLY cell (08:00 = 0.3333, or 46271.3333 in a time-only format)
+     → "08:00". It used to go through excelDate and come out as "1899-12-30"
+     — a date, not a time. Seconds are written only when they are not zero.
+     Anything beyond one day (elapsed [h]:mm) folds back into the day. */
+  function excelTime(serial) {
+    var frac = serial - Math.floor(serial);
+    var secs = Math.round(frac * 86400) % 86400;
+    var h = Math.floor(secs / 3600), m = Math.floor((secs % 3600) / 60), s = secs % 60;
+    function two(x) { return (x < 10 ? '0' : '') + x; }
+    return two(h) + ':' + two(m) + (s ? ':' + two(s) : '');
+  }
+  /* نوع تنسيق الأرقام: «تاريخ» إن ذكر يوماً أو سنة (d/y)، «وقت» إن ذكر ساعة أو
+     ثانية (h/s) بلا يوم ولا سنة — أو مدة بين قوسين [h] [m] [s]، وإلا «m» وحدها
+     شهرٌ (تاريخ)، وغير ذلك ليس تاريخاً. ما بين [] و"" وما بعد \ يُحذف أولاً
+     (ألوان، شروط، لغات، نصوص حرفية). كان كل ما فيه d/m/y/h/s «تاريخاً».
+     Kind of a number format: 'date' when it names a day or year (d/y);
+     'time' when it names hours or seconds (h/s) with no day and no year, or
+     an elapsed [h]/[m]/[s]; a lone m is a month (date); else not a date.
+     Brackets, quoted text and backslash-escapes are stripped first (colours,
+     conditions, locales, literal text). Everything with d/m/y/h/s used to be
+     a date. */
+  function numFmtKind(code) {
+    var raw = String(code || '');
+    if (/\[(h+|m+|s+)\]/i.test(raw)) return 'time';
+    var c = raw.replace(/\[[^\]]*\]|"[^"]*"|\\./g, '');
+    if (/[dy]/i.test(c)) return 'date';
+    if (/[hs]/i.test(c)) return 'time';
+    if (/m/i.test(c)) return 'date';
+    return null;
+  }
   global.__azExcelDate = excelDate;
+  global.__azExcelTime = excelTime;
+  global.__azNumFmtKind = numFmtKind;
 
   function xmlDoc(text) {
     var d = new DOMParser().parseFromString(text, 'application/xml');
@@ -232,24 +274,25 @@
 
         /* أي أنماط تعني «تاريخ»؟ نقرأها لنحوّل ٤٥٩٠٠ إلى ٢٠٢٥-٧-٢١
            بدل أن تدخل قاعدة البيانات كرقم بلا معنى. */
-        var dateStyle = {};
+        var dateStyle = {}, timeStyle = {};
         if (parts[3]) {
           try {
             var st = xmlDoc(parts[3]);
-            var custom = {};
+            var custom = {};                       /* numFmtId → 'date' | 'time' */
             var nf = st.getElementsByTagName('numFmt');
             for (var f = 0; f < nf.length; f++) {
-              var code = nf[f].getAttribute('formatCode') || '';
-              if (/[dmyhs]/i.test(code.replace(/\[[^\]]*\]|"[^"]*"/g, ''))) {
-                custom[nf[f].getAttribute('numFmtId')] = true;
-              }
+              var kind = numFmtKind(nf[f].getAttribute('formatCode') || '');
+              if (kind) custom[nf[f].getAttribute('numFmtId')] = kind;
             }
-            var BUILTIN = { 14:1,15:1,16:1,17:1,18:1,19:1,20:1,21:1,22:1,45:1,46:1,47:1 };
+            /* الأنماط المدمجة: ١٤-١٧ و٢٢ تواريخ؛ ١٨-٢١ و٤٥-٤٧ أوقات وحدها (كانت كلها «تاريخاً»)
+               built-ins: 14-17 and 22 are dates; 18-21 and 45-47 are TIME ONLY (all were "date") */
+            var BUILTIN = { 14:'date',15:'date',16:'date',17:'date',18:'time',19:'time',20:'time',21:'time',22:'date',45:'time',46:'time',47:'time' };
             var xfs = st.getElementsByTagName('cellXfs')[0];
             var list = xfs ? xfs.getElementsByTagName('xf') : [];
             for (var x = 0; x < list.length; x++) {
               var id = list[x].getAttribute('numFmtId');
-              if (BUILTIN[+id] || custom[id]) dateStyle[x] = true;
+              var k = BUILTIN[+id] || custom[id];
+              if (k === 'date') dateStyle[x] = true; else if (k === 'time') timeStyle[x] = true;
             }
           } catch (e) { /* dates simply stay numeric */ }
         }
@@ -277,6 +320,22 @@
               } else {
                 var vEl = cell.getElementsByTagName('v')[0];
                 var vTxt = vEl ? (vEl.textContent || '') : '';
+                /* 🔴 خلية معادلة بلا قيمة محسوبة (<f> بلا <v>): إكسل الحقيقي يكتب القيمة دائماً، لكن ملفاً
+                   من برنامج آخر قد لا يكتبها — فكانت تُقرأ فارغة: صفٌّ جديد يخلو من القيمة، وصفٌّ موجود يبقى
+                   على قديمه، ولا تنبيه. نرفض الملف كله بسبب واضح يسمّي العمود — الرفض يصل من نفس الباب إلى
+                   كل شاشة تستورد (مراجعة الموارد البشرية، الكشوف، الاستيراد المعتاد، أوراق المكتب الفني).
+                   (المراجعة المستقلة، ١١ سبتمبر ٢٠٢٦، الشرط C6.)
+                   🔴 A formula cell with NO cached value (<f> without <v>): real Excel always writes the value,
+                   a file from another program may not — it used to read as BLANK: a new row got nothing, an
+                   existing row kept its old value, no warning. The whole file is refused with a plain reason
+                   naming the column — the refusal reaches every importing screen through the same door (the
+                   HR review, the line sheets, the ordinary Import, the technical-office sheets).
+                   (Independent review, 11 Sept 2026, condition C6.) */
+                if (!vEl && cell.getElementsByTagName('f').length) {
+                  var colRef = (ref.match(/^[A-Z]+/) || [''])[0], rowRef = (ref.match(/\d+$/) || [''])[0];
+                  throw new Error('العمود ' + colRef + ' (الصف ' + rowRef + ') معادلة لم تُحسب — افتح الملف في إكسل واحفظه ثم أعد الاستيراد · ' +
+                                  'column ' + colRef + ' (row ' + rowRef + ') holds a formula that was never calculated — open the file in Excel, save it, then import again');
+                }
                 if (type === 's') val = shared[+vTxt] != null ? shared[+vTxt] : '';
                 else if (type === 'b') val = vTxt === '1' ? 'true' : 'false';
                 else if (type === 'e') val = '';                    /* #REF! etc → empty */
@@ -284,6 +343,8 @@
                   var styleId = cell.getAttribute('s');
                   if (styleId != null && dateStyle[+styleId] && vTxt !== '' && !isNaN(+vTxt)) {
                     val = excelDate(+vTxt) || vTxt;
+                  } else if (styleId != null && timeStyle[+styleId] && vTxt !== '' && !isNaN(+vTxt)) {
+                    val = excelTime(+vTxt);                          /* 0.3333 → «08:00», never «1899-12-30» */
                   } else val = vTxt;
                 }
               }

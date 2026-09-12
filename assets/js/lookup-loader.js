@@ -166,10 +166,29 @@
        false only when the request never got there (dead network). That
        distinction is what decides retrying: a refusal is a final answer
        and must not loop; a dead network is not an answer at all. */
+    /* خريطة مصدر بديلة لجداول معيّنة فقط — تحويل employees إلى عرض
+       الأسماء portal_employee_names (ملف 67)، لا الجدول الأساسي. قِسناها:
+       سياسة قراءة على جدول employees نفسه لهذه الأدوار كانت ستسمح بـ
+       select "basicSalary" from employees عبر الواجهة البرمجية مباشرة —
+       تسريب أجور يمنعه حكم المدير رقم ٦. العرض يُخرج id/code/name/jobTitle/
+       status فقط، بنفس أسلوب store.js:73 لقراءة portal_employees بدل
+       employees في شاشة الموظفين. جداول أخرى غير مذكورة هنا تبقى كما كانت،
+       تُقرأ من جدولها الأساسي دون أي تغيير.
+       A source substitution map for specific tables only — routes employees
+       to the names view portal_employee_names (file 67), never the base
+       table. Measured: a read policy on the employees table itself for
+       these roles would let `select "basicSalary" from employees` succeed
+       straight over the REST API — the salary leak ruling 6 forbids. The
+       view returns id/code/name/jobTitle/status only, the same pattern
+       store.js:73 already uses to read portal_employees instead of
+       employees on the staff screen. Every other table is untouched here
+       and keeps reading its own base table exactly as before. */
+    var SOURCE_TABLE = { employees: 'portal_employee_names' };
+
     async function fetchOne(client, mod) {
       var cols = selectCols(mod);
       try {
-        var res = await client.from(mod.table).select(cols.join(','));
+        var res = await client.from(SOURCE_TABLE[mod.table] || mod.table).select(cols.join(','));
         if (res.error) {
           /* عمود مفقود فعلياً أو رفض من قاعدة البيانات — لا نكرر
              المحاولة على هذا الجدول، ونترك القائمة فارغة كما كانت قبل

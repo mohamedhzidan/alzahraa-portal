@@ -132,6 +132,37 @@
   WRITE_SCREENS.forEach(function (t) { perms[t] = ALL; });
   READ_ONLY_SCREENS.forEach(function (t) { perms[t] = VIEW; });
 
+  /* حكم المالك B1 = a (١٠ سبتمبر ٢٠٢٦، DECISIONS.md) — حساب التجربة يقرأ فقط
+     القوائم الست المشتركة. هذه الجداول بلا عمود site، فسور الموقع (الملفان ٢٠
+     و٥٦) لا يحجب ما يكتبه فيها عن المشتريات والمخازن (مُثبَت:
+     TESTS/sample-data-65-production-paste-trial.js قسم F). الطبقة الثانية هي
+     الملف 70-ROBOT-READ-ONLY-SHARED-LISTS.sql؛ هذه هي الطبقة الأولى. تُطبَّق
+     بعد القائمتَين أعلاه فتغلب — نفس ترتيب القاعدة (الملف ٧٠ يعمل بعد ٢٠).
+     Owner ruling B1 = a (10 Sept 2026, DECISIONS.md): the test account is
+     READ-ONLY on the six shared lists. These tables carry no site column, so
+     the site fence (files 20 + 56) cannot hide what it writes there from
+     procurement and stores (proven: TESTS/sample-data-65-production-paste-trial.js
+     section F). Layer 2 is 70-ROBOT-READ-ONLY-SHARED-LISTS.sql; this is layer 1.
+     Applied AFTER the two lists above so it wins — the same order as the
+     database (file 70 runs after file 20).
+
+     🔴 إضافة ١١ سبتمبر ٢٠٢٦ (TRACK ROBOT-3) — أربعة جداول أخرى (subcontractors،
+     subContracts، legalDocs، itAssets) تحمل نفس عطل غياب عمود site بالضبط،
+     مُثبَت بمسح المُبلِّغ عن الأعطال لكل جدول يمنحه الملف ٢٠، ومطابق لتوسيع
+     الملف ٧٠ من ست جداول إلى عشرة في نفس الليلة. حكم صاحب العمل ١٤ يشملها
+     بنفس منطق B1. قرار TRACK ROBOT-3، قابل للنقض من صاحب العمل.
+     🔴 ADDED 11 Sept 2026 (TRACK ROBOT-3) — four more tables (subcontractors,
+     subContracts, legalDocs, itAssets) carry the exact same missing-site-column
+     disease, proven by the bug-reporter's sweep of every table file 20 grants,
+     and matched by file 70's own widening from six tables to ten the same
+     night. Owner ruling 14 covers them by the same reasoning as B1. TRACK
+     ROBOT-3's decision, vetoable by the owner. */
+  var SHARED_LISTS_READ_ONLY = [
+    'suppliers', 'customers', 'items', 'costItems', 'drawings', 'clientContracts',
+    'subcontractors', 'subContracts', 'legalDocs', 'itAssets'
+  ];
+  SHARED_LISTS_READ_ONLY.forEach(function (t) { perms[t] = VIEW; });
+
   Auth.ROLES.robot = {
     label: { ar: 'حساب تجربة آلي', en: 'Automated test account' },
     desc: { ar: 'حساب اختبار مسوَّر بالكامل داخل قاعدة البيانات — يقرأ ويكتب سجلاته الخاصة فقط، مختومة بموقع وهمي، ولا يرى بيانات الموظفين أو الرواتب أو المستخدمين إطلاقاً',
@@ -148,6 +179,7 @@
   };
 
   console.info('robot-role.js: role "robot" registered in the browser — ' +
-               WRITE_SCREENS.length + ' write screens, ' + READ_ONLY_SCREENS.length +
-               ' read-only screens, human tables absent on purpose. auth.js itself is unchanged.');
+               (WRITE_SCREENS.length - SHARED_LISTS_READ_ONLY.length) + ' write screens, ' +
+               (READ_ONLY_SCREENS.length + SHARED_LISTS_READ_ONLY.length) +
+               ' read-only screens (ten shared lists read-only — six per owner ruling B1, four per ruling 14/TRACK ROBOT-3, file 70), human tables absent on purpose. auth.js itself is unchanged.');
 })(window);

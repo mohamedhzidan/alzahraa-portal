@@ -229,8 +229,20 @@
         clientContracts: ['view', 'delete'],
         subContracts:    ['view', 'delete'],
         subcontractors: ['view'],
-        /* بيانات الموظفين للاعتماد فقط — بلا شاشة الملفات الشخصية */
-        employees: ['lookup'],
+        /* حكم ١٥، ١٠ سبتمبر ٢٠٢٦: مدير مالي بموقع يرى سجل موظفي موقعه
+           فقط (كل التفاصيل)، وحسانين — في مكتب مُجمِّع — يرى كل
+           المواقع. السياج نفسه (من يرى أي موقع) في قاعدة البيانات:
+           62-STAFF-LIST-MANAGERS-ONLY.sql. 'view' هنا هو ما يُظهر
+           شاشة «الموظفون» في القائمة أصلاً (canSee يشترط 'view'،
+           الدالة canSee أدناه)؛ 'lookup' كانت تُخفيها عنه تماماً.
+           Ruling 15, 10 Sept 2026: a site finance manager sees their
+           OWN site's staff record only (full detail), and حسانين — at
+           a consolidating office — sees every site. WHICH site is
+           enforced in the database: 62-STAFF-LIST-MANAGERS-ONLY.sql.
+           'view' here is what puts "الموظفون" on the menu at all
+           (the function canSee below requires 'view'); 'lookup' hid the
+           screen from him entirely. */
+        employees: ['view'],
         ncr: ['view'], siteInstructions: ['view']
       }
     },

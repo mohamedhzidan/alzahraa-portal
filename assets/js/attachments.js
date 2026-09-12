@@ -483,28 +483,64 @@
         We wrap EntityPage.openDetail. Every screen gains attachments
         without a single line changing in entity.js or schema.js.
      ═══════════════════════════════════════════════════════════════════ */
+  /* 🔴 ١١ سبتمبر ٢٠٢٦ — اللوحة تهبط في النافذة التي صُنعت لها فقط.
+     كانت inject تنتظر قائمة الملفّات من الخادم ثمّ تُلحق اللوحة بـ #modalBody دون أن تسأل: هل ما زالت
+     النافذة نفسها معروضة؟ و#modalBody عنصرٌ واحد لكلّ النوافذ (ui.js:98 يبدّل محتواه فقط). فعلى خطٍّ
+     بطيء: تفتح المستند (أ) ثمّ (ب) قبل وصول القائمة، فتهبط لوحة (أ) داخل نافذة (ب)، وأيّ ملفّ يُختار منها
+     يُرفع إلى (أ) — ملفٌّ في السجلّ الخطأ. وجده «صائد الأخطاء» (BUG-REPORTER-SAVING-2.md، البند ١).
+     العلاج: عدّاد نوافذ يزيد مع كلّ UI.modal، تُحفظ قيمته لحظة فتح السجلّ، ولا تُلحَق اللوحة بعد الانتظار
+     إلّا إن لم تُفتح نافذةٌ أخرى ولم تُغلق. ولماذا نعدّل هذا الملفّ ولا نلفّه: inject داخلية (closure)،
+     لا تُصدَّر، فلا طريق آخر — والتعديل أسطرٌ قليلة تُقرأ في مكانها.
+     🔴 11 Sept 2026 — the panel lands ONLY in the window it was made for.
+     inject waited for the server's file list and then appended the panel to #modalBody without asking
+     whether the same window was still showing. #modalBody is one element for every window (ui.js:98
+     swaps only its contents). So on a slow line: open record A, then B before the list arrives, and A's
+     panel lands inside B's window — any file chosen there uploads to A: a file on the wrong record.
+     Found by the bug-reporter (BUG-REPORTER-SAVING-2.md, item 1).
+     Cure: a window counter bumped on every UI.modal, remembered at the moment the record opens; after
+     the wait the panel is appended only if no other window opened and this one did not close.
+     Why edit this file rather than wrap it: inject is closure-private and not exported — there is no
+     other seam — and the change is a few lines readable in place. */
+  var winGen = 0;
+  function trackWindows() {
+    if (!global.UI || typeof UI.modal !== 'function' || UI.__azAttachWinGen) return;
+    var realModal = UI.modal;
+    UI.modal = function () { winGen++; return realModal.apply(this, arguments); };
+    UI.__azAttachWinGen = true;
+  }
+  function sameWindow(gen) {
+    if (gen !== winGen) return false;                                   /* نافذة أخرى فُتحت · another window opened */
+    var host = document.getElementById('modalHost');
+    return !!(host && !host.hidden);                                     /* ولم تُغلق · and it did not close */
+  }
+
   function install() {
     if (!global.EntityPage || EntityPage.__attachInstalled) return;
+    trackWindows();
     var orig = EntityPage.openDetail;
 
     EntityPage.openDetail = function (moduleId, id) {
       orig.apply(EntityPage, arguments);
-      setTimeout(function () { inject(moduleId, id); }, 120);
+      var gen = winGen;                                                   /* النافذة التي رسمها هذا الفتح للتوّ */
+      setTimeout(function () { inject(moduleId, id, gen); }, 120);
     };
     EntityPage.__attachInstalled = true;
 
-    async function inject(moduleId, id) {
+    async function inject(moduleId, id, gen) {
       var body = document.getElementById('modalBody');
       if (!body || document.getElementById('azAttachSection')) return;
+      if (!sameWindow(gen)) return;
       var canEdit = global.Auth && (Auth.can(moduleId, 'edit') || Auth.can(moduleId, 'create'));
       var html = await panelHTML(moduleId, id, canEdit);
+      /* 🔴 السؤال مرّةً ثانية بعد الانتظار — هنا كان العطل · ask again AFTER the wait — this is where the fault was */
+      if (!sameWindow(gen) || document.getElementById('azAttachSection')) return;
       var div = document.createElement('div');
       div.innerHTML = html;
       body.appendChild(div.firstChild);
       wirePanel(body, moduleId, id, function () {
         var old = document.getElementById('azAttachSection');
         if (old) old.remove();
-        inject(moduleId, id);
+        inject(moduleId, id, gen);                                        /* نفس النافذة فقط · the same window only */
       });
     }
   }

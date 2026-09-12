@@ -19,10 +19,29 @@
 
     /* ١ · حدود الاعتماد حسب قيمة المستند (بالجنيه)
        من يستطيع الاعتماد النهائي عند كل شريحة.
-       الأدوار: project_manager · finance_manager · gm · admin          */
+       الأدوار الممكنة: project_manager · finance_manager · gm
+
+       🔴 ١٠ سبتمبر ٢٠٢٦ (TRACK ROBOT-2) · حُذف admin من الشريحتين.
+       القرار الدائم المسجَّل: «مسؤول النظام لا يعتمد أبداً — ضبطٌ نعم،
+       صلاحية مالية لا». وauth.js نفسه لا يعطي admin زرّ «اعتماد» على
+       المدفوعات. لكن هذه القائمة كانت تذكره، فكانت جملة الشاشة تقول للموظف
+       «… يعتمده: المدير المالي أو المدير العام أو مسؤول النظام» — فيُرسَل
+       إذن الدفع لمن لا يستطيع اعتماده أبداً. لم تكن ثغرة أمنية: هذا الفحص
+       يرفض فقط ولا يمنح، وauth.js كان يرفض admin قبله. الإصلاح يجعل الجملة
+       تقول الحقيقة ولا يغيّر من يعتمد فعلاً. المبالغ والأدوار الأخرى لم تُمسّ.
+       10 Sept 2026 (TRACK ROBOT-2) · 'admin' removed from both bands. The
+       recorded standing decision: "administrators never approve —
+       configuration yes, financial authority no". auth.js itself gives admin
+       no approve on payments. But this list still named it, so the screen
+       told staff "… approved by: the finance manager, the GM or the system
+       administrator" — and a payment could be sent to someone who can never
+       approve it. It was not a security hole: this check only REFUSES and
+       never grants, and auth.js already refused admin first. The fix makes
+       the sentence true without changing who actually approves. The amounts
+       and the other roles are untouched. Found by TRACK DESIGN-B-2 (§7). */
     approvalLimits: [
-      { upTo: 100000,  roles: ['finance_manager', 'gm', 'admin'] },
-      { upTo: Infinity, roles: ['gm', 'admin'] }
+      { upTo: 100000,  roles: ['finance_manager', 'gm'] },
+      { upTo: Infinity, roles: ['gm'] }
     ],
 
     /* ١-ب · أدوار تعتمد **وحدة بعينها** فوق الشرائح أعلاه

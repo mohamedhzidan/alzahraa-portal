@@ -151,6 +151,25 @@
     'assets/js/payroll-insurance.js',
     'assets/js/identity.js',
     'assets/js/workflow.js',
+    /* ١٠ سبتمبر (TRACK ROBOT-3) · workflow-route.js — بعد workflow.js مباشرة
+       وقبل workflow-policy.js حتماً: يرسل «إرسال» وكل إجراءات الدورة إلى الباب
+       الواحد az_transition_any_document (الملف ٧٢) بدل الدالة التي ترفض عشر
+       شاشات بـ«Forbidden». كل الأغلفة بعده تمرّ به بلا تعديل. الملفان ٦٩ ثم ٧٢ أولاً.
+       10 Sept (TRACK ROBOT-3) · workflow-route.js — right after workflow.js
+       and necessarily BEFORE workflow-policy.js: sends Send and every workflow
+       action to the one door az_transition_any_document (file 72) instead of
+       the function that refuses ten screens "Forbidden". Every later wrapper
+       passes through it unchanged. Files 69 then 72 must run first.
+       TESTS/workflow-route-trial.js. Deleting this line (and the file)
+       restores the previous route exactly.
+       ١١ سبتمبر: لو وصل الملف قبل تشغيل الملف ٧٢، يعود وحده إلى الطريق القديم
+       حين يقول الخادم إن الباب غير موجود (workflow-route.js:130-154) — فتبقى
+       «إرسال» على الشاشات العشر تردّ بكلمة «Forbidden» الإنجليزية حتى يُشغَّل ٧٢.
+       11 Sept: if this file arrives before file 72 has run, it falls back by
+       itself to the old route when the server says the door does not exist
+       (workflow-route.js:130-154) — so Send on the ten site screens keeps
+       answering the English word "Forbidden" until 72 runs. */
+    'assets/js/workflow-route.js',
     'assets/js/workflow-policy.js',
     /* 🔴 بعد workflow-policy.js حتماً. شاشات الاعتماد (طلبات فحص الأعمال،
        بطاقات الصبّة…) تكتب حالة السجل فعلاً لكن قائمتها لا تعرض عمود
@@ -196,6 +215,9 @@
        Makes function-style formulas actually compute — eight HR fields were
        reading zero. After ui.js, and before pages/entity.js. */
     'assets/js/calc-formulas.js',
+    /* P10 (v2.0.34): تُحسب خلايا المال في الصفحة من جديد — قاعدة أمان الموقع تمنع الطريقة القديمة فتقرأ 0.00
+       P10: the page's calculated money cells compute again — the site's own safety rule blocks the old way, so they read 0.00. */
+    'assets/js/calc-no-eval.js',
     /* الرقم القومي إجباري لكل عامل في كشف العمالة اليومية، ويظهر آخر ٤
        أرقام فقط في القوائم والطباعة — يحتاج Schema (لتثبيت lines.validate
        على dailyLabour) وUI.displayValue (اللفافة الثالثة من أربع، بعد
@@ -292,6 +314,27 @@
     'assets/js/pages/dashboard-render.js',
     'assets/js/pages/entity.js',
     'assets/js/pages/approvals.js',
+    /* حكم ١٩ (١٠ سبتمبر ٢٠٢٦) · صندوق الاعتمادات يحترم سياج المشروعات.
+       العطل: صندوق الاعتمادات عرض على مدير المشروع ٤ أذون صرف ليعتمدها،
+       بينما شاشة الأذون نفسها عرضت له ٠ — لأن workflow.js لا يطبّق سياج
+       المشروعات أبداً والشاشة تطبّقه. هذان الملفّان يلفّان Workflow.inbox
+       وWorkflow.actions وWorkflow.transition وApprovalsPage.render، فيجب
+       أن يأتيا بعد كل ملف يلفّها قبلهما (workflow-policy.js،
+       one-step-approval.js، first-signature.js) وبعد pages/approvals.js
+       الذي يعرّف ApprovalsPage. لا يُسنَد المستند لأحد، ولا تُمنح صلاحية.
+       حذف السطرين يعيد السلوك السابق حرفياً.
+       Ruling 19 (10 Sept 2026) · the approvals inbox respects the project
+       fence. The fault: the inbox offered a project manager 4 stock issues
+       to approve while that screen itself showed him 0 — workflow.js never
+       applies the project fence and the screen does. These two files wrap
+       Workflow.inbox / .actions / .transition and ApprovalsPage.render, so
+       they must load after every earlier wrapper of those (workflow-policy,
+       one-step-approval, first-signature) and after pages/approvals.js,
+       which defines ApprovalsPage. Nothing is assigned to anyone and no
+       right is granted. Deleting these two lines restores the old
+       behaviour exactly. */
+    'assets/js/inbox-project-fence.js',
+    'assets/js/unassigned-routing.js',
     'assets/js/pages/reports.js',
     'assets/js/pages/settings.js',
     /* الحقيقة النيّة عن أعمدة القاعدة الإجبارية — مُولَّدة من SQL الإنتاج
@@ -382,6 +425,22 @@
        here, placed near the other save-related files for readability. */
     'assets/js/refusal-explain.js',
     'assets/js/attachments.js',
+    /* 🔴 سبب مكتوب قبل حذف أي مرفق — يجب أن يُرفع مع
+       1-SUPABASE/63-PRIVATE-FILES-AND-DELETE-WITH-REASON.sql في نفس الجلسة:
+       ذلك الملف يجعل الخادم يرفض أي حذف بلا سبب، وattachments.js لا يرسل
+       سبباً إطلاقاً — فبدون هذا الملف لا يستطيع أحد حذف أي مرفق.
+       بعد attachments.js حتماً (ينادي Attachments.remove المُصدَّرة)، ولا يلفّ
+       EntityPage.openDetail إطلاقاً — يلتقط الضغطة على document في مرحلة
+       الالتقاط — فوجوده هنا لا يغيّر ترتيب اللوحات تحت المستند.
+       🔴 A written reason before any attachment is deleted — must be uploaded
+       in the same sitting as 1-SUPABASE/63-PRIVATE-FILES-AND-DELETE-WITH-
+       REASON.sql: that file makes the server refuse a delete with no reason,
+       and attachments.js never sends one — so without this file nobody can
+       delete an attachment at all. Necessarily after attachments.js (it calls
+       the exported Attachments.remove) and it wraps EntityPage.openDetail
+       nowhere — it catches the press on document in the capture phase — so
+       sitting here changes no panel's order under the document. (v2.0.34) */
+    'assets/js/attachment-delete-reason.js',
     /* كشف حساب الموظف — يلفّ EntityPage.openDetail مثل attachments.js
        تماماً، فيأتي بعده ليظهر الكشف تحت المرفقات لا فوقها.
        The employee statement wraps EntityPage.openDetail exactly as
@@ -475,6 +534,14 @@
        after import.js, because it rebinds the button import.js itself
        creates, rather than replacing its function. */
     'assets/js/import-documents.js',
+    /* HR Excel (10 Sept 2026): workbook writer, HR screen inventory, the one-window
+       review and the row-sheet import — AFTER import-documents.js (whose Import
+       button calls DataImport.preview) and BEFORE import-mapping-plus.js, so the
+       review's wrap sits INSIDE the mapping/headerless wraps. */
+    'assets/js/xlsx-writer.js',
+    'assets/js/hr-excel-screens.js',
+    'assets/js/hr-import-review.js',
+    'assets/js/hr-lines-import.js',
     /* ذاكرة الربط، عيّنات إضافية، تحذير الحقول المطلوبة وعلامات الثقة —
        بعد الملفّين معاً حتماً، لأنها تلفّ DataImport.preview وتقرأ نافذة
        الربط اليدوي التي قد يفتحها أيّ منهما.
@@ -490,6 +557,8 @@
        above, necessarily after import-mapping-plus.js so our wrap is the
        outermost and still calls every earlier addition unchanged. */
     'assets/js/import-headerless.js',
+    /* HR Excel: Template and Export become real workbooks on HR screens only. */
+    'assets/js/hr-excel-downloads.js',
     'assets/js/app.js',
     /* آخر ملف: يلفّ Store بعد أن يكتمل كل شيء */
     'assets/js/save-guard.js',
@@ -506,6 +575,42 @@
        so its Store.all/Store.find wrap installs outermost, above
        lookup-loader's own wrap. */
     'assets/js/site-options.js',
+    /* 🔴 خانة «الموقع» تملأ نفسها ولا تُحفَظ فارغة ولا تعرض إلا مواقع
+       صاحبها (قرار المالك ٩ سبتمبر ٢٠٢٦). موضعه مقيَّد بقيدين حقيقيين:
+       (١) **بعد site-options.js** مباشرة، لأنه يقرأ Store.find('sites', …)
+           ويحتاج لقطته المدموجة التي تحمل allSites — صفّ lookup-loader
+           وحده لا يحمله إطلاقاً، فيصير الحكم على «يرى كل المواقع» أعمى.
+       (٢) بعد save-modes.js (سطر ٣٥١) — ترتيباً مريحاً لا شرطاً. لا يعتمد
+           هذا الملف على ترتيب اللفّ إطلاقاً: save-modes.js يلفّ UI.modal
+           داخل start() عند DOMContentLoaded (سطر ٧٩٧)، فترتيب اللفّ لا
+           يتبع ترتيب التحميل. لذلك يحرس الملف زرَّي «مسودة» بعد عودة نداء
+           UI.modal أيضاً — مسودة بلا موقع تُخزَّن NULL وتُقرأ من كل موظف
+           تماماً كالسجل النهائي. (كان هذا التعليق يدّعي عكس ذلك، وأثبتت
+           التجربة خطأه — القسم H.)
+       لا تصادم مع ref-dropdown-scope.js ولا ref-search-picker.js: كلاهما
+       يستثني قائمة sites صراحةً. شاشة الموظفين مستثناة داخل الملف نفسه —
+       عرض portal_employees لا يحوي عمود site فتظهر الخانة فارغة دائماً.
+       🔴 The «الموقع» box fills itself, is never saved empty, and offers
+       only that person's sites (owner's ruling, 9 Sep 2026). Two real
+       constraints fix this slot:
+       (1) Immediately AFTER site-options.js: it reads Store.find('sites',…)
+           and needs that file's merged snapshot, which carries allSites —
+           lookup-loader's row alone never does, which would blind the
+           "sees every site" decision.
+       (2) After save-modes.js (line 351) — tidiness, not a requirement.
+           This file depends on wrap order for nothing: save-modes.js wraps
+           UI.modal inside start() at DOMContentLoaded (its line 797), so
+           wrap order does not follow load order. The file therefore guards
+           the two «مسودة» buttons after UI.modal returns as well — a draft
+           with no site stores NULL and is read by every employee exactly
+           like a final record. (This comment claimed the opposite and the
+           trial proved it wrong — section H.)
+       No collision with ref-dropdown-scope.js or ref-search-picker.js:
+       both exclude the sites dropdown explicitly. The employees screen is
+       excluded inside the file itself — the portal_employees view has no
+       site column, so that box always renders blank.
+       Proven by running TESTS/site-field-required-trial.js. (v2.0.34) */
+    'assets/js/site-field-required.js',
     /* يملأ اسم «قام بإنشائه» لدور خارج الخمسة التي يجلب لها store.js:62
        جدول users كاملاً — بعد site-options.js مباشرة: كلاهما يلفّ
        Store.find، لكن على جدولين مختلفين تماماً (sites/users) فلا تصادم
@@ -530,6 +635,29 @@
        position guards against.
        Proven by TESTS/delete-honesty-trial.js. (v2.0.32) */
     'assets/js/delete-honesty.js',
+
+    /* ═══ v2.0.34 · رسالة حذف واحدة بعد ردّ الخادم · one delete message, after the server answers ═══
+       🔴 رسالة حذف واحدة تُقال بعد معرفة النتيجة من **الخادم**. بعد
+       delete-honesty.js حتماً: هذا الملفّ يبتلع «تم الحذف» *و* تصحيحَ
+       delete-honesty ليصير الناتجُ رسالةً واحدة بدل اثنتين. ولو حُمِّل قبله
+       لَما وجد التصحيح ليبتلعه، فيقرأ الموظّف رسالتنا ثمّ تصحيحاً بسببٍ
+       مختلف — الالتباس نفسه بشكلٍ جديد. ويلفّ Store.destroy، فيحتاج
+       audit-trail.js قبله.
+       ملاحظة: لا يتقاطع مع attachment-delete-reason.js — ذاك يعترض زرّ حذف
+       **المرفق** (data-az-del) وينادي Attachments.remove، وهذا يلفّ حذف
+       **السجلّ** (Store.destroy). عمليتان مختلفتان ومَغرزان مختلفان.
+       🔴 One delete message, spoken once the SERVER's answer is known. MUST
+       come AFTER delete-honesty.js: this file swallows «تم الحذف» AND
+       delete-honesty's correction so ONE message reaches the screen instead
+       of two. Loaded before it, there would be no correction to swallow and
+       staff would read our sentence followed by a second one giving a
+       different reason — the same confusion in a new shape. It wraps
+       Store.destroy, so audit-trail.js must come before it.
+       Note: it does NOT overlap attachment-delete-reason.js — that one
+       intercepts the ATTACHMENT ✕ button (data-az-del) and calls
+       Attachments.remove; this one wraps RECORD deletion (Store.destroy).
+       Two different operations, two different seams. */
+    'assets/js/delete-outcome-truth.js',
     /* أرقام المستندات الحقيقية لكل الأقسام — آخر ملف يلفّ Store.create،
        بعد audit-trail.js حتماً، ويحتاج Auth.client() ليسأل الخادم عن
        الرقم الذي أصدره فعلاً.
@@ -718,6 +846,33 @@
        must follow store.js (it does, by hundreds of lines).
        Proven by TESTS/attach-before-save-trial.js. (v2.0.32) */
     'assets/js/attach-before-save.js',
+
+    /* ═══ v2.0.34 · إصلاح الحفظ والمرفقات ═══
+       ═══ v2.0.34 · saving & attachment repairs ═══
+
+       🔴 زرّ «📎 مرفقات» يصل إلى اللوحة الموجودة فعلاً. موضعه غير حرج: لا
+       يلفّ شيئاً ولا ينتظر شيئاً — يسجّل مستمعاً واحداً في طور الالتقاط على
+       document. وُضع بجوار أخويه ليُقرأ الثلاثة معاً.
+       🔴 The 📎 button reaches whichever panel is really on screen. Position
+       NOT critical: it wraps nothing and waits for nothing, it registers one
+       capture-phase listener on document. Placed beside its two siblings so
+       all three are read together. */
+    'assets/js/attach-button-target.js',
+
+    /* 🔴 رسالة واحدة صادقة عن كلّ ملفّ. **بعد attach-before-save.js حتماً**،
+       ولهذا سببٌ مقيس لا مُستنتَج: لافّتنا على Store.create يجب أن تكون
+       **الخارجية** حتى تلتقط الملفّات الممسوكة قبل أن يمسحها uploadHeld()
+       في أوّل سطرين منه. الترتيبُ معكوساً يعطي لقطةً فارغة، فتختفي أسماء
+       الملفّات المرفوضة من الرسالة — أي العطلُ نفسه الذي جئنا نصلحه، وبلا
+       أيّ خطأ ظاهر. ويحتاج attachments.js قبله ليلفّ upload.
+       🔴 One truthful message per file. MUST come AFTER attach-before-save.js,
+       and the reason is measured rather than reasoned: our Store.create
+       wrapper has to be the OUTER one so it captures the held files before
+       uploadHeld() resets them in its own first two lines. Reversed, the
+       snapshot is empty and the refused filenames vanish from the message —
+       the very fault this file exists to repair, with nothing visibly wrong.
+       Also needs attachments.js before it, to wrap upload. */
+    'assets/js/attach-outcome-truth.js',
     /* رقم النسخة في تذييل الصفحة من الذاكرة الفعلية — آخر ملف عمداً،
        فحص رفعة محمد زيدان */
     /* 🔴 طيّ أقسام النماذج — يجب أن يأتي بعد screen-behaviour.js
@@ -822,6 +977,104 @@
        renders a RAW ID — the storekeeper holds only `lookup` on cost
        items. (v2.0.31) */
     'assets/js/stores-reports.js',
+
+    /* 🔴 بطاقة «تغييرات فريقك» أسفل شاشة التنبيهات — حكم المالك ٥،
+       ٩ سبتمبر ٢٠٢٦. موضعه هنا مقيَّد بقيد واحد صارم: **بعد dc-alerts.js**
+       (سطر ٢٦٢) حتماً، لأن ذاك الملف **يستبدل** Alerts.render كاملةً ولا
+       يلفّها — فلو جاء هذا الملف قبله لَمُحيت لفّتنا بلا رسالة خطأ واحدة
+       ولاختفت البطاقة تماماً وما اشتكى شيء. هذا الموضع المتأخر يضمن ذلك
+       بفارق مئات الأسطر، ويضمن أيضاً وجود sites.js (سطر ١٠٤، يثبّت
+       Auth.seesAllSites/Auth.site) وauth.js وschema.js وui.js. وقبل
+       version-badge.js الموثَّق أنه الأخير عمداً. الفحص الذاتي في نهاية
+       الملف نفسه يصرخ في الطرفية لو خُولف هذا الترتيب يوماً.
+       🔴 The «تغييرات فريقك» card at the foot of the alerts screen — owner
+       ruling 5, 9 Sep 2026. One strict constraint on this slot: it MUST come
+       AFTER dc-alerts.js (line 262), which REPLACES Alerts.render outright
+       rather than wrapping it. Loaded before it, our wrapper would be erased
+       with no error at all and the card would simply never appear. This late
+       slot guarantees that by hundreds of lines, and also guarantees sites.js
+       (line 104, which installs Auth.seesAllSites/Auth.site), auth.js,
+       schema.js and ui.js are present. Before version-badge.js, documented as
+       deliberately last. The file's own self-check shouts in the console if
+       this order is ever broken.
+       Proven by running TESTS/manager-change-feed-trial.js. (v2.0.34) */
+    'assets/js/manager-change-feed.js',
+
+    /* حكما ٢٠ و٢١ (١٠ سبتمبر ٢٠٢٦) · ملفّان يجب أن يأتيا بعد كل ملف يلفّ
+       نفس الدوال، ولذلك هنا قبل version-badge.js مباشرةً (المُوثَّق أنه الأخير):
+       · emergency-money-hold.js — حساب الطوارئ لا يعتمد المستندات المالية ولا
+         يعكسها، ويرى زرّاً معطَّلاً يشرح السبب. يعدّل Auth.ROLES لحظة التحميل،
+         فيجب أن يأتي بعد robot-role.js وstock-approval-roles.js (اللذين يعدّلانها
+         أيضاً)، وبعد كل ملف يلفّ Workflow.actions وWorkflow.transition.
+       · save-project-fence.js — حساب مقيَّد بالمشروعات بلا مشروع مُسنَد لا يحفظ
+         سجلاً على مشروع، وقائمة المشروعات في النموذج لا تعرض ما سيُرفض. يلفّ
+         Store.create/Store.save وUI.modal، فيجب أن يأتي بعد آخر ملف يلفّها
+         (attach-before-save.js وform-sections.js) ليكون الرفض أول ما يحدث.
+       حذف السطرين يعيد السلوك السابق حرفياً.
+       Rulings 20 and 21 (10 Sept 2026) · two files that must come after every
+       file wrapping the same functions — hence here, just before
+       version-badge.js, which is documented as last:
+       · emergency-money-hold.js — the emergency account does not approve or
+         reverse money documents, and sees a disabled button saying why. It
+         edits Auth.ROLES at load time, so it must follow robot-role.js and
+         stock-approval-roles.js (which edit it too) and every wrapper of
+         Workflow.actions / Workflow.transition.
+       · save-project-fence.js — a project-restricted account with no project
+         assigned cannot save a record on a project, and the form's project
+         list never offers what would be refused. It wraps Store.create /
+         Store.save and UI.modal, so it must follow the last wrapper of each
+         (attach-before-save.js, form-sections.js) to refuse first.
+       Deleting these two lines restores the previous behaviour exactly. */
+    'assets/js/emergency-money-hold.js',
+    /* ١١ سبتمبر (TRACK ROBOT-4) · ملفّان بعد emergency-money-hold.js مباشرة:
+       · sheet-approval-hold.js — المدير العام وحساب الطوارئ ومراجع المستندات
+         لا يُعرَض لهم على طلب الخرسانة وإذن الفحص زرّ ترفضه قاعدة البيانات
+         (إجابة محمد زيدان ١١ سبتمبر عن المدير العام). يعدّل Auth.ROLES ويلفّ
+         Workflow.actions/transition، فيجب أن يأتي بعد كل ملف يفعل ذلك.
+       · disabled-button-wrap.js — جملة الزرّ الرمادي تنزل سطراً بدل أن تخرج من
+         شاشة الهاتف. قاعدة أنماط واحدة، لا يلفّ شيئاً.
+       حذف السطرين يعيد السلوك السابق حرفياً.
+       11 Sept (TRACK ROBOT-4) · two files right after emergency-money-hold.js:
+       · sheet-approval-hold.js — the GM, the emergency account and the
+         document reviewer are no longer shown, on concrete requests and
+         inspection permits, a button the database refuses (Mohamed Zidan's
+         11 Sept answer about the GM). It edits Auth.ROLES and wraps
+         Workflow.actions/transition, so it must follow every file that does.
+       · disabled-button-wrap.js — a grey button's sentence wraps instead of
+         running off a phone screen. One style rule; wraps nothing.
+       Deleting these two lines restores the previous behaviour exactly.
+       TESTS/sheet-approval-hold-trial.js · TESTS/disabled-button-wrap-trial.js */
+    'assets/js/sheet-approval-hold.js',
+    'assets/js/disabled-button-wrap.js',
+    'assets/js/save-project-fence.js',
+
+    /* ١١ سبتمبر (TRACK ROBOT-3) · sent-document-cancel-guard.js — زرّ ⊘
+       «إلغاء المستند» كان يُرسَم بلا فحص حالة، فيُقبَل إلغاء مستند مُرسَل
+       أو معتمد محلياً (توست أخضر، يختفي من القائمة) بينما الخادم يرفض
+       التحديث المؤجَّل ويبقى المستند حيّاً حقاً — أخطر أثر: سلفة معتمدة
+       تستمر في الخصم من الراتب بعد أن قيل إنها أُلغيت. يلفّ Store.save،
+       فيجب أن يأتي بعد آخر لافّة له — وآخرها اليوم save-project-fence.js
+       أعلاه — ليرفض أولاً، وقبل version-badge.js الموثَّق أنه الأخير دائماً.
+       مُثبَت بالتشغيل: TESTS/sent-document-cancel-guard-trial.js. حذف هذا
+       السطر (والملف) يعيد السلوك السابق حرفياً — بما فيه العطل.
+       11 Sept (TRACK ROBOT-3) · sent-document-cancel-guard.js — the ⊘
+       «Cancel document» button was drawn with no status check, so
+       cancelling a SENT or APPROVED document was accepted locally (green
+       toast, vanishes from the list) while the server refuses the
+       deferred update and the document stays genuinely active — worst
+       case: an approved advance keeps being deducted from a salary after
+       being told it was cancelled. Wraps Store.save, so it must come
+       after the last wrapper of it — today's last is save-project-fence.js
+       above — to refuse first, and before version-badge.js, documented as
+       always last. Proven by running:
+       TESTS/sent-document-cancel-guard-trial.js. Deleting this line (and
+       the file) restores the previous behaviour exactly — fault included. */
+    'assets/js/sent-document-cancel-guard.js',
+    /* P10 (v2.0.34): يُرفض «إرسال» مستندٍ لا تساوي إجمالياته بنوده، بسببٍ واضح. آخر لافّة على
+       Workflow.transition عمداً — يجب أن تبقى الأخيرة لو تغيّر الترتيب.
+       P10: Send is refused, with a plain reason, when a document's totals do not match its own lines.
+       LAST wrapper on Workflow.transition on purpose — keep it last if the order ever changes. */
+    'assets/js/money-send-check.js',
 
     'assets/js/version-badge.js'
   ];
