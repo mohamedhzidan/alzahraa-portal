@@ -575,7 +575,7 @@
 
       بدون إضافتها لن يعمل الذكاء الاصطناعي ولا القسمان الجديدان بدون إنترنت.
    --------------------------------------------------------------------------- */
-var CACHE = 'alzahraa-shell-v2.0.33';
+var CACHE = 'alzahraa-shell-v2.0.34';
 
 var SHELL = [
   './', './index.html', './manifest.webmanifest', './robots.txt',
@@ -683,6 +683,11 @@ var SHELL = [
      deliberately not bumped for this file alone; it is batched with the
      next release. */
   './assets/js/import-mapping-plus.js',
+  './assets/js/xlsx-writer.js',
+  './assets/js/hr-excel-screens.js',
+  './assets/js/hr-import-review.js',
+  './assets/js/hr-lines-import.js',
+  './assets/js/hr-excel-downloads.js',
   /* ─────────────────────────────────────────────────────────────────── */
 
   /* ── جديد في v2.0.12 · NEW in v2.0.12 ──────────────────────────────── */
@@ -696,6 +701,7 @@ var SHELL = [
   /* الصيغ المكتوبة كدوالّ — ثمانية حقول في الموارد البشرية كانت صفراً
      function-style formulas — eight HR fields were reading zero */
   './assets/js/calc-formulas.js',
+  './assets/js/calc-no-eval.js',
   /* الرقم القومي إجباري لكل عامل في كشف العمالة اليومية، وآخر ٤ أرقام فقط
      في القوائم والطباعة — ملف غير مدرَج هنا لا يُخزَّن ولا يعمل بلا اتصال
      compulsory national ID per worker on the daily-labour sheet, last-4
@@ -791,6 +797,29 @@ var SHELL = [
   './assets/js/repeat-yesterday.js',
   './assets/js/ref-search-picker.js',
   './assets/js/form-sections.js',
+  /* حكما ٢٠ و٢١ · Rulings 20 and 21 */
+  './assets/js/emergency-money-hold.js', './assets/js/save-project-fence.js',
+  /* ١١ سبتمبر (TRACK ROBOT-4) · يعملان بلا اتصال أيضاً — غيابهما من هذه القائمة
+     يعيد الزرّ المرفوض والجملة الخارجة عن الشاشة فور انقطاع الاتصال. CACHE لم
+     يُرفع (حكم المدير C4: v2.0.34 لم تصل هاتفاً بعد).
+     11 Sept (TRACK ROBOT-4) · both work offline too — missing from this list,
+     the refused button and the off-screen sentence return the moment the
+     connection drops. CACHE not bumped (manager's ruling C4: v2.0.34 has
+     never reached a phone). */
+  './assets/js/sheet-approval-hold.js', './assets/js/disabled-button-wrap.js',
+  /* ١١ سبتمبر (TRACK ROBOT-3) · حارس إلغاء المستند المُرسَل/المعتمد — يعمل
+     بلا اتصال أيضاً، لأنه يفحص فقط النسخة المحلية قبل أن تُحفَظ ولا يلمس
+     الشبكة إطلاقاً. غيابه من هذه القائمة يعني عودة العطل فور انقطاع
+     الاتصال حتى لو وُضع الملف في portal/. رقم CACHE لم يُرفع لهذا السطر
+     وحده — يُجمَّع مع دفعة v2.0.34 القائمة، نفس منطق site-options.js أعلاه.
+     11 Sept (TRACK ROBOT-3) · the sent/approved document cancel guard —
+     works offline too, since it only inspects the local copy before a
+     save and never touches the network. Missing from this list, the fault
+     returns the moment the connection drops even after the file is placed
+     in portal/. CACHE not bumped for this line alone — batched with the
+     existing v2.0.34 release, same logic as site-options.js above. */
+  './assets/js/sent-document-cancel-guard.js',
+  './assets/js/money-send-check.js',
   './assets/js/version-badge.js',
   /* ─────────────────────────────────────────────────────────────────── */
 
@@ -819,6 +848,7 @@ var SHELL = [
   './assets/js/save-guard.js',
   './assets/js/access-check.js',
   './assets/js/audit-trail.js', './assets/js/delete-honesty.js',
+  './assets/js/delete-outcome-truth.js',   /* v2.0.34 */
   './assets/js/sites.js',
   /* يصحّح تسريب قائمة «الموقع» (سوهاج تصل للروبيكي) وعطلاً كامناً في اطّلاع
      القرين/المكتب — رقم CACHE لم يُرفع لهذا الملف عمداً، يُجمَّع مع الدفعة
@@ -828,6 +858,21 @@ var SHELL = [
      file alone; batched with the next release, same pattern as
      import-mapping-plus.js above (v2.0.14). */
   './assets/js/site-options.js',
+  /* 🔴 خانة «الموقع» تملأ نفسها، وتُرفض فارغة، ولا تعرض إلا مواقع صاحبها
+     (قرار المالك ٩ سبتمبر ٢٠٢٦). غيابه من هذه القائمة يعني أن مهندس
+     الموقع — وهو **الأكثر عملاً بلا اتصال** — يعود لحفظ سجلات بلا موقع،
+     وكل سجل بلا موقع يقرأه كل موظف في الشركة. رُفع رقم CACHE لهذه الدفعة
+     (v2.0.33 → v2.0.34) وإلّا خدم المتصفح النسخة القديمة من loader.js
+     ولم يُحمَّل هذا الملف إطلاقاً، والرفع يبدو وكأنه لم يفعل شيئاً.
+     🔴 The «الموقع» box fills itself, is refused when empty, and offers
+     only that person's sites (owner's ruling, 9 Sep 2026). Missing from
+     this list, the site engineer — the person who works offline MOST —
+     goes back to saving records with no site, and every such record is
+     readable by every employee in the company. CACHE was bumped for this
+     batch (v2.0.33 → v2.0.34); without the bump the browser keeps serving
+     the OLD loader.js, this file is never loaded at all, and the upload
+     looks like it did nothing. */
+  './assets/js/site-field-required.js',
   './assets/js/knowledge.js',
   './assets/js/inspector.js',
   './assets/js/inspector-departments.js',
@@ -844,6 +889,19 @@ var SHELL = [
      from this list. (v2.0.28) */
   './assets/js/draft-save-honesty.js',
   './assets/js/attachments.js',
+  /* 🔴 نافذة «سبب الحذف» على المرفقات — غيابها من هذه القائمة يعني أن من
+     يفتح البوابة بلا اتصال يضغط ✕ فتفتح له نافذة التأكيد القديمة بلا سبب،
+     ثم يرفض الخادم الحذف بعد الملف ٦٣ بلا أن يفهم لماذا.
+     رقم CACHE **لم يُرفع لهذا الملف**: كان قد رُفع بالفعل إلى v2.0.34 في نفس
+     الدفعة، وكلها تُرفع معاً. رفعه ثانية كان سيُبطل ذاكرة أول الدفعة بلا داعٍ.
+     🔴 The attachment «reason for deleting» dialog — missing from this list,
+     someone opening the portal offline presses ✕, gets the old confirm dialog
+     with no reason box, and after file 63 the server refuses the delete with
+     no explanation they can follow. CACHE was NOT bumped for this file: it had
+     already been raised to v2.0.34 in the same batch and they all ship
+     together. Bumping again would needlessly invalidate the batch's first
+     half. */
+  './assets/js/attachment-delete-reason.js',
   './assets/js/import.js',
   './assets/js/workflow-policy.js',
   /* عمود «الحالة» على شاشات الاعتماد — لا يعمل بلا اتصال إن غاب من هذه
@@ -853,6 +911,9 @@ var SHELL = [
   /* ─────────────────────────────────────────────────────────────────── */
 
   './assets/js/auth.js', './assets/js/identity.js', './assets/js/workflow.js',
+  /* ١٠ سبتمبر (TRACK ROBOT-3) · الباب الواحد لإجراءات الدورة (الملف ٧٢) — يعمل دون اتصال كبقية الغلاف.
+     10 Sept (TRACK ROBOT-3) · the one door for workflow actions (file 72) — cached with the shell. */
+  './assets/js/workflow-route.js',
   './assets/js/ui.js',
   /* يمنع تقريب الأرقام العشرية إلى صحيح عند العرض والطباعة (منسوب 98.76
      كان يُطبَع 99) — جزء من دفعة v2.0.16 غير المنشورة بعد، فلا حاجة لرقم
@@ -867,6 +928,8 @@ var SHELL = [
 
   './assets/js/pages/dashboard.js', './assets/js/pages/dashboard-render.js',
   './assets/js/pages/entity.js', './assets/js/pages/approvals.js',
+  /* حكم ١٩ · سياج صندوق الاعتمادات — Ruling 19 · approvals-inbox fence */
+  './assets/js/inbox-project-fence.js', './assets/js/unassigned-routing.js',
   './assets/js/pages/reports.js', './assets/js/pages/settings.js',
 
   /* هاتف المهندس بالموقع — لمس أكبر وشريط حالة وإجراءات سريعة موحّدة،
@@ -937,6 +1000,7 @@ var SHELL = [
      القائمة. Attachments from inside the edit form — does not work offline
      if missing from this list. (v2.0.28) */
   './assets/js/attach-from-form.js', './assets/js/attach-before-save.js',
+  './assets/js/attach-button-target.js', './assets/js/attach-outcome-truth.js',   /* v2.0.34 */
   './assets/js/amount-in-words.js',
   './assets/js/checkbox-three-states.js',
 
@@ -947,6 +1011,23 @@ var SHELL = [
   './assets/js/line-stock-balance.js',
   './assets/js/stock-approval-roles.js',
   './assets/js/stores-reports.js',
+
+  /* 🔴 بطاقة «تغييرات فريقك» أسفل شاشة التنبيهات (جرس التنبيهات) — حكم
+     المالك ٥، ٩ سبتمبر ٢٠٢٦. غيابه من هذه القائمة يعني أن المدير الذي يفتح
+     البوابة بلا اتصال يرى شاشة التنبيهات كاملةً **بلا البطاقة**، فيقرأ
+     غيابها على أنه «لم يغيّر أحد شيئاً» — وهو أسوأ من رسالة خطأ صريحة.
+     رقم CACHE **لم يُرفع لهذا الملف**: كان قد رُفع بالفعل إلى v2.0.34 في
+     نفس الدفعة من أجل site-field-required.js، والاثنان يُرفعان معاً. رفعه
+     مرة ثانية إلى v2.0.35 كان سيُبطل ذاكرة الدفعة الأولى بلا داعٍ.
+     🔴 The «تغييرات فريقك» card at the foot of the alerts screen (the bell
+     button) — owner ruling 5, 9 Sep 2026. Missing from this list, a manager
+     opening the portal offline sees the whole alerts screen WITHOUT the
+     card and reads its absence as "nobody changed anything" — worse than an
+     honest error. CACHE was NOT bumped for this file: it had already been
+     raised to v2.0.34 in the same batch for site-field-required.js, and the
+     two ship together. Bumping again to v2.0.35 would needlessly invalidate
+     the first half of the batch. */
+  './assets/js/manager-change-feed.js',
 
   './assets/js/app.js'
 ];
