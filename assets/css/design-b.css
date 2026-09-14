@@ -1,0 +1,674 @@
+/* =========================================================================
+   design-b.css — التصميم «ب» المعتمد · طبقة فوق styles.css وbrand.css
+   design-b.css — the APPROVED Design B, layered OVER styles.css/brand.css
+   -------------------------------------------------------------------------
+   اعتمده محمد زيدان بنصّ كلامه، 10 سبتمبر 2026:
+   «i like design b much better it feels more professional and more detailed»
+
+   ── القاعدة الحاكمة لهذا الملف ─────────────────────────────────────────
+   لا يُعاد تعريف لون واحد من ألوان الشركة. كل ما هنا يستعمل متغيّرات
+   brand.css نفسها، ويبقى الأزرق الرسمي هو الأزرق الرسمي. NOT ONE company
+   colour is redefined; everything uses brand.css's own variables.
+   (الاستثناء الوحيد: ألوان «ب» الخاصة المقيسة — حدّ عنصر التحكّم ونصّ ثانوي
+   وحلقة التركيز في الوضع الداكن — ولكلٍّ منها قياسه بجانبه.)
+   (The only exceptions are Design B's own MEASURED colours — control edge,
+   secondary text, the dark-theme focus ring — each with its measurement.)
+
+   ── التراجع / ROLLBACK ─────────────────────────────────────────────────
+   كل قاعدة هنا مشروطة بـ html[data-az-designb="on"]. إزالة السمة أو حذف
+   ملفّات design-b من loader.js يعيد الموقع بالضبط. Every rule is gated on
+   html[data-az-designb="on"]; removing it restores the portal exactly.
+
+   إضافة v2.0.36 — حذف هذا الملف ورابطه في index.html وسطره في service-worker.js يعيد الموقع كما كان تماماً. / v2.0.36 addition — deleting this file, its link in index.html and its service-worker.js entry restores the portal exactly.
+   ========================================================================= */
+
+/* =========================================================================
+   ١ · رموز التصميم ب / DESIGN B TOKENS
+   ========================================================================= */
+html[data-az-designb="on"]{
+  --b1:.25rem; --b2:.5rem; --b3:.75rem; --b4:1rem; --b5:1.25rem; --b6:1.5rem; --b8:2rem;
+  --br-sm:.375rem; --br-md:.5rem; --br-lg:.625rem;
+  /* حدّ عنصر التحكّم ≥ 3:1 — مقيس 4.18:1 على الأبيض (الموقع #C8CBE2 = 1.60:1)
+     A CONTROL's edge must reach 3:1 — measured 4.18:1 on white. */
+  --b-edge:#767A9B;
+  /* نصّ ثانوي — مقيس 6.10:1 على الأبيض (الموقع --text-3 = 3.90:1، راسب) */
+  --b-muted:#5C6080;
+  /* حلقة التركيز — الأزرق الرسمي على الفاتح / focus ring: the official blue */
+  --b-focus:var(--brand);
+  --b-lift:0 .75rem 2rem rgba(0,0,60,.14), 0 .25rem .5rem rgba(0,0,60,.07);
+}
+/* 🔴 الوضع الداكن: brand.css لا يعيد تعريف --brand، فحلقة التركيز الزرقاء
+      #0000A3 فوق سطح #12122A كانت شبه غير مرئية. تُقاس في journey-visual.js.
+   🔴 Dark theme: brand.css does not redefine --brand, so a #0000A3 focus
+      ring on the #12122A surface is nearly invisible. The pale brand colour
+      is used instead; measured by journey-visual.js. */
+html[data-az-designb="on"][data-theme="dark"]{
+  --b-edge:#7E82B8;
+  --b-muted:#ABAECF;
+  --b-focus:var(--brand-pale,#CDCDEC);
+  --b-lift:0 .75rem 2rem rgba(0,0,0,.5);
+}
+
+/* نصٌّ للقارئ الصوتي وحده / text for screen readers only */
+html[data-az-designb="on"] .azb-sr{
+  position:absolute !important; width:1px; height:1px; padding:0; margin:-1px;
+  overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; border:0;
+}
+
+/* ── 🔴 شبكة أمان للأيقونات / THE ICON SAFETY NET ───────────────────────
+   أيقونة SVG بلا مقاس تتمدّد لتملأ ما حولها — حدث مرّتين. :where() وزنه صفر
+   فأي قاعدة مقاسٍ حقيقية تتغلّب عليه، ومحصورٌ في عناصرنا وحدها.
+   An SVG with no size stretches to fill its container — it happened twice.
+   :where() carries ZERO specificity and is scoped to OUR azb- elements. */
+html[data-az-designb="on"] :where(
+  .azb-dest, .azb-scope, .azb-card, .azb-grp-h, .azb-tab, .azb-na, .azb-inc,
+  .azb-mine-chip, .azb-ic, .azb-acts, .azb-regscope, .azb-errsum, .azb-scope-warn,
+  .azb-setup, .azb-card-limit
+) :where(svg){
+  width:1.125rem; height:1.125rem; flex:0 0 auto;
+}
+
+/* التركيز: ظاهر دائماً وبنفس الشكل في كل مكان — بضغطة Tab حقيقية
+   Focus: always visible, identical everywhere — on a real Tab press. */
+html[data-az-designb="on"] :focus-visible{
+  outline:.1875rem solid var(--b-focus);
+  outline-offset:.125rem;
+}
+html[data-az-designb="on"] .sidebar :focus-visible{ outline-color:#fff }
+
+/* «تخطَّ إلى المحتوى» — مخفيّ حتى يصله Tab
+   «Skip to content» — hidden until Tab reaches it */
+html[data-az-designb="on"] .azb-skip{
+  position:fixed; top:.5rem; inset-inline-start:.5rem; z-index:200;
+  transform:translateY(-200%);
+  background:var(--brand); color:#fff; font-weight:800;
+  padding:var(--b2) var(--b4); border-radius:var(--br-md); text-decoration:none;
+}
+html[data-az-designb="on"] .azb-skip:focus,
+html[data-az-designb="on"] .azb-skip:focus-visible{ transform:none; outline-color:var(--b-focus) }
+html[data-az-designb="on"][data-theme="dark"] .azb-skip{ background:var(--brand-pale,#CDCDEC); color:var(--brand-ink,#00006B) }
+
+/* =========================================================================
+   ٢ · الشريط الجانبي: خمس وجهات / THE SIDEBAR: five destinations
+   ========================================================================= */
+html[data-az-designb="on"] .azb-dests{
+  display:flex; flex-direction:column; gap:2px;
+  padding:var(--b2) 0; margin-bottom:var(--b2);
+  border-bottom:1px solid rgba(255,255,255,.14);
+}
+html[data-az-designb="on"] .azb-dest{
+  display:flex; align-items:flex-start; gap:var(--b3);
+  width:100%; text-align:start; min-width:0;
+  background:transparent; border:0; color:#fff;
+  padding:var(--b2) var(--b3); border-radius:var(--br-md);
+  font:inherit; font-size:.875rem; cursor:pointer; position:relative;
+  min-height:2.75rem;
+}
+html[data-az-designb="on"] .azb-dest:hover{ background:rgba(255,255,255,.11) }
+html[data-az-designb="on"] .azb-dest[aria-current="true"]{ background:rgba(255,255,255,.18); font-weight:700 }
+html[data-az-designb="on"] .azb-dest[aria-current="true"]::before{
+  content:""; position:absolute; inset-inline-start:0; top:.375rem; bottom:.375rem;
+  width:.1875rem; border-radius:.1875rem; background:var(--brand-pale,#CDCDEC);
+}
+html[data-az-designb="on"] .azb-dest svg{ width:1.125rem; height:1.125rem; flex:0 0 auto; margin-top:.125rem }
+html[data-az-designb="on"] .azb-dest-t{ flex:1; min-width:0; line-height:1.45 }
+html[data-az-designb="on"] .azb-dest-t b{ display:block; font-weight:700; overflow-wrap:anywhere }
+/* 🔴 السطر الفرعي يلتفّ ولا يُقصّ — كان يُقطع بـ«…» عند التكبير
+   🔴 The sub-line WRAPS, never clips — it used to be cut with «…» when enlarged */
+html[data-az-designb="on"] .azb-dest-t span{
+  display:block; font-size:.6875rem; color:#C3C3E8; overflow-wrap:anywhere;
+}
+html[data-az-designb="on"] .azb-dest-t .azb-ltr-sub{ direction:ltr; unicode-bidi:isolate; text-align:end; font-family:var(--font-en) }
+html[data-az-designb="on"] .azb-dest b.azb-count{
+  background:var(--brand-pale,#CDCDEC); color:var(--brand-ink,#00006B);
+  border-radius:1rem; padding:0 .4375rem; font-size:.75rem; font-weight:800;
+  min-width:1.375rem; text-align:center; align-self:center; flex:0 0 auto;
+}
+html[data-az-designb="on"] .azb-dest b.azb-count.hot{ background:#fff; color:var(--danger,#B42318) }
+html[data-az-designb="on"] .azb-all{
+  margin-top:auto; padding-top:var(--b3);
+  border-top:1px solid rgba(255,255,255,.14);
+}
+
+/* =========================================================================
+   ٣ · الصفحة الأولى: الطابور هو الصفحة / THE HOME: the queue IS the page
+   ========================================================================= */
+html[data-az-designb="on"] .azb-queue{ display:flex; flex-direction:column; gap:var(--b6); margin-bottom:var(--b6) }
+html[data-az-designb="on"] .azb-grp{ display:flex; flex-direction:column; gap:var(--b3) }
+html[data-az-designb="on"] .azb-grp-h{
+  display:flex; align-items:center; gap:var(--b2); min-width:0; margin:0;
+  font-size:.8125rem; font-weight:800; color:var(--text-2);
+  padding-bottom:var(--b1); border-bottom:1px solid var(--border);
+}
+html[data-az-designb="on"] .azb-grp-h svg{ width:1rem; height:1rem; flex:0 0 auto }
+html[data-az-designb="on"] .azb-grp-h .n{ color:var(--b-muted); font-family:var(--font-en) }
+html[data-az-designb="on"] .azb-grp-note{ margin:0; font-size:.8125rem; color:var(--b-muted); overflow-wrap:anywhere }
+html[data-az-designb="on"] .azb-more{ align-self:flex-start }
+
+html[data-az-designb="on"] .azb-card{
+  display:flex; gap:var(--b4); align-items:flex-start; min-width:0;
+  background:var(--surface); border:1px solid var(--border);
+  border-radius:var(--br-lg); padding:var(--b4);
+}
+html[data-az-designb="on"] .azb-card[hidden]{ display:none }
+html[data-az-designb="on"] .azb-card > *{ min-width:0 }
+html[data-az-designb="on"] .azb-card.blocked{ border-inline-start:.25rem solid var(--warn) }
+html[data-az-designb="on"] .azb-ic{
+  width:2.5rem; height:2.5rem; border-radius:var(--br-md); flex:0 0 auto;
+  display:grid; place-items:center; background:var(--surface-3); color:var(--text-2);
+}
+html[data-az-designb="on"] .azb-ic svg{ width:1.25rem; height:1.25rem }
+html[data-az-designb="on"] .azb-body{ flex:1; min-width:0; display:flex; flex-direction:column; gap:var(--b2) }
+html[data-az-designb="on"] .azb-body h3{ margin:0; font-size:.9375rem; font-weight:700; line-height:1.5 }
+html[data-az-designb="on"] .azb-top{ display:flex; align-items:baseline; gap:var(--b2); flex-wrap:wrap; min-width:0 }
+html[data-az-designb="on"] .azb-docno{ font-weight:800; font-size:.8125rem }
+html[data-az-designb="on"] .azb-modname{ font-size:.8125rem; color:var(--b-muted); font-weight:700 }
+html[data-az-designb="on"] .azb-meta{
+  display:flex; gap:var(--b3); flex-wrap:wrap; min-width:0;
+  font-size:.8125rem; color:var(--text-2);
+}
+html[data-az-designb="on"] .azb-meta > *{ min-width:0; overflow-wrap:anywhere }
+html[data-az-designb="on"] .azb-meta b{ color:var(--text) }
+html[data-az-designb="on"] .azb-acts{ display:flex; align-items:center; gap:var(--b2); flex-wrap:wrap }
+html[data-az-designb="on"] .azb-flaglist{ margin:0; padding-inline-start:1.25rem; font-size:.875rem }
+
+/* ثلاث بطاقات رئيسية والباقي خلف الزرّ — قرار ١٠ سبتمبر
+   Three main cards, the rest behind the button — 10 Sept decision */
+html[data-az-designb="on"] .kpi-grid > .azb-kpi-extra[hidden]{ display:none }
+html[data-az-designb="on"] .azb-sumtoggle{ margin:var(--b3) 0 var(--b6) }
+
+/* =========================================================================
+   ٤ · المال: صفر ≠ غير متاح ≠ ناقص / MONEY: zero ≠ unavailable ≠ incomplete
+   🔴 عرضٌ فقط — لا قيمة ولا حساب ولا حدّ اعتماد. PRESENTATION ONLY.
+   ========================================================================= */
+html[data-az-designb="on"] .azb-na{
+  display:inline-flex; align-items:center; gap:var(--b1); flex-wrap:wrap;
+  color:var(--b-muted); font-size:.8125rem; font-weight:600;
+}
+html[data-az-designb="on"] .azb-na::before{ content:"—"; font-family:var(--font-en) }
+html[data-az-designb="on"] .azb-inc{
+  display:inline-flex; align-items:center; gap:var(--b1);
+  background:var(--warn-bg); color:var(--warn);
+  border-radius:var(--br-sm); padding:0 var(--b2);
+  font-size:.75rem; font-weight:700;
+}
+html[data-az-designb="on"] .azb-inc svg{ width:.875rem; height:.875rem }
+
+/* =========================================================================
+   ٥ · النموذج صفحة كاملة / THE FORM AS A FULL PAGE
+   🔴 لا يُعاد بناء النموذج؛ تتغيّر المحاذاة والتمرير والخلفية فقط، ونُبقي
+      شبكة الموقع (minmax(0,1fr)) — استبدالها بـ block أخرج النموذج عن الهاتف.
+   🔴 The form is never rebuilt; alignment, scrolling and background only.
+      The portal's grid is KEPT — replacing it with block pushed the form
+      492px wide into a 375px phone (measured).
+   ========================================================================= */
+html[data-az-designb="on"] .modal-host.azb-page{
+  position:fixed; inset:var(--topbar-h,62px) 0 0 0;
+  z-index:60;
+  align-content:start;
+  justify-items:center;
+  overflow:auto;
+  background:var(--bg);
+  padding:var(--b5) var(--b4) var(--b8);
+}
+html[data-az-designb="on"] .modal-host.azb-page .modal-backdrop{ display:none !important }
+html[data-az-designb="on"] .modal-host.azb-page .modal{
+  width:100%; max-width:64rem; margin:0;
+  max-height:none; border-radius:var(--br-lg);
+  box-shadow:none; border:1px solid var(--border);
+  animation:none;
+}
+/* 🔴 (DESIGN-B-3) الشريط الملتصق يلتصق عند حافة الحشوة: حشوة سفلية ٢rem كانت تترك شريطاً
+      بارتفاع ٣٢ بكسل تمرّ فيه الحقول **تحت** شريط الأزرار (رأيناه في صورة الهاتف لا في رقم).
+      الحشوة السفلية صفر، والمسافة الأخيرة هامشٌ تحت النموذج — فيجلس الشريط على الحافة.
+   🔴 (DESIGN-B-3) A sticky bar sticks at the scroller's PADDING edge: a 2rem bottom padding
+      left a 32 px strip where fields scrolled by UNDER the button bar (seen in the phone
+      photograph, not in any number). Bottom padding is zero and the last gap is a margin
+      below the form — so the bar sits on the edge. */
+html[data-az-designb="on"] .modal-host.azb-page{ padding-bottom:0 }
+html[data-az-designb="on"] .modal-host.azb-page .modal{ margin-bottom:var(--b8) }
+html[data-az-designb="on"] .modal-host.azb-page .modal-body{ max-height:none; overflow:visible }
+html[data-az-designb="on"] .modal-host.azb-page .modal-foot{
+  position:sticky; bottom:0; z-index:2;
+  background:var(--surface); border-top:1px solid var(--border);
+  box-shadow:0 -.5rem 1rem rgba(0,0,60,.06);
+  flex-wrap:wrap;
+}
+html[data-az-designb="on"] .modal-host.azb-page .modal-head{
+  position:sticky; top:0; z-index:3;
+  background:var(--surface);
+  border-radius:var(--br-lg) var(--br-lg) 0 0;
+}
+
+/* 🔴 الرسائل المنبثقة فوق شريط الأزرار ما دامت صفحة النموذج مفتوحة.
+      قِيس: رسالة تقع فوق «حفظ» وتأكل النقرة — في الموقع اليوم أيضاً.
+   🔴 Toasts rise ABOVE the button bar while a form page is open. Measured:
+      a toast lands on «Save» and eats the click — in today's portal too. */
+html[data-az-designb="on"].azb-form-open .toast-host{ bottom:var(--azb-toast-bottom,20px) }
+/* 🔴 (DESIGN-B-3) الرسالة لا تأكل نقرةً أبداً: styles.css:572 يعطي .toast ‏pointer-events:auto، فرسالة
+      الترحيب بعد تحميل الصفحة غطّت زرّ ⬇ في قسم المرفقات وأكلت النقرة (قِيس في رحلة سند الصرف).
+      الرسالة نصٌّ وأيقونة فقط، بلا زرّ ولا رابط (ui.js:77-89) — فمرور النقرة من خلالها لا يُفقد شيئاً،
+      وهو أحد الحلول الثلاثة التي سمّاها Prompt 2 لعطل «الرسالة فوق زرّ الحفظ».
+   🔴 (DESIGN-B-3) A message never takes a click: styles.css:572 gives .toast pointer-events:auto,
+      so the welcome message after a reload covered the ⬇ button in the attachments section
+      and ate the click (measured in the payment journey). A message is text and an icon
+      only, no button or link (ui.js:77-89) — letting the click pass through loses nothing,
+      and it is one of the three cures Prompt 2 named for «a message covers Save». */
+html[data-az-designb="on"] .toast{ pointer-events:none }
+
+/* حدّ الاعتماد في الشريط الملتصق — الجملة نفسها من Rules.approverHint
+   The approval limit in the sticky bar — the same sentence, Rules.approverHint */
+html[data-az-designb="on"] .azb-limit{
+  display:flex; align-items:center; gap:var(--b2); flex:1 1 16rem; min-width:0;
+  margin-inline-end:auto; font-size:.8125rem; font-weight:700; color:var(--text-2);
+}
+html[data-az-designb="on"] .azb-limit span{ overflow-wrap:anywhere }
+html[data-az-designb="on"] .azb-limit svg{ width:1rem; height:1rem; flex:0 0 auto; color:var(--brand) }
+html[data-az-designb="on"][data-theme="dark"] .azb-limit svg{ color:var(--brand-pale,#CDCDEC) }
+@media print{ html[data-az-designb="on"] .azb-limit{ display:none !important } }
+
+/* (DESIGN-B-3) زرّ معطَّل هو «شرح» (جملة ≥ ٢٤ حرفاً، ليس btn-primary) — يُعرض سطرَ ملاحظة
+   يلتفّ ويأخذ عرض الشريط كلّه ويُقرأ بكامل وضوحه. قِيس: جملة ROBOT-2 امتدّت إلى 562 بكسل
+   على هاتف 375 وبنصف شفافية. الزرّ يبقى معطَّلاً، والجملة كما كتبها صاحبها.
+   (DESIGN-B-3) A disabled button that is an EXPLANATION (≥ 24 characters, not btn-primary)
+   shows as a note line that wraps, takes the bar's full width and reads at full strength.
+   Measured: ROBOT-2's sentence ran to 562 px on a 375 px phone, at half opacity. The
+   button stays disabled; the sentence stays exactly as its author wrote it. */
+html[data-az-designb="on"] .modal-host.azb-page .modal-foot .btn[data-azb-note]{
+  flex:1 1 100%; order:-1; max-width:100%; min-width:0; height:auto;
+  white-space:normal; overflow-wrap:anywhere; text-align:start; justify-content:flex-start;
+  line-height:1.5; font-weight:700; opacity:1; cursor:default; transform:none;
+  background:var(--warn-bg); color:var(--text); border:1px dashed var(--warn);
+}
+html[data-az-designb="on"][data-theme="dark"] .modal-host.azb-page .modal-foot .btn[data-azb-note]{
+  background:#3A2A12; color:#F3EFE8; border-color:#F5B971;
+}
+
+/* نتائج المستندات تحت نتائج لوحة الأوامر — بأصناف اللوحة نفسها
+   Document results under the palette's own results — its own classes */
+html[data-az-designb="on"] .azb-dochead{
+  padding:var(--b2) var(--b4) var(--b1); font-size:.75rem; font-weight:800; color:var(--b-muted);
+  border-top:1px solid var(--border);
+}
+html[data-az-designb="on"] .azb-doc svg{ width:1rem; height:1rem; flex:0 0 auto }
+
+/* ملخّص الأخطاء أعلى النموذج — كحالة «خطأ التحقّق» في المعاينة
+   The error summary at the top of the form — the preview's validation state */
+html[data-az-designb="on"] .azb-errsum{
+  border:1px solid var(--danger); border-inline-start:.25rem solid var(--danger);
+  background:var(--danger-bg); color:var(--text);
+  border-radius:var(--br-lg); padding:var(--b3) var(--b4); margin-bottom:var(--b4);
+}
+html[data-az-designb="on"] .azb-errsum h3{
+  display:flex; align-items:center; gap:var(--b2); margin:0 0 var(--b2);
+  font-size:.9375rem; color:var(--danger);
+}
+html[data-az-designb="on"][data-theme="dark"] .azb-errsum{ background:#3A1614; border-color:#FF8A80; color:var(--text) }
+html[data-az-designb="on"][data-theme="dark"] .azb-errsum h3{ color:#FFB4AB }
+html[data-az-designb="on"] .azb-errsum ol{ margin:0; padding-inline-start:1.25rem }
+html[data-az-designb="on"] .azb-errjump{
+  background:none; border:0; padding:0; font:inherit; font-weight:700;
+  color:inherit; text-decoration:underline; cursor:pointer; min-height:1.5rem;
+}
+
+/* (DESIGN-B-3) «قبل أن تبدأ» في النموذج و«حسابك غير مربوط بموقع» في الصفحة الأولى —
+   حالة «إعداد ناقص» في المعاينة المعتمدة (B.src.html:396-406، 692-701). النصّ بلون
+   النصّ العادي فوق خلفية التحذير، والتحذير في الحدّ والأيقونة وحدهما.
+   (DESIGN-B-3) The form's «before you start» and the home's «not linked to a site» —
+   the approved preview's «missing setup» state. Text in the ordinary text colour on
+   the warning ground; the warning colour only on the edge and the icon. */
+html[data-az-designb="on"] .azb-setup{
+  border:1px solid var(--warn); border-inline-start:.25rem solid var(--warn);
+  background:var(--warn-bg); color:var(--text);
+  border-radius:var(--br-lg); padding:var(--b3) var(--b4); margin-bottom:var(--b4);
+}
+html[data-az-designb="on"] .azb-setup h3{
+  display:flex; align-items:center; gap:var(--b2); margin:0 0 var(--b2);
+  font-size:.9375rem; color:var(--text);
+}
+html[data-az-designb="on"] .azb-setup h3 svg{ color:var(--warn) }
+html[data-az-designb="on"] .azb-setup ul{ margin:0 0 var(--b2); padding-inline-start:1.25rem }
+html[data-az-designb="on"] .azb-setup p{ margin:var(--b1) 0 0; font-size:.875rem; overflow-wrap:anywhere }
+html[data-az-designb="on"] .azb-setup li{ overflow-wrap:anywhere }
+html[data-az-designb="on"][data-theme="dark"] .azb-setup{ background:#3A2A12; border-color:#F5B971; color:var(--text) }
+html[data-az-designb="on"][data-theme="dark"] .azb-setup h3,
+html[data-az-designb="on"][data-theme="dark"] .azb-setup p,
+html[data-az-designb="on"][data-theme="dark"] .azb-setup li{ color:#F3EFE8 }
+html[data-az-designb="on"][data-theme="dark"] .azb-setup h3 svg{ color:#F5B971 }
+
+/* (DESIGN-B-3) حدّ الاعتماد على بطاقة الطابور — جملة Rules.approverHint نفسها
+   (DESIGN-B-3) The approval limit on a queue card — the same Rules.approverHint sentence */
+html[data-az-designb="on"] .azb-card-limit{
+  display:flex; align-items:flex-start; gap:var(--b2); margin:var(--b2) 0 0;
+  font-size:.8125rem; color:var(--text-2); overflow-wrap:anywhere; min-width:0;
+}
+html[data-az-designb="on"] .azb-card-limit > span{ min-width:0 }
+html[data-az-designb="on"] .azb-card-limit b{ color:var(--text) }
+html[data-az-designb="on"] .azb-card-limit svg{ width:1rem; height:1rem; flex:0 0 auto; color:var(--brand); margin-top:.15rem }
+html[data-az-designb="on"][data-theme="dark"] .azb-card-limit svg{ color:var(--brand-pale,#CDCDEC) }
+
+/* =========================================================================
+   ٦ · شريط النطاق وسطر «الكل» / THE SCOPE BAR and the «All» line
+   قائمة ناقصة تبدو كاملة أخطر من شاشة فارغة. A short list that looks
+   complete is more dangerous than an empty one.
+   ========================================================================= */
+html[data-az-designb="on"] .azb-scope{
+  display:flex; align-items:center; gap:var(--b3); flex-wrap:wrap; min-width:0;
+  background:var(--surface); border:1px solid var(--border);
+  border-inline-start:.25rem solid var(--brand);
+  border-radius:var(--br-lg); padding:var(--b3) var(--b4);
+  margin-bottom:var(--b4);
+}
+html[data-az-designb="on"] .azb-scope[hidden]{ display:none }
+html[data-az-designb="on"] .azb-scope > *{ min-width:0 }
+html[data-az-designb="on"] .azb-scope-k{ font-size:.75rem; color:var(--b-muted); font-weight:700 }
+html[data-az-designb="on"] .azb-scope-v{ font-size:.875rem; font-weight:700; overflow-wrap:anywhere }
+html[data-az-designb="on"] .azb-scope-warn,
+html[data-az-designb="on"] .azb-regscope-warn{
+  display:inline-flex; align-items:center; gap:var(--b1);
+  background:var(--warn-bg); color:var(--warn);
+  border-radius:var(--br-md); padding:var(--b1) var(--b2);
+  font-size:.75rem; font-weight:700; overflow-wrap:anywhere;
+}
+/* 🔴 الوضع الداكن: brand.css يعيد --warn-bg الفاتح (#FDF1E0) لأنّ قاعدته
+      html[data-brand] تأتي بعد تعريف الوضع الداكن في styles.css وتغلبه —
+      فكان النصّ البرتقالي الفاتح على خلفية فاتحة 1.56:1. قِيس. لذلك تُعطى
+      شارات «ب» لونَي خلفيتها ونصّها صراحةً في الوضع الداكن.
+   🔴 Dark theme: brand.css re-asserts the LIGHT --warn-bg (#FDF1E0), because
+      its html[data-brand] rule comes after styles.css's dark definition and
+      wins — so light-orange text sat on a light background at 1.56:1.
+      Measured. Design B's chips therefore set both colours in dark mode. */
+html[data-az-designb="on"][data-theme="dark"] .azb-scope-warn,
+html[data-az-designb="on"][data-theme="dark"] .azb-regscope-warn,
+html[data-az-designb="on"][data-theme="dark"] .azb-inc{ background:#3A2A12; color:#F5B971 }
+html[data-az-designb="on"] .azb-scope-warn svg,
+html[data-az-designb="on"] .azb-regscope-warn svg{ width:1rem; height:1rem; flex:0 0 auto }
+html[data-az-designb="on"] .azb-regscope{
+  display:flex; align-items:flex-start; gap:var(--b2); min-width:0;
+  font-size:.8125rem; color:var(--text-2); line-height:1.6;
+  margin:0 0 var(--b3); padding:var(--b2) var(--b3);
+  border-inline-start:.1875rem solid var(--brand); background:var(--surface);
+  border-radius:var(--br-md);
+}
+html[data-az-designb="on"] .azb-regscope > span{ min-width:0; overflow-wrap:anywhere }
+html[data-az-designb="on"] .azb-regscope b{ color:var(--text) }
+html[data-az-designb="on"] .azb-regscope-warn{ margin-top:var(--b1) }
+
+/* رقاقة «ينتظرني» بمقاس رقائق الموقع نفسها / the «Waiting for me» chip */
+html[data-az-designb="on"] .azb-mine-chip{ display:inline-flex; align-items:center; gap:.375rem }
+html[data-az-designb="on"] .azb-mine-chip svg{ width:.875rem; height:.875rem }
+html[data-az-designb="on"] .azb-mine-chip b{ font-family:var(--font-en); font-weight:800 }
+
+/* =========================================================================
+   ٧ · الهاتف: تبويب سفلي + الصفوف بطاقات
+   PHONE: a bottom tab bar, and register rows become cards
+   ========================================================================= */
+html[data-az-designb="on"] .azb-tabs{ display:none }
+
+@media (max-width:860px){
+  html[data-az-designb="on"] .azb-tabs{
+    position:fixed; inset-inline:0; bottom:0; z-index:70;
+    display:grid; grid-auto-flow:column; grid-auto-columns:minmax(0,1fr);
+    background:var(--surface); border-top:1px solid var(--border);
+    padding:var(--b1) var(--b1) var(--b2); min-width:0;
+  }
+  html[data-az-designb="on"] .azb-tab{
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px;
+    background:transparent; border:0; color:var(--text-2); cursor:pointer;
+    /* 44×44 هدف هذا المشروع، لا حدّ WCAG 2.2 AA (24×24). العرض يضيق والارتفاع يحفظ الهدف.
+       44x44 is THIS project's target, not the WCAG 2.2 AA minimum (24x24). */
+    min-height:2.75rem; min-width:0;
+    padding:var(--b1); border-radius:var(--br-md);
+    font:inherit; font-size:.6875rem; font-weight:700; position:relative;
+  }
+  html[data-az-designb="on"] .azb-tab svg{ width:1.375rem; height:1.375rem; flex:0 0 auto }
+  /* 🔴 الاسم يلتفّ على سطرين ولا يُقصّ — «المشروعات والموقع» اسم الوجهة المعتمد
+     🔴 The label wraps onto two lines, never clipped */
+  html[data-az-designb="on"] .azb-tab .lbl{
+    max-width:100%; text-align:center; line-height:1.2; overflow-wrap:anywhere;
+  }
+  html[data-az-designb="on"] .azb-tab[aria-current="page"]{ color:var(--brand) }
+  html[data-az-designb="on"][data-theme="dark"] .azb-tab[aria-current="page"]{ color:var(--brand-pale,#CDCDEC) }
+  html[data-az-designb="on"] .azb-tab[aria-current="page"]::after{
+    content:""; position:absolute; top:0; inset-inline:25%; height:.1875rem;
+    background:currentColor; border-radius:0 0 .1875rem .1875rem;
+  }
+  html[data-az-designb="on"] .azb-tab b{
+    position:absolute; top:.125rem; inset-inline-end:.4rem;
+    background:var(--danger); color:#fff; border-radius:1rem;
+    font-size:.625rem; font-family:var(--font-en); font-weight:800;
+    min-width:1.125rem; height:1.125rem; display:grid; place-items:center; padding:0 .1875rem;
+  }
+  html[data-az-designb="on"] .content{ padding-bottom:5.5rem }
+  html[data-az-designb="on"] .modal-host.azb-page{ inset-block-end:4.5rem }
+  html[data-az-designb="on"] .btn{ min-height:2.75rem }
+  /* 🔴 الرسائل فوق شريط التبويب — وإلا غطّت التبويبات ٣ ثوانٍ بعد كل رسالة
+     🔴 Toasts above the tab bar — otherwise they cover the tabs for 3 s */
+  html[data-az-designb="on"] .toast-host{ bottom:calc(4.5rem + 12px) }
+  html[data-az-designb="on"].azb-form-open .toast-host{ bottom:var(--azb-toast-bottom,calc(4.5rem + 12px)) }
+}
+
+/* 🔴 شريط العنوان على الهاتف: اسم المجموعة كان يلتفّ على ثلاثة أسطر ويقع فوق
+      الأيقونات (قِيس — والتصميم «ب» مطفأ أيضاً). على الهاتف تُعرَض الوجهة في
+      شريط التبويب، فيبقى هنا اسم الشاشة وحده، كرأس الهاتف في المعاينة المعتمدة.
+      اسم المجموعة نصٌّ لا رابط (app.js:275-276)، فلا وظيفة تختفي.
+   🔴 The top bar on a phone: the group name wrapped onto three lines and sat
+      ON the icons (measured — with Design B off too). On a phone the
+      destination is shown in the tab bar, so only the screen name stays here,
+      like the approved preview's phone header. The group name is plain text,
+      not a link (app.js:275-276), so no function disappears. */
+@media (max-width:640px){
+  html[data-az-designb="on"] #breadcrumbs > :not(.crumb-current){ display:none }
+  html[data-az-designb="on"] #breadcrumbs .crumb-current{ font-size:.9375rem }
+}
+
+/* السجلّ على الهاتف: كل صفّ بطاقة — العناصر نفسها، بتنسيق مختلف
+   The register on a phone: every row a card — the SAME elements, restyled.
+   The row's click, its buttons and its data-id are untouched. */
+@media (max-width:640px){
+  html[data-az-designb="on"] .data-table.azb-cards thead{
+    position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0);
+  }
+  /* 🔴 min-width:0 — styles.css:386 يعطي الجدول min-width:640px، فبقيت
+        «البطاقات» بعرض ٦٤٠ داخل هاتف ٣٧٥. قِيس (journey-visual.js)، لا قُرئ.
+     🔴 min-width:0 — styles.css:386 gives the table min-width:640px, so the
+        "cards" stayed 640px wide inside a 375px phone. Measured, not read. */
+  html[data-az-designb="on"] .data-table.azb-cards,
+  html[data-az-designb="on"] .data-table.azb-cards tbody{ display:block; width:100%; min-width:0 }
+  html[data-az-designb="on"] .data-table.azb-cards tr{
+    display:block; background:var(--surface); border:1px solid var(--border);
+    border-radius:var(--br-lg); padding:var(--b3); margin:0 0 var(--b3);
+  }
+  html[data-az-designb="on"] .data-table.azb-cards tr[hidden]{ display:none }
+  html[data-az-designb="on"] .data-table.azb-cards td{
+    display:grid; grid-template-columns:minmax(0,40%) minmax(0,1fr); gap:var(--b2);
+    padding:var(--b1) 0; border:0; min-width:0; overflow-wrap:anywhere; white-space:normal;
+  }
+  html[data-az-designb="on"] .data-table.azb-cards td[data-azb-label]::before{
+    content:attr(data-azb-label); color:var(--b-muted); font-size:.75rem; font-weight:700;
+  }
+  html[data-az-designb="on"] .data-table.azb-cards td.col-actions{
+    display:flex; justify-content:flex-end; padding-top:var(--b2);
+    border-top:1px solid var(--border); margin-top:var(--b1);
+  }
+  html[data-az-designb="on"] .data-table.azb-cards .row-btn{ min-width:2.75rem; min-height:2.75rem }
+  html[data-az-designb="on"] .table-wrap:has(.data-table.azb-cards){ overflow-x:visible }
+}
+
+/* 🔴 بعد كل تنقّل ينادي app.js:238 ‏content.scrollIntoView({block:'start'}) فتنزلق
+      الصفحة ٦٢ بكسل ويختفي عنوان الشاشة تحت الشريط العلوي الملتصق — قِيس على
+      الهاتف والتصميم «ب» مطفأ أيضاً (عنوان الشريط نفسه عرضه صفر على الهاتف). هامش
+      التمرير يترك مكان الشريط، فيبقى العنوان ظاهراً.
+   🔴 After every navigation app.js:238 calls content.scrollIntoView({block:
+      'start'}), the page slides 62px and the screen title hides under the sticky
+      top bar — measured on a phone with Design B off too (the bar's own title is
+      0px wide on a phone). A scroll margin leaves room for the bar, so the title
+      stays visible. */
+html[data-az-designb="on"] #content{ scroll-margin-top:var(--topbar-h,62px) }
+
+/* الجدول العريض يمرّر داخل صندوقه، لا الصفحة كلها
+   A wide table scrolls inside its own box; the page never scrolls sideways. */
+html[data-az-designb="on"] .table-wrap,
+html[data-az-designb="on"] .table-scroll{ overflow-x:auto }
+
+html[data-az-designb="on"] .azb-wrap{ overflow-wrap:anywhere; word-break:break-word }
+/* المعرّفات المختلطة عربي/إنجليزي تُعزَل فلا يقلبها اتجاه الصفحة
+   Mixed identifiers are isolated so RTL cannot reorder "SUB-2026-0087 / Rev. 3" */
+html[data-az-designb="on"] .azb-ltr{
+  direction:ltr; unicode-bidi:isolate; text-align:start; display:inline-block;
+}
+
+/* =========================================================================
+   ٨ · الطباعة — سلوك الموقع الحالي محفوظ عمداً
+   PRINT — the portal's existing behaviour is deliberately PRESERVED
+   لم يُعتمد تصميم طباعة في «ب»، فلا نخترع واحداً. نُخفي ما أضفناه نحن فقط،
+   ونعيد الجدول جدولاً على الورق مهما كان عرض الشاشة.
+   B approved no print design, so none is invented. We hide only what WE
+   added, and put the table back as a table on paper at any screen width.
+   ========================================================================= */
+@media print{
+  html[data-az-designb="on"] .azb-tabs,
+  html[data-az-designb="on"] .azb-dests,
+  html[data-az-designb="on"] .azb-all,
+  html[data-az-designb="on"] .azb-skip,
+  html[data-az-designb="on"] .azb-sumtoggle,
+  html[data-az-designb="on"] .azb-more,
+  html[data-az-designb="on"] .azb-mine-chip{ display:none !important }
+  html[data-az-designb="on"] .modal-host.azb-page{ position:static; inset:auto; overflow:visible }
+  html[data-az-designb="on"] .modal-host.azb-page .modal-foot{ position:static; box-shadow:none }
+  html[data-az-designb="on"] .modal-host.azb-page .modal-head{ position:static }
+}
+
+/* ══ خليّة المال لا تنكسر بين الرقم وعملته — عُثر عليه بالنظر إلى الصور، ١٢ سبتمبر ══
+   كان عمود «المبلغ» يعرض «100.00» في سطرٍ و«ج.م» في السطر الذي تحته (قِيس: الخليّة
+   ٨٦ بكسلاً عرضاً و٦٤ ارتفاعاً، أي سطران، وwhite-space: normal). ورقمٌ منفصلٌ عن
+   عملته يجعل الموظّف يشكّ في الرقم نفسه، والشكّ في المال أغلى ما ينتجه هذا الموقع.
+   العلامة `.money` من الموقع نفسه لا من «التصميم ب» — فنصلح **العرض** فقط، ولا
+   نمسّ قيمةً ولا حساباً ولا حدّ اعتماد.
+   ══ a money cell never breaks between the number and its currency — found by LOOKING, 12 Sept ══
+   The المبلغ column rendered «100.00» on one line and «ج.م» on the next (measured: the cell was
+   86 px wide and 64 px tall — two lines — with white-space: normal). A figure split from its
+   currency makes a person doubt the figure, and doubt about money is the most expensive thing
+   this portal can produce. `.money` is the PORTAL's own class, not Design B's, so this repairs
+   the DISPLAY only: no value, no calculation and no approval limit is touched. */
+html[data-az-designb="on"] .money{ white-space:nowrap }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   C6 · أوّل شاشةٍ على الهاتف تُري عملاً لا أثاثاً — قِيس، لا رُئي
+   C6 · the phone's first screen shows WORK, not furniture — measured, not eyeballed
+   --------------------------------------------------------------------------
+   ما قِيس قبل هذا (٣٧٥×٨١٢، الارتفاع المفيد ٧٤١ بعد خصم شريط التبويبات ٧١):
+     المدفوعات ٧٢٫٦٪ أثاث · إذون الاستلام والصرف ٩٧٫٧٪ · **الاعتمادات ١٠٠٪ —
+     أوّل سجلٍّ عند ٧٤٩ أي خلف الشريط السفليّ، لا يراه الموظّف إطلاقاً.**
+   والسبب الأكبر رقائقُ التصفية: صفّان بارتفاع ١٨٦ + ١٠٩ = ٢٩٥ بكسلاً.
+   MEASURED BEFORE THIS (375×812, usable 741 after the 71 px tab bar):
+     payments 72.6 % furniture · goodsReceipts/stockIssues 97.7 % ·
+     **submittals 100 % — the first record sits at 749 px, BEHIND the tab bar, never seen.**
+   The dominant cause is the filter chips: two rows, 186 + 109 = 295 px.
+
+   ما يفعله هذا، وكلّه عرضٌ فقط — لا يُخفى أيّ خيار ولا تتغيّر أيّ قاعدة:
+   WHAT THIS DOES, all presentation — no option is removed and no rule changes:
+     ١ · صفوف الرقائق تصير صفّاً واحداً يُسحب أفقيّاً؛ الخمس عشرة رقاقة كلّها
+         باقيةٌ ويُوصل إليها بالسحب، والنشِطة تُبقى مرئيّة.
+     1 · each chip row becomes ONE horizontally swipeable row. All 15 chips remain and stay
+         reachable by swiping; the active one is kept in view.
+     ٢ · شريط الأزرار الخمسة يصير صفّاً واحداً بالسحب نفسه — لا زرَّ يُخفى.
+     2 · the five action buttons become one swipeable row — no button is hidden.
+     ٣ · الشرحُ تحت عنوان الشاشة ليس عملاً، فيُخفى على الهاتف وحده؛ العنوان والعدد يبقيان.
+     3 · the explanatory subtitle under the screen name is not work — hidden on PHONE ONLY;
+         the title and its count stay.
+     ٤ · 🔴 لافتة «الكل = كل ما يحقّ لك رؤيته» **تبقى ظاهرةً دائماً**، وتُضغط إلى سطرٍ واحد.
+         حكم المدير: إخفاؤها أو جعلها قابلةً للإغلاق يغيّر ما يعترف به الموقع عن نفسه،
+         وذلك قرار المالك لا قراري. فالسطر الواحد تنسيقٌ، والإخفاء صدقٌ — ولا يُفعل.
+     4 · 🔴 the «All = everything you are allowed to see» banner **STAYS, always visible**, and is
+         squeezed to one line. The manager's ruling: hiding it, or making it dismissible, changes
+         what the portal admits about itself and is the OWNER's call, not mine. One line is layout;
+         hiding is truthfulness — and it is not done.
+   لا يُلمس الشريط العلويّ (٦٢) ولا شريط التبويبات (٧١): كلاهما تنقّل.
+   The top bar (62) and tab bar (71) are untouched: both are navigation.
+   ══════════════════════════════════════════════════════════════════════════ */
+@media (max-width:640px){
+
+  /* ١ · الرقائق: صفٌّ واحد يُسحب / 1 · chips: one swipeable row */
+  html[data-az-designb="on"] .chip-row{
+    flex-wrap:nowrap !important;
+    overflow-x:auto; overflow-y:hidden;
+    -webkit-overflow-scrolling:touch;
+    scrollbar-width:none;
+    scroll-snap-type:x proximity;
+  }
+  html[data-az-designb="on"] .chip-row::-webkit-scrollbar{ display:none }
+  /* الرقاقة لا تنكمش ولا ينكسر نصّها / a chip neither shrinks nor wraps its text */
+  html[data-az-designb="on"] .chip-row > *{ flex:0 0 auto; white-space:nowrap; scroll-snap-align:start }
+
+  /* ٢ · الأزرار: الصفّ نفسه، بلا إخفاء أيّ زرّ / 2 · actions: same treatment, nothing hidden */
+  html[data-az-designb="on"] .page-actions{
+    flex-wrap:nowrap !important;
+    overflow-x:auto; overflow-y:hidden;
+    -webkit-overflow-scrolling:touch;
+    scrollbar-width:none;
+  }
+  html[data-az-designb="on"] .page-actions::-webkit-scrollbar{ display:none }
+  html[data-az-designb="on"] .page-actions > *{ flex:0 0 auto; white-space:nowrap }
+
+  /* ٣ · الشرح تحت العنوان: ليس عملاً على الهاتف / 3 · the subtitle is not work on a phone */
+  html[data-az-designb="on"] .page-head-text > p,
+  html[data-az-designb="on"] .page-head-text > .muted,
+  html[data-az-designb="on"] .page-head-text > .page-sub{ display:none }
+
+  /* ٤ · اللافتة تبقى — سطرٌ واحد / 4 · the banner STAYS — one line */
+  html[data-az-designb="on"] .azb-regscope{
+    padding-block:.35rem;
+    line-height:1.35;
+  }
+}
+
+/* ── C6، الجولة الثانية: المسافات، بعد أن قِيست الكتل ────────────────────────
+   بعد الجولة الأولى صار أوّل سجلٍّ في «الاعتمادات» عند ٤٣٠ بكسلاً (٥٨٪) بدل ٧٤٩.
+   وقياسُ ما تبقّى أظهر أنّ الكتل نفسها لم تعد المشكلة — المسافات هي:
+     `.table-toolbar` ارتفاعها ١٣٨ وداخلها ٧٣ فقط ⇒ ٦٥ بكسلاً حشوٌ خالص
+     وبين آخر صفٍّ من الرقائق وأوّل سجلّ ٤٤ بكسلاً
+   فتُضغط المسافاتُ وحدها. **لا يُمسّ ارتفاع أيّ زرٍّ أو رقاقة** — تلك مساحات لمسٍ،
+   وتصغيرها يضرّ الإصبع لا الأثاث.
+   ── C6, second pass: the SPACING, now that the blocks have been measured ──
+   After pass one the first record on submittals sits at 430 px (58 %), down from 749. Measuring
+   what remained showed the blocks are no longer the problem — the gaps are:
+     `.table-toolbar` is 138 px tall around only 73 px of content ⇒ 65 px of pure padding
+     and there are 44 px between the last chip row and the first record.
+   So only spacing is compressed. **No button or chip height is touched** — those are touch
+   targets, and shrinking them would hurt the finger, not the furniture. */
+@media (max-width:640px){
+  html[data-az-designb="on"] .table-toolbar{
+    padding-block:.4rem;
+    gap:.4rem;
+  }
+  html[data-az-designb="on"] .table-toolbar > * + *{ margin-block-start:0 }
+  html[data-az-designb="on"] .page-head{ margin-block-end:.35rem; gap:.35rem }
+  html[data-az-designb="on"] .azb-regscope{ margin-block:.3rem }
+  /* الفراغ فوق أوّل صفّ / the space above the first row */
+  html[data-az-designb="on"] .table-toolbar + *,
+  html[data-az-designb="on"] .card > .data-table{ margin-block-start:.25rem }
+}
+
+/* ── C6، الجولة الثالثة: آخر الحشو، بعد قياس كلّ شريطٍ على حدة ─────────────
+   «الاعتمادات» عند ٣٨٦ (٥٢٫١٪)، والمطلوب ≤ ٣٣٣ (٤٥٪). وما تبقّى حشوٌ لا كتل:
+     ٣٦ بكسلاً أسفل `.table-toolbar` بعد آخر صفٍّ من الرقائق
+     ١٣ فوق `.page-head` · ٦+٦ بين الكتل · ٩ داخل `.page-head-text`
+   🔴 واللافتة تبقى سطرين: نصُّها «الموقع: … · المشروعات: …» لا يسع سطراً واحداً عند
+   ٣٧٥ بكسلاً، وقصُّه يُخفي أيَّ موقعٍ ومشروعٍ يراهما الموظّف — وذلك إخفاءُ حقيقةٍ لا تنسيق.
+   ── C6, third pass: the last of the padding, after measuring each band separately ──
+   submittals sits at 386 (52.1 %); the bar is ≤ 333 (45 %). What is left is padding, not blocks:
+     36 px below the last chip row inside `.table-toolbar` · 13 above `.page-head` ·
+     6 + 6 between blocks · ~9 inside `.page-head-text`
+   🔴 The banner STAYS TWO LINES. Its text («الموقع: … · المشروعات: …») does not fit one line at
+   375 px, and truncating it would hide WHICH site and WHICH projects the person is seeing —
+   that is hiding a fact, not tightening a layout. Padding only. */
+@media (max-width:640px){
+  html[data-az-designb="on"] .table-toolbar{ padding-block:.3rem .3rem }
+  html[data-az-designb="on"] .table-toolbar > *:last-child{ margin-block-end:0 }
+  html[data-az-designb="on"] .table-toolbar .chip-row{ margin-block-end:0 }
+  html[data-az-designb="on"] .page-head{ margin-block-start:.25rem; gap:.2rem }
+  html[data-az-designb="on"] .page-head-text{ padding-block:0 }
+  html[data-az-designb="on"] .azb-regscope{ margin-block:.25rem }
+  html[data-az-designb="on"] .chip-row.az-site-tabs{ margin-block-end:.15rem }
+}
