@@ -559,6 +559,7 @@
     'assets/js/import-headerless.js',
     /* HR Excel: Template and Export become real workbooks on HR screens only. */
     'assets/js/hr-excel-downloads.js',
+    'assets/js/hr-employee-sheet.js',
     'assets/js/app.js',
     /* آخر ملف: يلفّ Store بعد أن يكتمل كل شيء */
     'assets/js/save-guard.js',
@@ -1076,6 +1077,24 @@
        LAST wrapper on Workflow.transition on purpose — keep it last if the order ever changes. */
     'assets/js/money-send-check.js',
 
+    /* ── التصميم «ب» المعتمد — v2.0.36 ─────────────────────────────────
+       شاشات جديدة فوق الموقع: تُحمَّل هنا قبل version-badge.js مباشرة لأنها تلفّ app.js
+       وpages/entity.js وpages/dashboard-render.js وdc-requests.js، فيجب أن تكون كلّها موجودة.
+       إضافية بالكامل: حذف هذه الأسطر التسعة (والملفّات) يعيد الموقع كما كان بالضبط.
+       APPROVED DESIGN B screens, loaded HERE, immediately before version-badge.js (which stays
+       last): they WRAP app.js, pages/entity.js, pages/dashboard-render.js and dc-requests.js, so
+       every one of those must already exist. Purely additive: delete these nine lines (and the
+       files) and the portal behaves exactly as before. */
+    'assets/js/design-b-kit.js',
+    'assets/js/design-b-nav.js',
+    'assets/js/design-b-home.js',
+    'assets/js/design-b-register.js',
+    'assets/js/design-b-money-cells.js',
+    'assets/js/design-b-form.js',
+    'assets/js/design-b-phone.js',
+    'assets/js/design-b-open-path.js',
+    'assets/js/design-b-search.js',
+
     'assets/js/version-badge.js'
   ];
   var NEEDED = [
@@ -1086,6 +1105,7 @@
     ['Schema','assets/js/schema.js'],
     ['Auth','assets/js/auth.js'],
     ['PayrollInsurance','assets/js/payroll-insurance.js'],
+    ['HREmployeeSheet','assets/js/hr-employee-sheet.js'],
     ['Workflow','assets/js/workflow.js'],
     ['UI','assets/js/ui.js'],
     ['Dashboard','assets/js/pages/dashboard.js'],
