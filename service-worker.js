@@ -575,7 +575,7 @@
 
       بدون إضافتها لن يعمل الذكاء الاصطناعي ولا القسمان الجديدان بدون إنترنت.
    --------------------------------------------------------------------------- */
-var CACHE = 'alzahraa-shell-v2.0.34';
+var CACHE = 'alzahraa-shell-v2.0.36';
 
 var SHELL = [
   './', './index.html', './manifest.webmanifest', './robots.txt',
@@ -688,6 +688,7 @@ var SHELL = [
   './assets/js/hr-import-review.js',
   './assets/js/hr-lines-import.js',
   './assets/js/hr-excel-downloads.js',
+  './assets/js/hr-employee-sheet.js',
   /* ─────────────────────────────────────────────────────────────────── */
 
   /* ── جديد في v2.0.12 · NEW in v2.0.12 ──────────────────────────────── */
@@ -820,6 +821,16 @@ var SHELL = [
      existing v2.0.34 release, same logic as site-options.js above. */
   './assets/js/sent-document-cancel-guard.js',
   './assets/js/money-send-check.js',
+  './assets/css/design-b.css',
+  './assets/js/design-b-kit.js',
+  './assets/js/design-b-nav.js',
+  './assets/js/design-b-home.js',
+  './assets/js/design-b-register.js',
+  './assets/js/design-b-money-cells.js',
+  './assets/js/design-b-form.js',
+  './assets/js/design-b-phone.js',
+  './assets/js/design-b-open-path.js',
+  './assets/js/design-b-search.js',
   './assets/js/version-badge.js',
   /* ─────────────────────────────────────────────────────────────────── */
 
