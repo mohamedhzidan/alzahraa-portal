@@ -1,0 +1,174 @@
+/* =========================================================================
+   desk.css — تنسيق «مكتب المحاسب» (الشريحة ١)
+              Styling for the "accountant's desk" (slice 1)
+   -------------------------------------------------------------------------
+   مكتب المحاسب — v2.0.38 · ACCOUNTANT'S DESK — v2.0.38.
+
+   .azd-* فقط في هذا الملف؛ كل ما هو عام (البطاقات، شريط النطاق، الطابور)
+   يُعاد استعمال .azb-* من design-b.css مباشرة بلا تكرار — كما نصّت خطة
+   الملفات §9.1. المتغيّرات كلّها من design-b.css/styles.css الموجودتين،
+   لا متغيّر جديد.
+   ONLY .azd-* classes live here; everything general (cards, scope bar,
+   queue) reuses design-b.css's .azb-* directly, no duplication — exactly
+   what the file plan (§9.1) asked for. Every variable used already exists
+   in design-b.css/styles.css; nothing new is declared.
+
+   حذف هذا الملف (مع سطره في index.html وservice-worker.js) يعيد الموقع
+   إلى شكله اليوم تماماً — لا شيء هنا يُستعمَل خارج مسار deskFinance.
+   Deleting this file (with its index.html link and service-worker entry)
+   restores the portal to exactly today's look — nothing here is used
+   outside the deskFinance route.
+   ========================================================================= */
+
+/* ── ١ · أزرار البدء السريع ─────────────────────────────────────────── */
+html[data-az-designb="on"] .azd-quickstarts{
+  display:grid; grid-template-columns:repeat(auto-fill,minmax(180px,1fr));
+  gap:var(--b3); margin:var(--b3) 0 var(--b6);
+}
+html[data-az-designb="on"] .azd-quickstarts .btn{
+  flex-direction:column; align-items:flex-start; gap:var(--b1);
+  height:auto; padding:var(--b3) var(--b4); text-align:start;
+}
+html[data-az-designb="on"] .azd-quickstarts .btn span{ font-weight:700 }
+html[data-az-designb="on"] .azd-quickstarts .btn small{
+  font-weight:600; opacity:.8; font-size:.75rem; white-space:normal; overflow-wrap:anywhere;
+}
+html[data-az-designb="on"] .azd-quickstarts .btn[disabled]{ cursor:not-allowed; opacity:.72 }
+
+/* ── ٢ · بلاطات الكشوف ───────────────────────────────────────────────── */
+html[data-az-designb="on"] .azd-statements{
+  display:flex; flex-wrap:wrap; gap:var(--b3); margin:var(--b3) 0 var(--b6);
+}
+
+/* ── ٣ · صفّ شرائح السجلّات — يعيد استعمال .chip-row الموجودة ─────────── */
+html[data-az-designb="on"] .azd-registers{ margin-bottom:var(--b6) }
+
+/* ── ٤ · عناوين أقسام المكتب ─────────────────────────────────────────── */
+html[data-az-designb="on"] .azd-h{
+  font-size:.9375rem; font-weight:800; margin:0 0 var(--b2); color:var(--text);
+}
+html[data-az-designb="on"] .azd-section{ margin-bottom:var(--b6) }
+
+/* ── ٥ · إشعار «الجزء الخاص بقاعدة البيانات لم يُركَّب بعد» — الخطر ١ ──
+   the "database part not installed" notice — plan danger #1. نفس شكل
+   .azb-setup تقريباً لكن بلونٍ يميّزه كتحذير عابر لا خطأً دائماً. */
+html[data-az-designb="on"] .azd-notice{
+  display:flex; gap:var(--b3); align-items:flex-start;
+  background:var(--warn-bg); border:1px solid var(--warn); border-radius:.75rem;
+  padding:var(--b4); margin:0 0 var(--b6); color:var(--text);
+}
+html[data-az-designb="on"] .azd-notice svg{ flex:0 0 auto; width:1.25rem; height:1.25rem; color:var(--warn) }
+html[data-az-designb="on"] .azd-notice h3{ margin:0 0 var(--b1); font-size:.9375rem }
+html[data-az-designb="on"] .azd-notice p{ margin:0; font-size:.8125rem; color:var(--b-muted) }
+
+/* ── ٦ · شريط «أُدخل نيابةً عن موقع» — لمحاسبٍ يرى كل المواقع فقط ────── */
+html[data-az-designb="on"] .azd-onbehalf{
+  display:flex; flex-wrap:wrap; align-items:center; gap:var(--b3);
+  background:var(--surface,#fff); border:1px dashed var(--b-muted);
+  border-radius:.75rem; padding:var(--b3) var(--b4); margin:0 0 var(--b4);
+}
+html[data-az-designb="on"] .azd-onbehalf label{ font-size:.8125rem; font-weight:700; color:var(--b-muted) }
+html[data-az-designb="on"] .azd-onbehalf select{ min-width:180px }
+html[data-az-designb="on"] .azd-onbehalf-hint{
+  display:flex; align-items:center; gap:var(--b1); font-size:.75rem; color:var(--b-muted);
+}
+html[data-az-designb="on"] .azd-onbehalf-hint svg{ width:.875rem; height:.875rem; flex:0 0 auto }
+
+/* ── ٧ · زرّ المكتب في القائمة الجانبية وزرّ الطيّ ───────────────────── */
+html[data-az-designb="on"] .azd-nav-btn{ font-weight:800 }
+html[data-az-designb="on"] .azd-nav-toggle{ opacity:.85; font-size:.8125rem }
+html[data-az-designb="on"] .azd-nav-toggle .nav-icon svg{ transition:transform .15s ease }
+
+/* ── ٨ · نتائج لوحة الأوامر (Ctrl+K) — نفس شكل azb-docres ─────────────── */
+html[data-az-designb="on"] .azd-deskres{ border-top:1px solid var(--b-muted); margin-top:var(--b1) }
+html[data-az-designb="on"] .azd-home-cards{
+  display:flex; flex-wrap:wrap; gap:var(--b3); margin:0 0 var(--b6);
+}
+
+/* =========================================================================
+   ٩ · الشريحة ٢ — لوحة المفاتيح، المنتقي العائم، اللوحة الجانبية، شاشة
+       المراجعة، كشف العهدة (desk-grid.js/desk-cell-picker.js/desk-side-
+       panel.js/desk-settlement-review.js/desk-statements.js)
+       SLICE 2 — the keyboard contract, the floating picker, the side
+       panel, the review screen, the custody statement.
+   بلا بوابة data-az-designb عمداً: هذه الفئات تخدم أي نموذج/تقرير يستعملها
+   بصرف النظر عن تفعيل تصميم-ب، ولا تتعارض مع أي اسم فئة موجود (بادئة
+   azd- محجوزة بالفعل لهذا المكتب فقط).
+   Deliberately NOT gated behind data-az-designb: these classes serve any
+   form/report that uses them regardless of Design B, and collide with no
+   existing class name (the azd- prefix is already reserved to this desk
+   alone).
+   ========================================================================= */
+
+/* 🔴 عمود lineId المخفي — يُخفى بالاسم لا بالترتيب.
+   القاعدة القديمة «العمود الثاني» أخفت ثاني عمود في كل جدول أسطر على الموقع،
+   ومنها «الصنف/الخدمة» في اعتمادات الشراء (قِيس ٢٠ سبتمبر: صندوق الصنف ٠×٠،
+   ومسار purchaseApprovals يسقط؛ وبإلغاء السطر صار ٢٦٥×٣٥ والمسار ١٢٩/٠).
+   The hidden lineId column is hidden BY NAME, never by position: the old
+   «2nd column» rule hid the second column of EVERY lines table on the site —
+   including «Item/Service» on purchase approvals (measured 20 Sept: the item
+   box was 0×0 and the journey failed; scoping it restored 265×35 and 129/0). */
+.lines-table td:has(> [name="lineId"]) { display:none }
+.lines-table:has(td > [name="lineId"]) th:nth-child(2) { display:none }   /* رأس العمود نفسه، وفقط في جدول يحمل lineId · the header cell, only in a table that carries lineId */
+
+/* عدّادات الأسطر الحيّة (desk-grid.js) */
+.azd-linecounts td { border-top:1px dashed var(--b-muted,#ccc); padding-top:6px }
+.azd-linecounts .warn { color:var(--warn,#b45309) }
+
+/* المعدة القديمة المشطوبة (K05) */
+.azd-equip-stale { display:flex; flex-direction:column; gap:2px; font-size:.75rem }
+.azd-equip-stale s { color:var(--text-2,#666) }
+.azd-equip-stale small { color:var(--warn,#b45309) }
+.azd-equip-stale button.azd-equip-clear {
+  align-self:flex-start; border:1px solid var(--b-muted,#ccc); background:none;
+  border-radius:.4rem; padding:1px 6px; font-size:.7rem; cursor:pointer;
+}
+.azd-equip-stale.azd-na { color:var(--text-2,#999); text-align:center }
+
+/* المنتقي العائم لخانات الشبكة (desk-cell-picker.js) */
+.azd-picker {
+  position:absolute; z-index:80; background:var(--surface,#fff);
+  border:1px solid var(--b-muted,#ccc); border-radius:.5rem;
+  box-shadow:0 6px 20px rgba(0,0,0,.15); overflow:hidden;
+}
+.azd-picker-list { max-height:220px; overflow:auto }
+.azd-pk-item {
+  display:block; width:100%; text-align:start; border:0; background:none;
+  padding:6px 10px; font-size:.8125rem; cursor:pointer;
+}
+.azd-pk-item:hover, .azd-pk-item.hi { background:var(--primary-bg,#eef2ff) }
+.azd-pk-code { display:inline-block; min-width:44px; color:var(--text-2,#888); font-family:monospace }
+.azd-pk-head { padding:4px 10px; font-size:.7rem; font-weight:800; color:var(--text-2,#888) }
+.azd-pk-empty { padding:8px 10px; font-size:.8125rem; color:var(--text-2,#888) }
+/* نص مكتوب غير مطابَق — يبقى ظاهراً كما هو (البند ٣)، وقابل للوصول بالتاب */
+.azd-picker-shadow {
+  border:1px solid var(--danger,#c00); border-radius:.4rem; padding:4px 8px;
+  font-size:.8125rem; cursor:text; background:var(--danger-bg,#fff5f5);
+}
+
+/* اللوحة الجانبية (desk-side-panel.js) */
+.azd-side-flex { display:flex; gap:16px; align-items:flex-start; flex-wrap:wrap }
+.azd-side-main { flex:2 1 480px; min-width:0 }
+.azd-side { flex:1 1 220px; min-width:200px; background:var(--surface,#fff);
+  border:1px solid var(--b-muted,#ccc); border-radius:.75rem; padding:12px; }
+.azd-side-dl { display:grid; grid-template-columns:1fr auto; gap:4px 10px; margin:0 }
+.azd-side-dl dt { color:var(--text-2,#666); font-size:.75rem }
+.azd-side-dl dd { margin:0; font-weight:700 }
+.azd-shortcuts { font-size:.75rem; padding-inline-start:16px }
+
+/* شاشة قرارات المراجعة (desk-settlement-review.js) */
+.azd-review-line {
+  display:flex; flex-wrap:wrap; gap:10px; align-items:center; justify-content:space-between;
+  border:1px solid var(--b-muted,#ccc); border-radius:.6rem; padding:8px 10px; margin-bottom:6px;
+}
+.azd-review-line.accepted { border-color:var(--success,#0a7d3a) }
+.azd-review-line.returned { border-color:var(--warn,#b45309) }
+.azd-radio { display:inline-flex; align-items:center; gap:4px; font-size:.8125rem; margin-inline-end:10px }
+.azd-reasonbox { display:flex; gap:6px; flex-wrap:wrap; width:100% }
+.azd-summarystrip { display:flex; gap:14px; flex-wrap:wrap; margin:10px 0; padding:10px;
+  background:var(--surface-2,#f7f7f9); border-radius:.6rem; }
+.azd-summarystrip .warn b { color:var(--warn,#b45309) }
+.azd-note { margin-top:6px }
+
+/* كشف العهدة (desk-statements.js) */
+.azd-basis-toggle { display:flex; gap:6px }

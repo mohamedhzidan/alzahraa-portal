@@ -1,0 +1,49 @@
+/* =========================================================================
+   desk-supplier.css — أنماط شاشتَي سند الصرف/فاتورة المورّد الجديدتين
+                       Styling for the new payment/supplier-invoice bits
+   -------------------------------------------------------------------------
+   مكتب المحاسب — v2.0.38 · ACCOUNTANT'S DESK — v2.0.38. جزء من «مكتب المحاسب» (الشريحة ٣).
+
+   .azd-sup-* فقط في هذا الملف — البادئة .azd- محجوزة بالفعل لمكتب
+   المحاسب (desk.css)؛ كل ما هو عام (الشبكة، الأخطاء، البطاقات) موجود
+   هناك أو في CSS البورتال الأساسي (.alert/.badge/.err-msg/.input-error)
+   ولا يُكرَّر هنا. إضافي بحت — حذف هذا الملف يُبقي كل شيء يعمل، بلا تنسيق
+   بصري خاص فقط (نفس مبدأ desk.css).
+   ONLY .azd-sup-* classes live here — the .azd- prefix is already
+   reserved to the accountant's desk (desk.css); everything general (the
+   grid, errors, cards) already exists there or in the portal's own base
+   CSS (.alert/.badge/.err-msg/.input-error) and is never repeated here.
+   Fully additive — deleting this file leaves everything working, just
+   without this specific visual polish (same principle as desk.css).
+   ========================================================================= */
+
+/* ── الملخّص الحيّ أسفل شبكة التوزيع/الروابط (المخصَّص/غير المخصَّص، سابقاً/
+   الجديد) — صفٌّ إضافي في linesFoot، دائماً في آخر الجدول (JS يُلحِقه
+   بـappendChild). LIVE summary row under the allocation/links grid —
+   always last (JS appends it). */
+.azd-sup-foot td { border-top:1px dashed var(--b-muted,#ccc); padding-top:6px }
+.azd-sup-foot-danger td { color:var(--danger,#b3261e); font-weight:700 }
+.azd-sup-foot-summary td { color:var(--text-2,#666); font-style:italic }
+
+/* ── تلميح تكرار رقم الفاتورة، تحت خانة supplierInvoiceNo (بصري فقط، عند
+   الكتابة — لا يمنع الحفظ؛ الرفض الحقيقي عند التكرار الفعلي يأتي من
+   rules.js الموجود مسبقاً). Duplicate-invoice-number hint, under the
+   supplierInvoiceNo field (visual only, at typing time — never blocks
+   saving; the actual refusal for a real duplicate comes from the
+   pre-existing rules.js). */
+.azd-dup-hint {
+  margin-top:4px; font-size:.75rem; color:var(--warn,#b45309);
+  background:rgba(180,83,9,.08); border-radius:6px; padding:4px 8px;
+}
+
+/* ── تلميح «معدة مطلوبة» تحت خانة equipment على فاتورة/مستخلص المورّد
+   (K05 على مستوى الرأس — بصري فقط، الرفض الحقيقي في validate). A
+   "equipment required" hint under the invoice's own equipment field
+   (header-level K05 — visual only; the real refusal is in validate). */
+.azd-equip-required-hint { margin-top:4px; font-size:.75rem; color:var(--warn,#b45309) }
+
+/* ── لوحة «تخصيص لاحق» المُلحَقة داخل شاشة تفاصيل سند الصرف المُعتمَد ────
+   The "تخصيص لاحق" (later allocation) panel injected into an approved
+   payment voucher's detail screen. */
+#azdAllocateLaterSection .lines-table { margin-top:6px }
+#azdAllocateLaterSection .lines-table th, #azdAllocateLaterSection .lines-table td { padding:4px 6px }
