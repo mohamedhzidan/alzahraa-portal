@@ -575,7 +575,7 @@
 
       بدون إضافتها لن يعمل الذكاء الاصطناعي ولا القسمان الجديدان بدون إنترنت.
    --------------------------------------------------------------------------- */
-var CACHE = 'alzahraa-shell-v2.0.36';
+var CACHE = 'alzahraa-shell-v2.0.38';
 
 var SHELL = [
   './', './index.html', './manifest.webmanifest', './robots.txt',
@@ -820,6 +820,15 @@ var SHELL = [
      in portal/. CACHE not bumped for this line alone — batched with the
      existing v2.0.34 release, same logic as site-options.js above. */
   './assets/js/sent-document-cancel-guard.js',
+  /* v2.0.37 · مسير الرواتب — 8 ملفات تعمل بلا إنترنت أيضاً · payroll — 8 files, offline too */
+  './assets/js/payroll-draft-builder.js',
+  './assets/js/attendance-quick-fill.js',
+  './assets/js/payslip-print.js',
+  './assets/js/insurance-sheet.js',
+  './assets/js/payroll-vouchers.js',
+  './assets/js/leave-balance.js',
+  './assets/js/refusal-says-the-arabic-sentence.js',
+  './assets/js/advance-instalments-guard.js',
   './assets/js/money-send-check.js',
   './assets/css/design-b.css',
   './assets/js/design-b-kit.js',
@@ -831,6 +840,38 @@ var SHELL = [
   './assets/js/design-b-phone.js',
   './assets/js/design-b-open-path.js',
   './assets/js/design-b-search.js',
+  /* مكتب المحاسب — v2.0.38 (الشريحة ١). حذف هذه الأسطر
+     الستة (مع سطورها في loader.js) يعيد الموقع إلى شكله اليوم تماماً.
+     ACCOUNTANT'S DESK — v2.0.38 (slice 1). Deleting
+     these six lines (with their loader.js entries) restores the portal
+     to exactly today's shape. */
+  './assets/css/desk.css',
+  './assets/css/desk-supplier.css',
+  './assets/js/desk-finance-modules.js',
+  './assets/js/desk-finance-sync-guard.js',
+  './assets/js/desk-money-site.js',
+  './assets/js/desk-finance-roles.js',
+  './assets/js/desk-kit.js',
+  './assets/js/desk-finance.js',
+  /* الشريحة ٢ — نفس ترتيب loader.js بالحرف (تعليقه هناك يشرح لماذا). لا
+     يهم هذا الترتيب وظيفياً هنا (قائمة تخزين مؤقت مسطّحة، لا سلسلة لفّ)
+     لكنه يبقى مطابقاً لسهولة القراءة والمراجعة. desk-settlement-review.js
+     انتقل من هنا إلى قرب attachments.js أدناه، بنفس سبب loader.js بالحرف
+     (يجب أن يسبق attachments.js حتى لا يبتلع لفّته).
+     Slice 2 — the exact same order as loader.js (its comment explains
+     why). Order has no functional effect here (a flat precache list, not
+     a wrap chain) but is kept identical for readability. desk-settlement-
+     review.js moved from here to beside attachments.js below, for the
+     exact same reason as loader.js (it must precede attachments.js so its
+     wrap is not swallowed). */
+  './assets/js/desk-settlement-lines.js',
+  './assets/js/desk-supplier-docs.js',
+  './assets/js/desk-save-honesty.js',
+  './assets/js/desk-grid.js',
+  './assets/js/desk-cell-picker.js',
+  './assets/js/desk-side-panel.js',
+  './assets/js/desk-ledgers.js',
+  './assets/js/desk-statements.js',
   './assets/js/version-badge.js',
   /* ─────────────────────────────────────────────────────────────────── */
 
@@ -899,6 +940,11 @@ var SHELL = [
      draft after saving — wording only; does not work offline if missing
      from this list. (v2.0.28) */
   './assets/js/draft-save-honesty.js',
+  /* desk-settlement-review.js — انتقل هنا (قبل attachments.js) بنفس سبب
+     loader.js بالحرف؛ انظر تعليق loader.js عند هذا السطر — moved here
+     (before attachments.js), exact same reason as loader.js; see that
+     file's comment at this line. */
+  './assets/js/desk-settlement-review.js',
   './assets/js/attachments.js',
   /* 🔴 نافذة «سبب الحذف» على المرفقات — غيابها من هذه القائمة يعني أن من
      يفتح البوابة بلا اتصال يضغط ✕ فتفتح له نافذة التأكيد القديمة بلا سبب،

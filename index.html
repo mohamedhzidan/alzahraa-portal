@@ -36,6 +36,13 @@
 <!-- التصميم «ب» المعتمد (v2.0.36) — طبقة فوق الهوية، لا تستبدلها.
      APPROVED Design B (v2.0.36) — a layer OVER the brand, never a replacement. -->
 <link rel="stylesheet" href="assets/css/design-b.css">
+<!-- مكتب المحاسب — v2.0.38 (الشريحة ١). حذف هذا السطر (مع
+     assets/css/desk.css وسطره في service-worker.js) يعيد الموقع كما كان.
+     ACCOUNTANT'S DESK — v2.0.38 (slice 1). Deleting this
+     line (with assets/css/desk.css and its service-worker.js entry)
+     restores the portal exactly. -->
+<link rel="stylesheet" href="assets/css/desk.css">
+<link rel="stylesheet" href="assets/css/desk-supplier.css">
 </head>
 <body>
 <noscript><div lang="ar" dir="rtl" style="padding:24px;font-family:Tahoma,sans-serif">يجب تفعيل JavaScript لاستخدام بوابة الشركة. · JavaScript is required to use the company portal.</div></noscript>
@@ -192,7 +199,7 @@
     <footer class="app-footer">
       <span data-i18n="footer.copy">© 2026 شركة الزهراء للمقاولات العامة — نظام داخلي</span>
       <span class="footer-sep">•</span>
-      <span id="footerVersion">v2.0.36</span>
+      <span id="footerVersion">v2.0.38</span>
       <span class="footer-sep">•</span>
       <span class="production-flag">تشغيل فعلي · قاعدة بيانات مركزية · مسودات مشفّرة دون اتصال</span>
       <span id="azSyncBadge" class="sync-badge offline" hidden>غير متصل</span>
