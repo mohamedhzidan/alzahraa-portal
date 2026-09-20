@@ -100,7 +100,11 @@
         { ref: 'cashAccounts', refLabel: 'name', section: SEC.money }),
 
       F('instalments', 'عدد أقساط الخصم', 'Number of instalments', 'number',
-        { default: 1, section: SEC.plan,
+        /* min: 1 — لا صفر ولا سالب. سالبٌ واحدٌ هنا يوقف مسير الرواتب للشركة
+           كلها. (HX-P11-3، أثبته التشغيل بضابطٍ وعلاج) · min: 1 — never zero,
+           never negative. ONE negative here stops the whole company's payroll.
+           (HX-P11-3, proven by running with a control and a cure.) */
+        { default: 1, min: 1, section: SEC.plan,
           help: { ar: 'كم مرتب يُخصم عليه؟ اكتب ١ للخصم مرة واحدة',
                   en: 'Over how many payrolls? Enter 1 to deduct in one go' } }),
       F('instalmentAmount', 'قيمة القسط', 'Instalment amount', 'calc',

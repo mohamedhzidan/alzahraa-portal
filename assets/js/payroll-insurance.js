@@ -156,8 +156,17 @@
     var r = rates();
     var w = Number(wage) || 0;
     return {
-      employee: Math.round(w * r.employeePct) / 100,
-      company: Math.round(w * r.companyPct) / 100
+      /* بالقروش الصحيحة، لا بالكسور الثنائية · in whole piasters, not binary fractions.
+         الضرب المباشر يعطي 11624.88 × 18.75 = 217966.49999999997 بدل 217966.5،
+         فينزل نصف القرش لأسفل ويظهر 2179.66 والصواب 2179.67. القرش الواحد لا
+         يضرّ أحداً اليوم — كل المسجَّلين بأجر بالجنيه الصحيح — لكنه يضرّ يوم
+         يُسجَّل أحد بأجر فيه قروش. (HX-27)
+         The direct product gives 11624.88 × 18.75 = 217966.49999999997 instead
+         of 217966.5, so the half-piaster rounds DOWN and the screen shows
+         2179.66 where 2179.67 is right. One piaster harms nobody today — every
+         registered wage is a whole pound — but it will the day one is not. */
+      employee: Math.round(Math.round(w * 100) * r.employeePct / 100) / 100,
+      company: Math.round(Math.round(w * 100) * r.companyPct / 100) / 100
     };
   }
 

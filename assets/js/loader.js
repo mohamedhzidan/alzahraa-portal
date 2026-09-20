@@ -96,6 +96,39 @@
        Net pay counts the eight items hr-department.js adds — immediately
        after it, because it builds the formula from the fields that exist. */
     'assets/js/payroll-net.js',
+    /* مكتب المحاسب — v2.0.38 (الشريحة ١) — desk-finance-modules.js يضيف
+       site/entryRoute/paperRef لشاشات المال ويسجّل الوحدتين الجديدتين
+       (custodyTransfers/custodySettlements). بعد hr-department.js/
+       payroll-net.js، وقبل dc-requests.js (خطة الملفات §9.1) — لا علاقة
+       له بحقول dc-requests.js فيصحّ قبله أو بعده، والموضع هنا يتبع الخطة
+       بالحرف.
+       ACCOUNTANT'S DESK — v2.0.38 (slice 1) — desk-finance-modules.js
+       adds site/entryRoute/paperRef to the money screens and registers
+       the two new modules. After hr-department.js/payroll-net.js, before
+       dc-requests.js (file plan §9.1) — unrelated to dc-requests.js's own
+       fields, so either order would work; this slot follows the plan
+       verbatim. */
+    'assets/js/desk-finance-modules.js',
+    /* مكتب المحاسب — v2.0.38 (الشريحة ٢) — desk-finance-sync-guard.js يلفّ
+       Store.initialize لينتظر desk-finance-roles.js (يُحمَّل بعد app.js
+       بكثير) قبل أن تُبنى لقطة tableNames() الوحيدة — يمنع سباق إعادة
+       تحميل حقيقي وُجد بالتشغيل: مسودة تسوية عهدة تختفي كلياً من
+       Store.all() بعد F5 لأن Auth.canSee('custodySettlements') كان لا
+       يزال false تلك اللحظة. يحتاج store.js فقط، فيصحّ في أي مكان بعده؛
+       وُضع هنا بجوار الملف الذي يسجّل الوحدتين الجديدتين لسهولة القراءة
+       فقط — لا علاقة وظيفية بمحتواه. التفاصيل الكاملة في رأس الملف نفسه.
+       ACCOUNTANT'S DESK — v2.0.38 (slice 2) — desk-finance-sync-
+       guard.js wraps Store.initialize to wait for desk-finance-roles.js
+       (loaded far after app.js) before the ONE-TIME tableNames()
+       snapshot is built — closing a REAL reload race found by running
+       this: a saved custody settlement draft vanished completely from
+       Store.all() after F5, because Auth.canSee('custodySettlements')
+       was still false at that exact moment. Needs only store.js, so any
+       slot after it is correct; placed here next to the file that
+       registers the two new modules purely for readability — no
+       functional link to its content. Full detail in the file's own
+       header. */
+    'assets/js/desk-finance-sync-guard.js',
     /* dc-requests.js يضيف حقولاً لشاشات departments.js، فيجب أن يأتي بعده */
     'assets/js/dc-requests.js',
     /* dc-tuning.js يوسّع نفس شاشات ضبط المستندات (أرقام حقيقية، بادئة SI،
@@ -313,6 +346,10 @@
     'assets/js/pages/dashboard.js',
     'assets/js/pages/dashboard-render.js',
     'assets/js/pages/entity.js',
+    /* v2.0.37 · مسير الرواتب: زرّ «توليد البنود» · payroll: the Generate-lines button */
+    'assets/js/payroll-draft-builder.js',
+    /* v2.0.37 · كشف حضور الموقع: «املأ بموظفي الموقع» · site attendance: fill with the site staff */
+    'assets/js/attendance-quick-fill.js',
     'assets/js/pages/approvals.js',
     /* حكم ١٩ (١٠ سبتمبر ٢٠٢٦) · صندوق الاعتمادات يحترم سياج المشروعات.
        العطل: صندوق الاعتمادات عرض على مدير المشروع ٤ أذون صرف ليعتمدها،
@@ -424,6 +461,41 @@
        UI.toast; needs no specific order relative to what precedes it
        here, placed near the other save-related files for readability. */
     'assets/js/refusal-explain.js',
+    /* v2.0.37 · رفضٌ عربي من القاعدة يُعرض كما كُتب · an Arabic refusal from the database is shown as written */
+    'assets/js/refusal-says-the-arabic-sentence.js',
+    /* مكتب المحاسب — v2.0.38 (الشريحة ٢) — desk-settlement-review.js يستبدل
+       EntityPage.openDetail('custodySettlements', …) كلياً بشاشته
+       الخاصة، ويرجع فوراً دون نداء الأصل لهذه الوحدة (انظر تعليق الملف
+       نفسه، آخر سطوره). فلو حُمِّل بعد attachments.js/audit-trail.js/
+       attachment-reader.js/camera-capture.js — كما كان — لصار هو الأبعد
+       (آخر مَن لفّ)، فتُبتلَع كل تلك اللفّات ولا تُستدعى أبداً على تسويات
+       العهدة تحديداً: لا لوحة مرفقات، لا لوحة سجل. مُثبَت بالتشغيل
+       (المُدقِّق، ١٩ سبتمبر): #modalBody لشاشة التسوية كان فارغاً تماماً
+       بينما شاشة سند صرف عادية تُظهر azHistoryPanel/azAttachSection.
+       الإصلاح: تحميله هنا، قبل attachments.js، فيصبح هو الأعمق (الأصل
+       الحقيقي الذي تناديه كل اللفّات اللاحقة)، فتظل attachments.js وما
+       بعدها هي الأبعد لكل الوحدات — بما فيها تسويات العهدة — وتُلحق
+       لوحتيها بعد أن يرسم هو شاشته. يحتاج فقط EntityPage (pages/entity.js
+       سطر ٣٤٨) وSchema/Store/Auth — كلها محمَّلة قبل هذا السطر بكثير.
+       ACCOUNTANT'S DESK — v2.0.38 (slice 2) — desk-settlement-review.js
+       REPLACES EntityPage.openDetail('custodySettlements', …) entirely
+       with its own screen and returns immediately without calling the
+       original for this module (see that file's own header, its last
+       lines). If loaded AFTER attachments.js/audit-trail.js/attachment-
+       reader.js/camera-capture.js — as it was — it becomes the OUTERMOST
+       wrap (wrapped last), swallowing every one of those wraps so they
+       are NEVER called for custody settlements specifically: no
+       attachment panel, no history panel. Proven by running (integrator,
+       19 Sept): a settlement window's #modalBody was completely empty
+       while an ordinary payment window shows azHistoryPanel/
+       azAttachSection. Fix: load it HERE, before attachments.js, so it
+       becomes the INNERMOST wrap (the true "original" every later wrap
+       calls through to) — leaving attachments.js and everything after it
+       outermost for every module, custody settlements included, so their
+       panels get appended after this file draws its own screen. Needs
+       only EntityPage (pages/entity.js, line 348) and Schema/Store/Auth —
+       all loaded long before this line. */
+    'assets/js/desk-settlement-review.js',
     'assets/js/attachments.js',
     /* 🔴 سبب مكتوب قبل حذف أي مرفق — يجب أن يُرفع مع
        1-SUPABASE/63-PRIVATE-FILES-AND-DELETE-WITH-REASON.sql في نفس الجلسة:
@@ -446,6 +518,12 @@
        The employee statement wraps EntityPage.openDetail exactly as
        attachments.js does, so it comes after it and lands below it. */
     'assets/js/employee-statement.js',
+    /* v2.0.37 · قسائم الراتب لمن يرى المسير فقط · payslips, payroll viewers only */
+    'assets/js/payslip-print.js',
+    /* v2.0.37 · كشف التأمينات الشهري · the monthly insurance sheet */
+    'assets/js/insurance-sheet.js',
+    /* v2.0.37 · سندات صرف مسير معتمد (المالية) · vouchers for an approved run (finance) */
+    'assets/js/payroll-vouchers.js',
     /* يُنهي إصلاح المخزون: يُلصق Dashboard.analytics بالحساب المصحَّح
        (يحتاج Dashboard موجوداً — بعد pages/dashboard.js)، ويضيف زرّ
        «تسجيل وصول التحويل» على تحويل معتمد عبر لفّ EntityPage.openDetail
@@ -612,6 +690,18 @@
        site column, so that box always renders blank.
        Proven by running TESTS/site-field-required-trial.js. (v2.0.34) */
     'assets/js/site-field-required.js',
+    /* مكتب المحاسب — v2.0.38 (الشريحة ١) — desk-money-site.js يلفّ
+       Auth.scopeRows من الخارج (بعد لفّة sites.js) ليمنع محاسباً بلا
+       موقع من رؤية كل شاشات المال (الخطة §4.1 «A9»)، ويرفض اختيار خزينة
+       عهدة كحساب دفع سند صرف. يحتاج desk-finance-modules.js (حقل site
+       على شاشات المال) وsites.js/auth.js — كلاهما محمَّل قبله بكثير.
+       ACCOUNTANT'S DESK — v2.0.38 (slice 1) — desk-money-site.js wraps
+       Auth.scopeRows from the outside (after sites.js's own wrap) so a
+       no-site accountant sees nothing on the money screens, and refuses a
+       custody box as a payment's cash account. Needs desk-finance-
+       modules.js (the site field on money screens) and sites.js/auth.js —
+       both long since loaded. */
+    'assets/js/desk-money-site.js',
     /* يملأ اسم «قام بإنشائه» لدور خارج الخمسة التي يجلب لها store.js:62
        جدول users كاملاً — بعد site-options.js مباشرة: كلاهما يلفّ
        Store.find، لكن على جدولين مختلفين تماماً (sites/users) فلا تصادم
@@ -945,6 +1035,8 @@
        pages/entity.js draws. (v2.0.31) */
     'assets/js/item-duplicate-guard.js',
     'assets/js/line-stock-balance.js',
+    /* v2.0.37 · سلف الموظفين: لا يُحفظ قسطُ خصمٍ صفراً أو سالباً · employee advances: refuses a save with a zero or negative instalment count */
+    'assets/js/advance-instalments-guard.js',
 
     /* 🔴 من يعتمد مستندات المخازن — الطبقة الأولى من ثلاث. يحتاج auth.js
        فوقه لأنه يضيف إلى Auth.ROLES مباشرةً (وهو نفس الكائن الذي تقرأه
@@ -960,6 +1052,20 @@
        press is refused with "Approval not allowed". The two layers go
        together, never one without the other. (v2.0.31) */
     'assets/js/stock-approval-roles.js',
+    /* مكتب المحاسب — v2.0.38 (الشريحة ١) — desk-finance-roles.js يمنح
+       الأدوار حقوقها على «مكتب المحاسب» ووحدتَي العهدة الجديدتين، بنفس
+       نمط stock-approval-roles.js فوقه بالحرف (تعديل Auth.ROLES مباشرة،
+       مُثبَت بالتشغيل لا مفترَضاً في stock-approval-roles.js نفسه).
+       🔴 وحده لا يكفي أيضاً: طبقة قاعدة البيانات لوحدتَي العهدة من عمل
+       الملف 87 (87-CUSTODY-DOCUMENTS.sql)، ويُشغَّل قبل رفع هذا.
+       ACCOUNTANT'S DESK — v2.0.38 (slice 1) — desk-finance-roles.js
+       grants roles their rights on the desk and the two new custody
+       modules, the exact same pattern as stock-approval-roles.js right
+       above it (mutating Auth.ROLES directly, proven by running in that
+       file, not assumed).
+       🔴 Also not enough alone: the database layer for the two custody
+       modules is file 87 (87-CUSTODY-DOCUMENTS.sql), run before this upload. */
+    'assets/js/desk-finance-roles.js',
 
     /* 🔴 تقارير المخازن الثلاثة التي طلبها أ. أحمد بالاسم وبأعمدته.
        زرّ في مجموعة المخازن، لا تبويب في «التقارير» — قِسْتُ أن دور أمين
@@ -1046,6 +1152,8 @@
        Deleting these two lines restores the previous behaviour exactly.
        TESTS/sheet-approval-hold-trial.js · TESTS/disabled-button-wrap-trial.js */
     'assets/js/sheet-approval-hold.js',
+    /* v2.0.37 · رصيد الإجازات — قبل money-send-check.js حتماً ليبقى ذاك الأخير · leave balance — BEFORE money-send-check.js so that one stays outermost */
+    'assets/js/leave-balance.js',
     'assets/js/disabled-button-wrap.js',
     'assets/js/save-project-fence.js',
 
@@ -1095,6 +1203,60 @@
     'assets/js/design-b-open-path.js',
     'assets/js/design-b-search.js',
 
+    /* مكتب المحاسب — v2.0.38 (الشريحة ١) — المحرّك القابل لإعادة الاستعمال
+       (desk-kit.js) ثم ضبط المالية (desk-finance.js). بعد design-b-
+       search.js لأنه يستعمل AZB/AZBHome ونمط تسجيل لوحة الأوامر نفسه؛
+       وقبل version-badge.js الموثَّق دائماً أنه الأخير في هذه القائمة.
+       ACCOUNTANT'S DESK — v2.0.38 (slice 1) — the reusable engine
+       (desk-kit.js), then finance's own config (desk-finance.js). After
+       design-b-search.js because it uses AZB/AZBHome and the same
+       palette-registration pattern; before version-badge.js, documented
+       everywhere in this file as always last. */
+    'assets/js/desk-kit.js',
+    'assets/js/desk-finance.js',
+
+    /* مكتب المحاسب — v2.0.38 (الشريحة ٢: العهدة + لوحة المفاتيح) — ستة
+       ملفات هنا (سابعها، desk-settlement-review.js، انتقل قبل
+       attachments.js — انظر السطر ٤٦٠ وتعليقه — ولم يعد في هذه الكتلة)،
+       بهذا الترتيب بالضبط:
+       desk-settlement-lines.js يضيف mod.lines/mod.quickEntry على وحدة
+       custodySettlements أولاً (desk-grid.js/desk-cell-picker.js يقرآن
+       ذلك عند كل ضغطة، لا وقت التحميل، فترتيبهما بعده غير حرج وظيفياً،
+       لكنه محفوظ للوضوح فقط) — ثم عقد لوحة المفاتيح (desk-grid.js)
+       والمنتقي العائم (desk-cell-picker.js، بعد ref-search-picker.js
+       المُحمَّل أعلاه على السطر ٩٥٣ لأنه يعيد استعمال RefDropdownScope/
+       ArabicText نفسيهما) — ثم اللوحة الجانبية (desk-side-panel.js) —
+       وأخيراً desk-ledgers.js (مصدر الحركات) قبل desk-statements.js
+       الذي يستهلكه مباشرة. كل الكتلة قبل version-badge.js الموثَّق دائماً
+       أنه الأخير.
+       ACCOUNTANT'S DESK — v2.0.38 (slice 2: custody + keyboard) — six
+       files here (its seventh, desk-settlement-review.js, moved to
+       before attachments.js — see line 460 and its comment — and is no
+       longer in this block), in this exact order:
+       desk-settlement-lines.js adds mod.lines/mod.quickEntry to the
+       custodySettlements module first (desk-grid.js/desk-cell-picker.js
+       read that on every keypress, not at load time, so their order
+       after it is not functionally critical, kept only for clarity) —
+       then the keyboard contract (desk-grid.js) and the floating picker
+       (desk-cell-picker.js, after ref-search-picker.js loaded above at
+       line 953 because it reuses the SAME RefDropdownScope/ArabicText)
+       — then the side panel (desk-side-panel.js) — and finally
+       desk-ledgers.js (the movements source) before desk-statements.js
+       which consumes it directly. The whole block sits before
+       version-badge.js, documented everywhere as always last. */
+    'assets/js/desk-settlement-lines.js',
+    /* مستندات المورد — v2.0.38 (الشريحة ٣) — desk-supplier-docs.js: شبكة تخصيص سند الصرف على الفواتير، وأنواع الفاتورة/المستخلص/الإشعار الدائن، و«تخصيص لاحق». حذفه يعيد سلوك اليوم.
+       SUPPLIER DOCUMENTS — v2.0.38 (slice 3) — payment allocation grid, invoice/certificate/credit kinds, later allocation. Deleting it restores today. */
+    'assets/js/desk-supplier-docs.js',
+    /* صدق الحفظ — v2.0.38 (الشريحة ٢) — desk-save-honesty.js يعيد قراءة الصف من الخادم بعد الحفظ حتى لو ظنّ المتصفح أنه غير متصل، ويُبقي شريطاً ثابتاً حتى يتأكد. قِيس ١٩ سبتمبر: save-guard.js لا يحذّر على هذا المسار. حذفه يعيد سلوك اليوم.
+       SAVE HONESTY — v2.0.38 (slice 2) — re-reads the row from the server after a save even when the browser thinks it is offline; keeps a persistent banner until confirmed. Measured 19 Sept: save-guard.js never warns on this path. Deleting it restores today. */
+    'assets/js/desk-save-honesty.js',
+    'assets/js/desk-grid.js',
+    'assets/js/desk-cell-picker.js',
+    'assets/js/desk-side-panel.js',
+    'assets/js/desk-ledgers.js',
+    'assets/js/desk-statements.js',
+
     'assets/js/version-badge.js'
   ];
   var NEEDED = [
@@ -1108,6 +1270,14 @@
     ['HREmployeeSheet','assets/js/hr-employee-sheet.js'],
     ['Workflow','assets/js/workflow.js'],
     ['UI','assets/js/ui.js'],
+    /* مكتب المحاسب — v2.0.38 (الشريحة ١) — desk-kit.js هو الملف الوحيد من
+       ملفات المكتب الذي لا يعلن نفسه بطريقة أخرى (لا يُسجَّل كوحدة
+       Schema)، فيحتاج فحصه هنا صراحةً كما يفعل كل ملف Design B الآخر.
+       ACCOUNTANT'S DESK — v2.0.38 (slice 1) — desk-kit.js is the one
+       desk file with no other way to announce itself (never a Schema
+       module), so it needs this explicit check like every other Design B
+       file. */
+    ['DeskKit','assets/js/desk-kit.js'],
     ['Dashboard','assets/js/pages/dashboard.js'],
     ['EntityPage','assets/js/pages/entity.js'],
     ['ApprovalsPage','assets/js/pages/approvals.js'],
