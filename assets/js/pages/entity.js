@@ -311,9 +311,19 @@
     var src = Store.find(mod.table, id);
     if (!src) return;
     var copy = JSON.parse(JSON.stringify(src));
+    /* 🔴 v2.0.37 — «نسخ» يصنع مستنداً جديداً، لا نسخة عكس. صفّ العكس الذي يكتبه زرّ «عكس» يحمل علامة isReversal ورابط
+       reversalOf، وكانت «نسخ» تنقلهما إلى المسودة الجديدة: فيُعتمد السند ويُصرف، ولا تعدّه لوحة البيانات ولا التقارير، ويتخطّاه
+       قيد «سند واحد لكل مسير وطريقة دفع» — أي يُصرف المسير مرتين. قاسه مُبلِّغ الأخطاء مرتين على قاعدة بيانات تجريبية مستقلة.
+       حقول العكس الخمسة تُحذف هنا مع حقول الاعتماد، وملف قاعدة بيانات الرواتب في الإصدار نفسه يرفض العلامة إن وصلت من طريقٍ آخر.
+       🔴 v2.0.37 — «نسخ» makes a NEW document, never a reversal copy. The reversal row the «عكس» button writes carries isReversal
+       and reversalOf, and «نسخ» used to carry both into the new draft: the voucher was approved and paid, while the dashboard and
+       the reports skipped it and the «one voucher per run and payment method» rule ignored it — a run paid twice. Measured twice by
+       the bug-reporter on a separate copy of the database. The five reversal fields are removed here with the approval fields, and
+       the payroll database file of the same release refuses the mark if it arrives by any other path. */
     ['id', 'docNo', 'status', 'trail', 'createdAt', 'createdBy', 'updatedAt', 'updatedBy',
      'submittedBy', 'submittedAt', 'reviewedBy', 'reviewedAt', 'approvedBy', 'approvedAt',
-     'postedAt', 'rejectedBy', 'rejectedAt', 'rejectReason', 'returnReason'].forEach(function (k) { delete copy[k]; });
+     'postedAt', 'rejectedBy', 'rejectedAt', 'rejectReason', 'returnReason',
+     'isReversal', 'reversalOf', 'reversedBy', 'reversedAt', 'reverseReason'].forEach(function (k) { delete copy[k]; });
     openForm(moduleId, null, copy);
   }
 
@@ -629,7 +639,15 @@
         : (f.type === 'number' || f.type === 'money' || f.type === 'percent') ? 'number'
         : f.type === 'email' ? 'email' : f.type === 'phone' ? 'tel' : 'text';
       var step = (f.type === 'money' || f.type === 'percent') ? ' step="0.01"' : (f.type === 'number' ? ' step="any"' : '');
-      h += '<input type="' + type + '" class="input" name="' + UI.attr(f.name) + '"' + step +
+      /* أدنى قيمة إن أعلنها الحقل — عامٌّ لا خاصٌّ بشاشة. سبب وجوده: خانة
+         «عدد أقساط الخصم» كانت تقبل «-3»، وصفٌّ واحدٌ كهذا يوقف توليد مسير
+         الرواتب للشركة كلها بكل شهر برسالة إنجليزية لا تسمّي أحداً. (HX-P11-3)
+         A minimum, when the field declares one — general, not one screen's
+         special case. Why it exists: «Number of instalments» accepted -3, and
+         ONE such row stops payroll generation for the entire company, every
+         month, behind an English message that names nobody. */
+      var minAttr = (type === 'number' && f.min !== undefined && f.min !== null) ? ' min="' + UI.attr(f.min) + '"' : '';
+      h += '<input type="' + type + '" class="input" name="' + UI.attr(f.name) + '"' + step + minAttr +
         (readonly ? ' disabled' : '') + ' value="' + UI.attr(v === undefined || v === null ? '' : v) + '">';
     }
     if (f.help) h += '<span class="field-hint">' + UI.esc(L(f.help)) + '</span>';
