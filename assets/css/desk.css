@@ -172,3 +172,30 @@ html[data-az-designb="on"] .azd-home-cards{
 
 /* كشف العهدة (desk-statements.js) */
 .azd-basis-toggle { display:flex; gap:6px }
+
+/* =====================================================================
+   🔴 ٢١ سبتمبر ٢٠٢٦ — أيقونتان بلا مقاس، وقد رآهما محمد زيدان أوّل ما فتح
+   المكتب على الموقع الحيّ: أيقونة عنوان الصفحة رُسمت ١٣٥٩×١٣٥٩ بكسل،
+   وأيقونات أزرار البدء الستّة ١٧٢×١٧٢ لكلٍّ منها. السبب: AZB.icon تُخرج
+   <svg> بـ viewBox بلا width/height، فتملأ وعاءها ما لم يُحدّده تنسيق —
+   وباقي أيقونات البوابة تحمل width="22" height="22" في النصّ نفسه، فلم
+   يظهر العيب في أي شاشة أخرى. ولم تلتقطه تجربة واحدة لأن التجارب كلّها
+   تقيس وجود العناصر ونصوصها، لا مقاسها المرسوم.
+   القاعدة هنا تمسّ الأيقونات التي لا تحمل مقاساً صريحاً فقط — :not([width])
+   — فلا يمكن أن تغيّر أيقونةً سليمة، وهي غير محصورة بـ Design B لأن المكتب
+   يجب أن يظهر صحيحاً في الحالتين.
+   🔴 21 Sept 2026 — two icons with no size, and Mohamed Zidan saw them the
+   moment he opened the desk on the live site: the page-title icon rendered at
+   1359×1359 pixels, and each of the six start-button icons at 172×172. Cause:
+   AZB.icon emits an <svg> with a viewBox and NO width/height, so it fills its
+   container unless a style sets one — while every other portal icon carries
+   width="22" height="22" in the markup itself, which is why no other screen
+   showed it. Not one trial caught it, because every trial measures that
+   elements EXIST and what they say, never how big they are drawn.
+   This rule touches only icons with no explicit size — :not([width]) — so it
+   cannot change a healthy icon, and it is NOT locked behind Design B, because
+   the desk must look right either way.
+   Measured: _trials/look-2026-09-21/look-oversized.js
+   ===================================================================== */
+.page-title svg:not([width]) { width:22px; height:22px; flex:0 0 auto; vertical-align:middle }
+.azd-qs svg:not([width])     { width:20px; height:20px; flex:0 0 auto }
